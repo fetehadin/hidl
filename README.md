@@ -8,6 +8,9 @@ A private, single-user journal for senior year:
 
 Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase (Auth, Postgres, Storage) · Vercel
 
+**Hosting is free.** There is no VPS or server to run. The app runs on the Vercel Hobby plan, the database, auth and
+photo storage run on the Supabase free plan, and the optional unlock emails use Resend's free plan.
+
 ---
 
 ## How the important rules are enforced
@@ -28,7 +31,8 @@ All timestamps are `timestamptz` (UTC). Calendar days are `date` values meaning 
 
 ## Local setup
 
-Requirements: Node 20+, pnpm, Docker.
+Requirements: Node 22+, pnpm (run `corepack enable` once to get the pinned version), Docker.
+Each developer runs their **own** local Supabase in Docker, so nobody needs the production keys to work on the app.
 
 ```bash
 pnpm install
@@ -45,7 +49,7 @@ Fill `.env.local` from the `db:status` output:
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `PUBLISHABLE_KEY` |
 | `SUPABASE_SECRET_KEY` | `SECRET_KEY` (used by tests and the email cron, server-side only) |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` |
-| `ALLOWED_EMAIL` | the email you'll sign in with |
+| `ALLOWED_EMAIL` | the email you'll sign in with (comma-separate several, e.g. `a@x.com,b@y.com`) |
 
 ```bash
 pnpm dev
@@ -103,7 +107,7 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
    | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | publishable key |
    | `SUPABASE_SECRET_KEY` | secret key (only needed for unlock emails) |
    | `NEXT_PUBLIC_SITE_URL` | `https://<your-app>.vercel.app` |
-   | `ALLOWED_EMAIL` | your email |
+   | `ALLOWED_EMAIL` | your email (comma-separated if more than one person signs in) |
 
 3. Deploy, then make sure the Supabase Site URL and redirect URLs (steps 3–4 above) match the deployed domain.
 
@@ -120,6 +124,24 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
 | `SUPABASE_SECRET_KEY` | required for this job |
 
 The email contains the letter's title and a link, never the body. Each letter is announced once, and failed sends are retried the next day.
+
+---
+
+> **Free-tier limits to know about.** Supabase pauses a free project after a week with no activity; open the
+> dashboard and click **Restore** if that happens (data is kept). Vercel Hobby runs cron jobs at most once a day,
+> which is all the unlock-email job needs. Resend's free plan allows 3,000 emails a month.
+
+---
+
+## Working together
+
+- Branch from `main` and open a pull request; don't push straight to `main`. GitHub Actions runs typecheck, lint and
+  unit tests on every PR (`.github/workflows/ci.yml`).
+- Before pushing, run `pnpm typecheck && pnpm lint && pnpm test:all` (integration tests need `pnpm db:start`).
+- Database changes go in a **new** file in `supabase/migrations/` (`pnpm exec supabase migration new <name>`).
+  Never edit a migration that has already been pushed to production. Apply it locally with `pnpm db:reset`.
+- Never commit `.env.local` or real keys. If you add a variable, add a placeholder for it to `.env.example` and a row to this README.
+- Production keys live only in Vercel and the Supabase dashboard. Ask the owner for access there instead of sharing keys in chat.
 
 ---
 
