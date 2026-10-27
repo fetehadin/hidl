@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Every page is per-user and rendered at request time, so Cache Components/PPR stay off.
   turbopack: {
     rules: {
       "*.css": {

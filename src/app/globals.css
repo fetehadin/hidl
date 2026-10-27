@@ -1,26 +1,327 @@
 @import "tailwindcss";
 
+/*
+  Journal palette: paper, ink, terracotta and sage.
+  Every color is a token, so dark mode only redefines the variables.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --paper: #f5ede0;
+  --paper-deep: #ece1cf;
+  --card: #fbf6ec;
+  --ink: #2f2520;
+  --ink-soft: #5c4d43;
+  --muted: #7b6a5d;
+  --line: #e0d2bd;
+  --accent: #9c4a2c; /* terracotta, 6.1:1 on --card */
+  --accent-ink: #fbf6ec;
+  --accent-soft: #f0dccd;
+  --sage: #56694a;
+  --sage-soft: #dfe5d3;
+  --wax: #8e2f2a;
+  --envelope: #efe1c9;
+  --envelope-flap: #e4d1b3;
+  --letter-paper: #fffaf1;
+  --shadow: 47 37 32;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --paper: #1b1613;
+    --paper-deep: #15110f;
+    --card: #251e1a;
+    --ink: #f0e6d8;
+    --ink-soft: #d4c6b4;
+    --muted: #a8988a;
+    --line: #3a302a;
+    --accent: #e0946d;
+    --accent-ink: #1b1613;
+    --accent-soft: #3d2a20;
+    --sage: #a9bd96;
+    --sage-soft: #2b3226;
+    --wax: #b8453e;
+    --envelope: #2f2620;
+    --envelope-flap: #3a2f27;
+    --letter-paper: #2a221d;
+    --shadow: 0 0 0;
+    color-scheme: dark;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-sage: var(--sage);
+  --color-sage-soft: var(--sage-soft);
+  --color-wax: var(--wax);
+
+  --font-serif: var(--font-body), ui-serif, Georgia, serif;
+  --font-display: var(--font-display), ui-serif, Georgia, serif;
+  --font-hand: var(--font-hand), ui-rounded, cursive;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--paper);
+    /* Faint paper grain (an inline SVG noise pattern), nearly invisible but warm. */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5  0 0 0 0 0.4  0 0 0 0 0.3  0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    color: var(--ink);
+    font-family: var(--font-serif);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+  }
+}
+
+@layer components {
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    box-shadow:
+      0 1px 0 rgb(var(--shadow) / 0.04),
+      0 8px 24px -12px rgb(var(--shadow) / 0.18);
+  }
+
+  .eyebrow {
+    font-family: var(--font-hand);
+    font-size: 1.15rem;
+    line-height: 1;
+    color: var(--accent);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0 1.1rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    transition: transform 120ms ease, background-color 120ms ease, opacity 120ms ease;
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn:disabled {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .btn-primary:hover {
+    background: color-mix(in oklab, var(--accent) 88%, var(--ink));
+  }
+  .btn-ghost {
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+  }
+  .btn-ghost:hover {
+    background: var(--paper-deep);
+  }
+
+  .field {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .field::placeholder {
+    color: var(--muted);
+  }
+  .field:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
+    border-color: transparent;
+  }
+}
+
+/* ---------- Letters ---------- */
+@layer components {
+  .envelope {
+    position: relative;
+    background: var(--envelope);
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    overflow: hidden;
+    perspective: 900px;
+    box-shadow: 0 10px 28px -16px rgb(var(--shadow) / 0.35);
+  }
+  .envelope-flap {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 4.5rem;
+    background: var(--envelope-flap);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    transform-origin: top;
+    transition: transform 700ms cubic-bezier(0.3, 0.7, 0.2, 1);
+    z-index: 1;
+  }
+  .envelope[data-state="opened"] .envelope-flap {
+    transform: rotateX(180deg);
+    opacity: 0.55;
+  }
+  .envelope-seal {
+    position: absolute;
+    top: 3.15rem;
+    left: 50%;
+    width: 2.6rem;
+    height: 2.6rem;
+    margin-left: -1.3rem;
+    display: grid;
+    place-items: center;
+    border-radius: 9999px;
+    background: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--wax) 70%, white), var(--wax) 55%);
+    color: color-mix(in oklab, var(--wax) 35%, white);
+    font-family: var(--font-display);
+    font-weight: 700;
+    box-shadow: 0 2px 0 rgb(0 0 0 / 0.15), inset 0 -2px 4px rgb(0 0 0 / 0.25);
+    z-index: 2;
+    transition: transform 400ms ease, opacity 400ms ease;
+  }
+  .envelope[data-state="ready"] .envelope-seal {
+    animation: seal-glow 2.4s ease-in-out infinite;
+  }
+  .envelope-content {
+    position: relative;
+    padding: 5.75rem 1.25rem 1.25rem;
+  }
+
+  .letter-paper {
+    background: var(--letter-paper);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    box-shadow: 0 18px 40px -24px rgb(var(--shadow) / 0.45);
+  }
+
+  .prose-letter {
+    font-size: 1.1rem;
+    line-height: 1.85rem;
+    overflow-wrap: anywhere;
+  }
+  .prose-letter > * + * {
+    margin-top: 1.85rem;
+  }
+  .prose-letter h1,
+  .prose-letter h2,
+  .prose-letter h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 1.85rem;
+  }
+  .prose-letter h1 {
+    font-size: 1.5rem;
+  }
+  .prose-letter h2 {
+    font-size: 1.3rem;
+  }
+  .prose-letter a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .prose-letter ul {
+    list-style: disc;
+    padding-left: 1.4rem;
+  }
+  .prose-letter ol {
+    list-style: decimal;
+    padding-left: 1.4rem;
+  }
+  .prose-letter blockquote {
+    border-left: 3px solid var(--accent-soft);
+    padding-left: 1rem;
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+  .prose-letter code {
+    font-size: 0.95em;
+    background: var(--paper-deep);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.3rem;
+  }
+  .prose-letter hr {
+    border-color: var(--line);
+  }
+
+  /* Reveal: seal cracks, flap lifts, letter slides out. */
+  .reveal[data-phase="opening"] .envelope-seal,
+  .reveal[data-phase="open"] .envelope-seal {
+    transform: scale(1.3) rotate(-12deg);
+    opacity: 0;
+  }
+  .reveal-letter {
+    animation: letter-rise 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: 450ms;
+  }
+}
+
+@keyframes seal-glow {
+  0%,
+  100% {
+    box-shadow: 0 2px 0 rgb(0 0 0 / 0.15), inset 0 -2px 4px rgb(0 0 0 / 0.25), 0 0 0 0 color-mix(in oklab, var(--wax) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 2px 0 rgb(0 0 0 / 0.15), inset 0 -2px 4px rgb(0 0 0 / 0.25), 0 0 0 10px transparent;
+  }
+}
+
+@keyframes letter-rise {
+  from {
+    opacity: 0;
+    transform: translateY(2.5rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 400ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
