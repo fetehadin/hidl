@@ -1,0 +1,30 @@
+name: Deploy
+
+# Deploys to Vercel via the CLI instead of Vercel's native Git integration, because
+# that integration requires installing Vercel's GitHub App on the repo owner's
+# account (admin-only), which isn't available here. Runs only after CI succeeds.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: team_vcH1DLwyjaDKLVA7dFhf1E1b
+      VERCEL_PROJECT_ID: prj_G4dDmuwD6VA6RZn50qKonwo5Nu1J
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm dlx vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

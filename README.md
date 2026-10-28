@@ -111,6 +111,12 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
 
 3. Deploy, then make sure the Supabase Site URL and redirect URLs (steps 3–4 above) match the deployed domain.
 
+**Auto-deploy on push.** `.github/workflows/deploy.yml` deploys to Vercel via the CLI after CI passes on `main`,
+instead of Vercel's native Git integration (that integration needs its GitHub App installed on the repo owner's
+account, which needs admin access we don't have here). It needs a `VERCEL_TOKEN` repository secret (Settings →
+Secrets and variables → Actions on GitHub) — generate one at
+[vercel.com/account/tokens](https://vercel.com/account/tokens).
+
 ### Optional: email on unlock day
 
 `vercel.json` schedules `/api/cron/unlock-emails` daily at 05:00 UTC (08:00 in Addis). It does nothing unless enabled:
