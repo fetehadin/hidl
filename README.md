@@ -23,7 +23,7 @@ photo storage run on the Supabase free plan, and the optional unlock emails use 
 | One photo per user per day | `UNIQUE (user_id, date)` on `photos` |
 | No photos for future days | `photos_before_write` trigger, using `app_today()` (Africa/Addis_Ababa) |
 | Users only see their own data | RLS on every table and on the `photos` storage bucket (per-user folder) |
-| Only you can sign in | `ALLOWED_EMAIL` is checked in the login action, the magic-link callback and `requireUser()` on every server entry point |
+| Only allowed emails can sign in (unless opened to everyone) | `ALLOWED_EMAIL` is checked in the login action, the magic-link callback and `requireUser()` on every server entry point. Set it to `*` to allow anyone to sign up — each person gets their own isolated letters/countdown/calendar, scoped by RLS. |
 
 All timestamps are `timestamptz` (UTC). Calendar days are `date` values meaning the local day in Africa/Addis_Ababa. Everything is displayed in Addis time.
 
@@ -49,7 +49,7 @@ Fill `.env.local` from the `db:status` output:
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `PUBLISHABLE_KEY` |
 | `SUPABASE_SECRET_KEY` | `SECRET_KEY` (used by tests and the email cron, server-side only) |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` |
-| `ALLOWED_EMAIL` | the email you'll sign in with (comma-separate several, e.g. `a@x.com,b@y.com`) |
+| `ALLOWED_EMAIL` | the email you'll sign in with (comma-separate several, e.g. `a@x.com,b@y.com`, or `*` to let anyone sign up) |
 
 ```bash
 pnpm dev
@@ -89,8 +89,9 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
      Email Templates → Magic Link and Confirm signup), the link works from any device. On the free tier,
      Supabase only allows custom templates once you configure custom SMTP (Authentication → SMTP;
      Resend's free SMTP works).
-5. **Authentication → Sign In / Providers**: sign in once to create your account, then turn off
-   **Allow new users to sign up**. The app's allowlist already blocks other emails; this closes it at the source too.
+5. **Authentication → Sign In / Providers**: if `ALLOWED_EMAIL` is a specific list (not `*`), sign in once to
+   create your account, then turn off **Allow new users to sign up** — the app's allowlist already blocks other
+   emails, but this closes it at the source too. Leave sign-ups on if `ALLOWED_EMAIL=*`.
 6. **Project Settings → API Keys**: copy the **publishable** key and the **secret** key for Vercel.
 
 > Supabase's built-in email sender is rate-limited (a few emails per hour) and only delivers to members of your

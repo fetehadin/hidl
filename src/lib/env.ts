@@ -26,5 +26,7 @@ export function serverEnv() {
 
 export function isAllowedEmail(email: string | null | undefined) {
   if (!email) return false;
-  return serverEnv().ALLOWED_EMAIL.includes(email.toLowerCase());
+  const allowed = serverEnv().ALLOWED_EMAIL;
+  if (allowed.includes("*")) return true;
+  return allowed.includes(email.toLowerCase());
 }

@@ -7,7 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A private, single-user journal app for senior year: time-locked letters to your future self, an entrance-exam
 countdown, and a one-photo-per-day image calendar. Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 +
 Supabase (Auth, Postgres, Storage), designed to run entirely on free tiers (Vercel Hobby + Supabase free +
-optional Resend free). Access is restricted to `ALLOWED_EMAIL` — it is not a multi-tenant app.
+optional Resend free). Access is restricted to `ALLOWED_EMAIL` — a comma-separated allowlist, or `*` to let
+anyone sign up (the data model is already correctly multi-tenant via RLS, so this is a real supported mode, not
+just a loophole).
 
 Everything meaningful about *why* a rule exists and *where* it's enforced is in the README's "How the important
 rules are enforced" table — read that before touching letters, photos, or auth. The short version: correctness for
