@@ -12,8 +12,8 @@ way:
 Features:
 
 - **Time-locked letters.** Write to your future self. A letter stays sealed until its opening date, and the database itself refuses to return the body before then.
-- **Entrance-exam countdown.** A live countdown to the exam with your target score. Afterwards it shows "Done!" and you can compare your actual score.
-- **Image calendar.** One photo per day, resized on your phone, kept in private storage, with a lightbox and a year-at-a-glance view.
+- **Entrance-exam countdown.** A live countdown to the exam with your target score. Afterwards it shows "Done!" and you can compare your actual score. Optionally, generate a token to feed the countdown into an Android home-screen widget (via a third-party widget app).
+- **Image calendar.** Any number of photos per day — pick several at once or drag and drop them — resized on your phone, kept in private storage, with a lightbox and a year-at-a-glance view.
 - **Account deletion.** Anyone can permanently delete their own account and everything in it from `/account` — no owner intervention needed.
 
 Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase (Auth, Postgres, Storage) · Vercel
@@ -33,6 +33,7 @@ photo storage run on the Supabase free plan, and the optional unlock emails use 
 | Any number of photos per day, each owned by one user | No per-day limit — `photos.user_id`/`date` are just columns, RLS and the folder-path check constraint still scope every row to its owner |
 | No photos for future days | `photos_before_write` trigger, using `app_today()` (Africa/Addis_Ababa) |
 | Users only see their own data | RLS on every table and on the `photos` storage bucket (per-user folder) |
+| The widget feed's token can't be read back, even by its owner | `exam_settings.widget_token_hash` has no `SELECT` grant to anyone — only `=` comparison from the service-role API route. Same column-restriction pattern as `letters.body`. |
 | Only allowed emails can sign in (unless opened to everyone) | `ALLOWED_EMAIL` is checked in the login action, the magic-link callback and `requireUser()` on every server entry point. Set it to `*` to allow anyone to sign up — each person gets their own isolated letters/countdown/calendar, scoped by RLS. |
 | Deleting your account removes everything, not just the login | `deleteAccount()` (`src/actions/auth.ts`) removes the user's storage files first, then deletes the `auth.users` row, which cascades to `letters`, `photos`, and `exam_settings` via `on delete cascade`. Covered by `tests/integration/account-deletion.test.ts`. |
 
@@ -196,3 +197,8 @@ tests/unit, tests/integration
   widget on the login form. Its secret key goes directly into Supabase (Authentication → Attack Protection →
   Enable Captcha protection, provider Turnstile) — the app itself never sees it, only the token Turnstile hands
   back, which is passed straight through to `signInWithOtp`. Unset, the form skips the widget entirely.
+- **Home-screen widget (Android).** A web app can't place a live widget on a phone's home screen by itself — that
+  needs a native app. `/countdown/settings` can generate a token for `GET /api/widget/countdown?token=…`, a
+  public (token-authenticated, not session-authenticated) JSON feed of just the exam countdown — never letters or
+  photos. Point a widget app like [KWGT](https://play.google.com/store/apps/details?id=org.kustom.widget) at it to
+  render it on the home screen. Only the token's SHA-256 hash is stored; the raw token is shown once, at creation.

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ExamSettingsForm } from "@/components/countdown/exam-settings-form";
+import { WidgetToken } from "@/components/countdown/widget-token";
 import { PageHeader } from "@/components/page-header";
 import { getExam } from "@/lib/data/exam";
 import { requireUser } from "@/lib/supabase/server";
@@ -26,6 +27,12 @@ export default async function CountdownSettingsPage() {
           }}
         />
       </div>
+
+      {exam && (
+        <div className="mt-4">
+          <WidgetToken createdAt={exam.widget_token_created_at} />
+        </div>
+      )}
     </>
   );
 }

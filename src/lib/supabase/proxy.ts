@@ -33,7 +33,9 @@ export async function updateSession(request: NextRequest) {
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   // Optimistic redirect only. Pages and actions re-check with requireUser().
-  if (!signedIn && !isPublic && !pathname.startsWith("/api/cron")) {
+  // /api/cron and /api/widget authorize themselves (a secret header, a per-user token) —
+  // they have no session to redirect from in the first place.
+  if (!signedIn && !isPublic && !pathname.startsWith("/api/cron") && !pathname.startsWith("/api/widget")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";

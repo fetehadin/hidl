@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getExam } from "@/lib/data/exam";
@@ -91,4 +92,45 @@ export async function saveActualScore(_prev: ExamFormState, formData: FormData):
   revalidatePath("/countdown");
   revalidatePath("/");
   return { status: "saved" };
+}
+
+type TokenResult = { ok: true; token: string } | { ok: false; message: string };
+
+/**
+ * Creates a bearer token for the read-only widget feed (src/app/api/widget/countdown).
+ * Only its hash is stored; the raw token is returned once and never retrievable again.
+ */
+export async function generateWidgetToken(): Promise<TokenResult> {
+  const { supabase, user } = await requireUser();
+  const exam = await getExam(supabase);
+  if (!exam) return { ok: false, message: "Set up your exam first." };
+
+  const token = randomBytes(24).toString("base64url");
+  const widget_token_hash = createHash("sha256").update(token).digest("hex");
+
+  const { error } = await supabase
+    .from("exam_settings")
+    .update({ widget_token_hash, widget_token_created_at: new Date().toISOString() })
+    .eq("user_id", user.id);
+  if (error) {
+    console.error("generateWidgetToken", error);
+    return { ok: false, message: "Couldn't create a token. Try again." };
+  }
+
+  revalidatePath("/countdown/settings");
+  return { ok: true, token };
+}
+
+export async function revokeWidgetToken(): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { supabase, user } = await requireUser();
+  const { error } = await supabase
+    .from("exam_settings")
+    .update({ widget_token_hash: null, widget_token_created_at: null })
+    .eq("user_id", user.id);
+  if (error) {
+    console.error("revokeWidgetToken", error);
+    return { ok: false, message: "Couldn't remove the token. Try again." };
+  }
+  revalidatePath("/countdown/settings");
+  return { ok: true };
 }

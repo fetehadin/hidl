@@ -7,12 +7,13 @@ export type ExamSettings = {
   max_score: number;
   actual_score: number | null;
   updated_at: string;
+  widget_token_created_at: string | null;
 };
 
 export async function getExam(supabase: SupabaseClient) {
   const { data, error } = await supabase
     .from("exam_settings")
-    .select("exam_name, exam_at, target_score, max_score, actual_score, updated_at")
+    .select("exam_name, exam_at, target_score, max_score, actual_score, updated_at, widget_token_created_at")
     .maybeSingle();
   if (error) throw error;
   return data as ExamSettings | null;
