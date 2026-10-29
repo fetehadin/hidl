@@ -6,6 +6,7 @@ import { deleteCountdown, setWidgetCountdown } from "@/actions/countdowns";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PencilIcon, StarIcon, TrashIcon } from "@/components/icons";
 import type { Countdown } from "@/lib/data/countdowns";
+import { formatEthiopian } from "@/lib/ethiopian";
 import { formatInAppTz } from "@/lib/time";
 import { LiveCountdown } from "./live-countdown";
 import { ScoreCompare } from "./score-compare";
@@ -17,6 +18,7 @@ export function CountdownCard({ countdown, now, featured = false }: { countdown:
   const [error, setError] = useState<string | null>(null);
 
   const done = new Date(countdown.target_at).getTime() <= now;
+  const whenEthiopian = formatEthiopian(countdown.target_at);
   const when = formatInAppTz(countdown.target_at, "EEEE, MMMM d, yyyy 'at' h:mm a");
 
   function remove() {
@@ -57,7 +59,8 @@ export function CountdownCard({ countdown, now, featured = false }: { countdown:
           <h2 className={`font-display font-semibold tracking-tight ${featured ? "text-2xl sm:text-3xl" : "text-xl"}`}>
             {countdown.title}
           </h2>
-          <p className="mt-0.5 text-sm text-ink-soft">{when}</p>
+          <p className="mt-0.5 text-sm text-ink-soft">{whenEthiopian}</p>
+          <p className="text-sm text-muted">{when}</p>
 
           {!done && countdown.kind === "exam" && (
             <p className="mt-3">

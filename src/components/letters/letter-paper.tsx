@@ -1,5 +1,5 @@
 import { Markdown } from "@/components/markdown";
-import { formatInAppTz } from "@/lib/time";
+import { formatEthiopian } from "@/lib/ethiopian";
 
 export function LetterPaper({
   title,
@@ -22,8 +22,7 @@ export function LetterPaper({
       <h1 className="mt-1 mb-6 font-display text-2xl font-semibold leading-tight sm:text-3xl">{title}</h1>
       <Markdown>{body}</Markdown>
       <p className="mt-10 text-sm text-muted">
-        Written {formatInAppTz(createdAt, "MMMM d, yyyy")} · sealed until{" "}
-        {formatInAppTz(unlockAt, "MMMM d, yyyy")}
+        Written {formatEthiopian(createdAt)} · sealed until {formatEthiopian(unlockAt)}
       </p>
     </article>
   );

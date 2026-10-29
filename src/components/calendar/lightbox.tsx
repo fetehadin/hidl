@@ -6,6 +6,7 @@ import { deletePhoto, updateCaption } from "@/actions/photos";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { dayLabel } from "@/lib/calendar";
 import type { PhotoView } from "@/lib/data/photos";
+import { formatEthiopian } from "@/lib/ethiopian";
 
 export function Lightbox({
   photos,
@@ -92,7 +93,10 @@ export function Lightbox({
     >
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
-          <p className="font-display text-lg">{dayLabel(photo.date)}</p>
+          <div>
+            <p className="font-display text-lg">{formatEthiopian(photo.date)}</p>
+            <p className="text-sm text-white/60">{dayLabel(photo.date)}</p>
+          </div>
           <button type="button" onClick={onClose} className="rounded-full px-3 py-1.5 text-white/80 hover:bg-white/10" aria-label="Close">
             ✕
           </button>

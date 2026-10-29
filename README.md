@@ -190,6 +190,13 @@ tests/unit, tests/integration
 
 ## Notes
 
+- **Ethiopian calendar.** Every absolute date shown to the user (letters, countdowns, the dashboard header, the
+  calendar lightbox) displays the Ethiopian calendar date, with the Gregorian date kept as a smaller secondary
+  line. This is purely a display-layer conversion (`src/lib/ethiopian.ts`, hand-rolled, no dependency) — storage
+  stays UTC `timestamptz` exactly as before, and nothing about locking/countdown logic changed. Date *inputs*
+  (datetime-local pickers) stay native Gregorian — browsers don't support an Ethiopian-calendar picker widget —
+  but show a live Ethiopian-equivalent label next to them. The calendar's month grid itself (`/calendar`) stays
+  Gregorian-indexed, since its navigation is tied to the `?m=` query param and photo date-range queries.
 - Photos are resized in the browser and uploaded straight to Supabase Storage through one-time signed upload URLs,
   so large phone photos never go through a Vercel function (which has a 4.5 MB body limit). The server
   checks that the files exist in your folder before recording them, and deletes replaced or orphaned files.

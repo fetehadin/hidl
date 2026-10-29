@@ -8,6 +8,7 @@ import { LetterPaper } from "@/components/letters/letter-paper";
 import { LetterReveal } from "@/components/letters/letter-reveal";
 import { LiveRelative } from "@/components/live-relative";
 import { getLetterMeta, openLetter } from "@/lib/data/letters";
+import { formatEthiopian } from "@/lib/ethiopian";
 import { requireUser } from "@/lib/supabase/server";
 import { formatInAppTz, utcToLocalInput } from "@/lib/time";
 import { letterIdSchema } from "@/lib/validation/letters";
@@ -41,11 +42,12 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
                 <p className="mt-5 font-display text-xl">
                   <LiveRelative target={letter.unlock_at} />
                 </p>
-                <p className="text-ink-soft">
+                <p className="text-ink-soft">{formatEthiopian(letter.unlock_at)}</p>
+                <p className="text-sm text-muted">
                   {formatInAppTz(letter.unlock_at, "EEEE, MMMM d, yyyy 'at' h:mm a")}
                 </p>
                 <p className="mt-4 text-sm text-muted">
-                  Sealed {formatInAppTz(letter.created_at, "MMMM d, yyyy")}. No peeking.
+                  Sealed {formatEthiopian(letter.created_at)}. No peeking.
                 </p>
               </div>
             </Envelope>
@@ -86,9 +88,7 @@ async function OpenedLetter({ id }: { id: string }) {
         createdAt={letter.created_at}
         unlockAt={letter.unlock_at}
       />
-      <p className="text-center text-sm text-muted">
-        First opened {formatInAppTz(letter.opened_at!, "MMMM d, yyyy 'at' h:mm a")}
-      </p>
+      <p className="text-center text-sm text-muted">First opened {formatEthiopian(letter.opened_at!)}</p>
       <div className="text-center"><DeleteLetterButton id={id} /></div>
     </div>
   );

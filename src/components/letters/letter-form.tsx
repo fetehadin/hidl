@@ -6,6 +6,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { createLetter, type FormState } from "@/actions/letters";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Markdown } from "@/components/markdown";
+import { formatEthiopian } from "@/lib/ethiopian";
 import { APP_TZ, formatInAppTz, localToUtc } from "@/lib/time";
 
 export const DRAFT_KEY = "hidl:letter-draft";
@@ -58,9 +59,9 @@ export function LetterForm() {
   const err = (k: string) => state.fieldErrors?.[k]?.[0];
 
   const [minLocal] = useState(() => formatInAppTz(new Date(Date.now() + 5 * 60_000), "yyyy-MM-dd'T'HH:mm"));
-  const unlockLabel = draft.unlock_local
-    ? formatInAppTz(localToUtc(draft.unlock_local), "EEEE, MMMM d, yyyy 'at' h:mm a")
-    : "";
+  const unlockUtc = draft.unlock_local ? localToUtc(draft.unlock_local) : null;
+  const unlockLabel = unlockUtc ? formatInAppTz(unlockUtc, "EEEE, MMMM d, yyyy 'at' h:mm a") : "";
+  const unlockEthiopian = unlockUtc ? formatEthiopian(unlockUtc) : "";
 
   function askToSeal() {
     if (formRef.current?.reportValidity()) setConfirming(true);
@@ -149,6 +150,7 @@ export function LetterForm() {
         </div>
         <input id="unlock_local" name="unlock_local" type="datetime-local" required min={minLocal}
           className="field" value={draft.unlock_local} onChange={set("unlock_local")} />
+        {unlockEthiopian && <p className="mt-1.5 text-sm text-muted">Ethiopian calendar: {unlockEthiopian}</p>}
       </Field>
 
       <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
@@ -160,8 +162,8 @@ export function LetterForm() {
 
       <ConfirmDialog open={confirming} title="Seal this letter?" confirmLabel="Seal it"
         cancelLabel="Keep writing" onConfirm={seal} onCancel={() => setConfirming(false)}>
-        You won&apos;t be able to read or edit it until <strong className="text-ink">{unlockLabel}</strong>.
-        You can still push the date later or delete it.
+        You won&apos;t be able to read or edit it until <strong className="text-ink">{unlockEthiopian}</strong>{" "}
+        ({unlockLabel}). You can still push the date later or delete it.
       </ConfirmDialog>
     </form>
   );

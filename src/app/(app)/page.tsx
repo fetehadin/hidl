@@ -7,6 +7,7 @@ import { Envelope } from "@/components/envelope";
 import { sealInitial } from "@/components/letters/letter-card";
 import { LiveRelative } from "@/components/live-relative";
 import { getPrimaryCountdown } from "@/lib/data/countdowns";
+import { formatEthiopian } from "@/lib/ethiopian";
 import { letterSummary } from "@/lib/data/letters";
 import { listPhotosForDate, signPhotos } from "@/lib/data/photos";
 import { requireUser } from "@/lib/supabase/server";
@@ -29,8 +30,9 @@ export default async function DashboardPage() {
   return (
     <div>
       <div className="pt-4 pb-6">
-        <p className="eyebrow mb-1">{formatInAppTz(new Date(now), "EEEE, MMMM d")}</p>
+        <p className="eyebrow mb-1">{formatEthiopian(new Date(now))}</p>
         <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{greeting(new Date(now))}.</h1>
+        <p className="mt-1 text-sm text-muted">{formatInAppTz(new Date(now), "EEEE, MMMM d")}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -46,7 +48,8 @@ export default async function DashboardPage() {
               <div className="min-w-0">
                 <p className="eyebrow mb-1">{countdownDone ? "it's over" : "the big day"}</p>
                 <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{countdown.title}</h2>
-                <p className="mt-1 text-ink-soft">{formatInAppTz(countdown.target_at, "EEEE, MMMM d, yyyy")}</p>
+                <p className="mt-1 text-ink-soft">{formatEthiopian(countdown.target_at)}</p>
+                <p className="text-sm text-muted">{formatInAppTz(countdown.target_at, "EEEE, MMMM d, yyyy")}</p>
 
                 {countdown.kind === "exam" && (
                   <p className="mt-4">

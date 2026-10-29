@@ -3,9 +3,12 @@
 import { useActionState, useRef, useState } from "react";
 import { deleteLetter, type FormState, postponeLetter } from "@/actions/letters";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { formatEthiopian } from "@/lib/ethiopian";
+import { localToUtc } from "@/lib/time";
 
 export function PostponeForm({ id, currentLocal }: { id: string; currentLocal: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(postponeLetter, { status: "idle" });
+  const [value, setValue] = useState(state.values?.unlock_local ?? currentLocal);
 
   return (
     <details className="group rounded-control border border-line px-4 py-3">
@@ -16,11 +19,12 @@ export function PostponeForm({ id, currentLocal }: { id: string; currentLocal: s
         <input type="hidden" name="id" value={id} />
         <label htmlFor="unlock_local" className="sr-only">New opening date</label>
         <input id="unlock_local" name="unlock_local" type="datetime-local" required min={currentLocal}
-          defaultValue={state.values?.unlock_local ?? currentLocal} className="field" />
+          value={value} onChange={(e) => setValue(e.target.value)} className="field" />
         <button type="submit" className="btn btn-ghost shrink-0" disabled={pending}>
           {pending ? "Saving…" : "Push it back"}
         </button>
       </form>
+      {value && <p className="mt-1.5 text-sm text-muted">Ethiopian calendar: {formatEthiopian(localToUtc(value))}</p>}
       {state.message && (
         <p role={state.status === "error" ? "alert" : "status"}
           className={`mt-2 text-sm ${state.status === "error" ? "text-wax" : "text-sage"}`}>

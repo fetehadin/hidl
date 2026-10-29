@@ -3,6 +3,8 @@
 import { useActionState, useState } from "react";
 import type { ReactNode } from "react";
 import { type CountdownFormState, saveCountdown } from "@/actions/countdowns";
+import { formatEthiopian } from "@/lib/ethiopian";
+import { localToUtc } from "@/lib/time";
 
 type Kind = "exam" | "deadline";
 type Defaults = { id?: string; kind: Kind; title: string; target_local: string; target_score: string; max_score: string };
@@ -12,6 +14,7 @@ export function CountdownForm({ defaults, locked }: { defaults: Defaults; locked
   const [kind, setKind] = useState<Kind>(defaults.kind);
   const err = (k: string) => state.fieldErrors?.[k]?.[0];
   const v = { ...defaults, ...state.values } as Defaults;
+  const [targetLocal, setTargetLocal] = useState(v.target_local);
 
   return (
     <form action={action} className="space-y-5">
@@ -50,7 +53,16 @@ export function CountdownForm({ defaults, locked }: { defaults: Defaults; locked
       </Field>
 
       <Field id="target_local" label="Date and time" hint="Addis Ababa time" error={err("target_local")}>
-        <input id="target_local" name="target_local" type="datetime-local" required className="field" defaultValue={v.target_local} />
+        <input
+          id="target_local"
+          name="target_local"
+          type="datetime-local"
+          required
+          className="field"
+          value={targetLocal}
+          onChange={(e) => setTargetLocal(e.target.value)}
+        />
+        {targetLocal && <p className="mt-1.5 text-sm text-muted">Ethiopian calendar: {formatEthiopian(localToUtc(targetLocal))}</p>}
       </Field>
 
       {kind === "exam" && (

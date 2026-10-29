@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Envelope } from "@/components/envelope";
 import { LiveRelative } from "@/components/live-relative";
 import type { LetterMeta } from "@/lib/data/letters";
-import { formatInAppTz } from "@/lib/time";
+import { formatEthiopian } from "@/lib/ethiopian";
 
 export function letterState(letter: LetterMeta, now = Date.now()) {
   if (letter.opened_at) return "opened" as const;
@@ -35,12 +35,12 @@ export function LetterCard({ letter, now }: { letter: LetterMeta; now: number })
               <span className="font-semibold text-ink-soft">
                 <LiveRelative target={letter.unlock_at} />
               </span>
-              <span className="text-muted">{formatInAppTz(letter.unlock_at, "MMM d, yyyy")}</span>
+              <span className="text-muted">{formatEthiopian(letter.unlock_at)}</span>
             </>
           )}
           {state === "ready" && <span className="btn btn-primary min-h-9 px-4 text-[15px]">Open</span>}
           {state === "opened" && (
-            <span className="text-muted">Opened {formatInAppTz(letter.opened_at!, "MMM d, yyyy")}</span>
+            <span className="text-muted">Opened {formatEthiopian(letter.opened_at!)}</span>
           )}
         </div>
       </Envelope>
