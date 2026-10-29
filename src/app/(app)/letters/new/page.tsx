@@ -7,12 +7,10 @@ export const metadata: Metadata = { title: "New letter" };
 
 export default function NewLetterPage() {
   return (
-    <>
+    <div className="mx-auto max-w-2xl">
       <Link href="/letters" className="text-sm text-muted hover:text-ink">← Letters</Link>
       <PageHeader eyebrow="a letter for later" title="Write a letter" />
-      <div className="card p-5 sm:p-6">
-        <LetterForm />
-      </div>
-    </>
+      <LetterForm />
+    </div>
   );
 }

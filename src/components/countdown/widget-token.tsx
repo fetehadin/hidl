@@ -75,7 +75,7 @@ export function WidgetToken({ createdAt }: { createdAt: string | null }) {
       ) : null}
 
       {error && (
-        <p role="alert" className="mt-3 rounded-xl bg-accent-soft px-3 py-2 text-sm">
+        <p role="alert" className="mt-3 rounded-control bg-accent-soft px-3 py-2 text-sm">
           {error}
         </p>
       )}

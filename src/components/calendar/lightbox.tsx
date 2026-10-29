@@ -114,7 +114,7 @@ export function Lightbox({
             key={photo.fullUrl}
             src={photo.fullUrl}
             alt={photo.caption ?? `Photo from ${dayLabel(photo.date)}`}
-            className="animate-fade-up max-h-full max-w-full rounded-lg object-contain"
+            className="animate-fade-up max-h-full max-w-full rounded-control object-contain"
           />
           <button type="button" onClick={() => go(index - 1)} disabled={!hasPrev} aria-label="Previous photo"
             className="absolute top-1/2 left-2 hidden -translate-y-1/2 rounded-full bg-white/10 px-4 py-3 text-2xl hover:bg-white/20 disabled:opacity-0 sm:block">
@@ -133,7 +133,7 @@ export function Lightbox({
               <input id="lightbox-caption" value={caption} maxLength={140} autoFocus
                 onChange={(e) => setCaption(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && saveCaption()}
-                className="min-h-11 flex-1 rounded-xl border border-white/20 bg-white/10 px-3 text-white placeholder:text-white/50"
+                className="min-h-11 flex-1 rounded-control border border-white/20 bg-white/10 px-3 text-white placeholder:text-white/50"
                 placeholder="Add a caption" />
               <button type="button" className="btn bg-white text-black" onClick={saveCaption} disabled={pending}>
                 Save

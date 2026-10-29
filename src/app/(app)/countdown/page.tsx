@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CountdownCard } from "@/components/countdown/countdown-card";
-import { HourglassIcon } from "@/components/icons";
+import { HourglassIcon, WidgetIcon } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { listCountdowns } from "@/lib/data/countdowns";
 import { requireUser } from "@/lib/supabase/server";
@@ -13,12 +13,21 @@ export default async function CountdownPage() {
   const { supabase } = await requireUser();
   const countdowns = await listCountdowns(supabase);
   const now = requestNow();
+  const featured = countdowns.find((c) => c.is_widget);
+  const rest = countdowns.filter((c) => c.id !== featured?.id);
 
   return (
     <>
       <PageHeader eyebrow="deadlines" title="Countdown">
         <div className="flex gap-2">
-          <Link href="/countdown/settings" className="btn btn-ghost">Widget</Link>
+          <Link
+            href="/countdown/settings"
+            title="Feed your starred countdown to a phone home-screen widget"
+            className="btn btn-ghost"
+          >
+            <WidgetIcon width={18} height={18} />
+            Widget
+          </Link>
           <Link href="/countdown/new" className="btn btn-primary">New</Link>
         </div>
       </PageHeader>
@@ -34,9 +43,14 @@ export default async function CountdownPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {countdowns.map((c) => (
-            <CountdownCard key={c.id} countdown={c} now={now} />
-          ))}
+          {featured && <CountdownCard countdown={featured} now={now} featured />}
+          {rest.length > 0 && (
+            <div className={`grid gap-4 ${rest.length === 1 ? "max-w-sm sm:max-w-md" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
+              {rest.map((c) => (
+                <CountdownCard key={c.id} countdown={c} now={now} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>

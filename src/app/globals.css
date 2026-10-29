@@ -10,7 +10,7 @@
   --card: #fbf6ec;
   --ink: #2f2520;
   --ink-soft: #5c4d43;
-  --muted: #7b6a5d;
+  --muted: #6c5d52; /* >=4.88:1 on paper/paper-deep/card, clears AA's 4.5:1 with headroom */
   --line: #e0d2bd;
   --accent: #9c4a2c; /* terracotta, 6.1:1 on --card */
   --accent-ink: #fbf6ec;
@@ -66,11 +66,18 @@
   --font-serif: var(--font-body), ui-serif, Georgia, serif;
   --font-display: var(--font-display), ui-serif, Georgia, serif;
   --font-hand: var(--font-hand), ui-rounded, cursive;
+
+  /* Exactly two radii app-wide (plus `rounded-full` for pills/badges/circles, which
+     isn't part of this scale). rounded-control for buttons, fields and small media;
+     rounded-card for cards, envelopes and sheets. */
+  --radius-control: 0.75rem; /* 12px */
+  --radius-card: 1.25rem; /* 20px */
 }
 
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -81,10 +88,12 @@
     font-family: var(--font-serif);
   }
 
+  /* No forced border-radius here: the outline already follows each element's own
+     radius in modern browsers. Forcing a sharp 4px corner made the ring look
+     ill-fitting (blocky) on rounded pills and cards. */
   :focus-visible {
     outline: 2px solid var(--accent);
-    outline-offset: 3px;
-    border-radius: 4px;
+    outline-offset: 2px;
   }
 
   ::selection {
@@ -96,10 +105,17 @@
   .card {
     background: var(--card);
     border: 1px solid var(--line);
-    border-radius: 1rem;
+    border-radius: var(--radius-card);
     box-shadow:
       0 1px 0 rgb(var(--shadow) / 0.04),
       0 8px 24px -12px rgb(var(--shadow) / 0.18);
+    transition: transform 160ms ease, box-shadow 160ms ease;
+  }
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgb(var(--shadow) / 0.05),
+      0 16px 32px -16px rgb(var(--shadow) / 0.28);
   }
 
   .eyebrow {
@@ -115,8 +131,8 @@
     justify-content: center;
     gap: 0.5rem;
     min-height: 2.75rem;
-    padding: 0 1.1rem;
-    border-radius: 0.75rem;
+    padding: 0 1.25rem;
+    border-radius: var(--radius-control);
     font-weight: 600;
     transition: transform 120ms ease, background-color 120ms ease, opacity 120ms ease;
   }
@@ -145,8 +161,8 @@
   .field {
     width: 100%;
     min-height: 2.75rem;
-    padding: 0.6rem 0.85rem;
-    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-control);
     border: 1px solid var(--line);
     background: var(--paper);
     color: var(--ink);
@@ -166,11 +182,13 @@
   .envelope {
     position: relative;
     background: var(--envelope);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.25  0 0 0 0 0.15  0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
     border: 1px solid var(--line);
-    border-radius: 1rem;
+    border-radius: var(--radius-card);
     overflow: hidden;
     perspective: 900px;
     box-shadow: 0 10px 28px -16px rgb(var(--shadow) / 0.35);
+    transition: transform 160ms ease, box-shadow 160ms ease;
   }
   .envelope-flap {
     position: absolute;
@@ -207,6 +225,15 @@
   .envelope[data-state="ready"] .envelope-seal {
     animation: seal-glow 2.4s ease-in-out infinite;
   }
+  .group:hover .envelope-seal,
+  .group:focus-visible .envelope-seal {
+    filter: brightness(1.14);
+  }
+  .group:hover .envelope,
+  .group:focus-visible .envelope {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 34px -16px rgb(var(--shadow) / 0.45);
+  }
   .envelope-content {
     position: relative;
     padding: 5.75rem 1.25rem 1.25rem;
@@ -215,7 +242,7 @@
   .letter-paper {
     background: var(--letter-paper);
     border: 1px solid var(--line);
-    border-radius: 0.75rem;
+    border-radius: var(--radius-card);
     box-shadow: 0 18px 40px -24px rgb(var(--shadow) / 0.45);
   }
 

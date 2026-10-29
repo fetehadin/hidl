@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { ArrowRightIcon } from "@/components/icons";
 import { LiveCountdown } from "@/components/countdown/live-countdown";
 import { DashboardCard } from "@/components/dashboard-card";
+import { DashboardTodayPhoto } from "@/components/dashboard-today-photo";
 import { Envelope } from "@/components/envelope";
 import { sealInitial } from "@/components/letters/letter-card";
 import { LiveRelative } from "@/components/live-relative";
@@ -32,39 +34,52 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {/* Primary countdown */}
+        {/* Primary countdown: a real hero, not a stacked card */}
         {!countdown ? (
           <DashboardCard eyebrow="deadlines" href="/countdown/new" linkLabel="Add a countdown" className="sm:col-span-2">
             <p className="font-display text-xl">No countdowns yet.</p>
             <p className="text-ink-soft">Add an exam with a target score, or any other deadline.</p>
           </DashboardCard>
-        ) : countdownDone ? (
-          <DashboardCard eyebrow={countdown.title} href="/countdown" linkLabel={countdown.kind === "exam" && countdown.actual_score === null ? "Enter your score" : "Open countdown"} className="sm:col-span-2">
-            <p className="font-display text-4xl font-semibold text-accent">Done!</p>
-            {countdown.kind === "exam" && (
-              <p className="text-ink-soft">
-                {countdown.actual_score === null
-                  ? `Target was ${countdown.target_score} / ${countdown.max_score}.`
-                  : `You scored ${countdown.actual_score} / ${countdown.max_score} (target ${countdown.target_score}).`}
-              </p>
-            )}
-          </DashboardCard>
         ) : (
-          <DashboardCard eyebrow={countdown.title} href="/countdown" linkLabel="Open countdown" className="sm:col-span-2">
-            <LiveCountdown target={countdown.target_at} serverNow={now} variant="compact" />
-            <p className="mt-1 text-ink-soft">
-              {countdown.kind === "exam" ? (
-                <>
-                  Target{" "}
-                  <strong className="font-display text-xl text-ink tabular-nums">
-                    {countdown.target_score} / {countdown.max_score}
-                  </strong>{" "}
-                  ·{" "}
-                </>
-              ) : null}
-              {formatInAppTz(countdown.target_at, "MMM d, yyyy")}
-            </p>
-          </DashboardCard>
+          <div className="card card-interactive animate-fade-up p-6 sm:col-span-2 sm:p-8">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="eyebrow mb-1">{countdownDone ? "it's over" : "the big day"}</p>
+                <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{countdown.title}</h2>
+                <p className="mt-1 text-ink-soft">{formatInAppTz(countdown.target_at, "EEEE, MMMM d, yyyy")}</p>
+
+                {countdown.kind === "exam" && (
+                  <p className="mt-4">
+                    <span className="block text-sm font-semibold text-ink-soft">
+                      {countdownDone && countdown.actual_score !== null ? "Your score" : "Target score"}
+                    </span>
+                    <span className="font-display text-3xl font-semibold tabular-nums text-accent">
+                      {countdownDone && countdown.actual_score !== null ? countdown.actual_score : countdown.target_score}
+                    </span>
+                    <span className="text-lg text-muted"> / {countdown.max_score}</span>
+                  </p>
+                )}
+
+                <Link
+                  href="/countdown"
+                  className="mt-4 inline-flex items-center gap-1.5 text-[15px] font-semibold text-accent underline-offset-4 hover:underline"
+                >
+                  {countdownDone && countdown.kind === "exam" && countdown.actual_score === null
+                    ? "Enter your score"
+                    : "Open countdown"}
+                  <ArrowRightIcon width={16} height={16} />
+                </Link>
+              </div>
+
+              <div className="shrink-0 self-start sm:self-center">
+                {countdownDone ? (
+                  <p className="font-display text-5xl font-semibold text-accent sm:text-6xl">Done!</p>
+                ) : (
+                  <LiveCountdown target={countdown.target_at} serverNow={now} variant="compact" />
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Next letter */}
@@ -94,24 +109,8 @@ export default async function DashboardPage() {
         )}
 
         {/* Today's photo */}
-        <DashboardCard eyebrow="today's picture" href="/calendar" linkLabel={photo ? "See the month" : "Add today's photo"}>
-          {photo ? (
-            <Link href="/calendar" className="block overflow-hidden rounded-xl">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photo.fullUrl} alt={photo.caption ?? "Today's photo"} className="aspect-[4/3] w-full object-cover" />
-              {photo.caption && <p className="mt-2 text-ink-soft">{photo.caption}</p>}
-            </Link>
-          ) : (
-            <Link
-              href="/calendar"
-              className="grid aspect-[4/3] place-items-center rounded-xl border border-dashed border-line bg-paper text-center text-muted transition-colors hover:border-accent hover:text-accent"
-            >
-              <span>
-                <span className="block font-hand text-2xl">an empty page</span>
-                <span className="text-sm">Tap today on the calendar</span>
-              </span>
-            </Link>
-          )}
+        <DashboardCard eyebrow="today's picture" href="/calendar" linkLabel={photo ? "See the month" : "See the calendar"}>
+          <DashboardTodayPhoto photo={photo ?? null} today={today} />
         </DashboardCard>
       </div>
     </div>

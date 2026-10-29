@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { WEEKDAYS, leadingBlanks, monthDays } from "@/lib/calendar";
 import type { PhotoView } from "@/lib/data/photos";
 import { Lightbox } from "./lightbox";
@@ -13,6 +13,57 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
   for (const p of photos) byDate.set(p.date, [...(byDate.get(p.date) ?? []), p]);
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [upload, setUpload] = useState<UploadMode | null>(null);
+  const days = monthDays(month);
+  const [focusedIndex, setFocusedIndex] = useState(() => Math.max(0, days.indexOf(today)));
+  const cellRefs = useRef<(HTMLElement | null)[]>([]);
+  const returnFocusTo = useRef<HTMLElement | null>(null);
+
+  function moveFocus(from: number, delta: number) {
+    const to = Math.min(days.length - 1, Math.max(0, from + delta));
+    setFocusedIndex(to);
+    cellRefs.current[to]?.focus();
+  }
+
+  function onGridKeyDown(e: React.KeyboardEvent, i: number) {
+    switch (e.key) {
+      case "ArrowRight":
+        e.preventDefault();
+        moveFocus(i, 1);
+        break;
+      case "ArrowLeft":
+        e.preventDefault();
+        moveFocus(i, -1);
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        moveFocus(i, 7);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        moveFocus(i, -7);
+        break;
+    }
+  }
+
+  function openLightbox(photoIndex: number, trigger: HTMLElement) {
+    returnFocusTo.current = trigger;
+    setLightbox(photoIndex);
+  }
+
+  function openUpload(mode: UploadMode, trigger: HTMLElement) {
+    returnFocusTo.current = trigger;
+    setUpload(mode);
+  }
+
+  function closeLightbox() {
+    setLightbox(null);
+    returnFocusTo.current?.focus();
+  }
+
+  function closeUpload() {
+    setUpload(null);
+    returnFocusTo.current?.focus();
+  }
 
   return (
     <>
@@ -29,11 +80,12 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
           {Array.from({ length: leadingBlanks(month) }, (_, i) => (
             <div key={`blank-${i}`} aria-hidden />
           ))}
-          {monthDays(month).map((date) => {
+          {days.map((date, i) => {
             const dayPhotos = byDate.get(date);
             const day = Number(date.slice(8));
             const isToday = date === today;
             const isFuture = date > today;
+            const tabIndex = i === focusedIndex ? 0 : -1;
             const ring = isToday ? "ring-2 ring-accent ring-offset-2 ring-offset-paper" : "";
 
             if (dayPhotos && dayPhotos.length > 0) {
@@ -41,10 +93,16 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
               return (
                 <button
                   key={date}
+                  ref={(el) => {
+                    cellRefs.current[i] = el;
+                  }}
                   type="button"
                   role="gridcell"
-                  onClick={() => setLightbox(photos.indexOf(cover))}
-                  className={`group relative aspect-square overflow-hidden rounded-lg bg-paper-deep sm:rounded-xl ${ring}`}
+                  tabIndex={tabIndex}
+                  onFocus={() => setFocusedIndex(i)}
+                  onKeyDown={(e) => onGridKeyDown(e, i)}
+                  onClick={(e) => openLightbox(photos.indexOf(cover), e.currentTarget)}
+                  className={`group relative aspect-square overflow-hidden rounded-control bg-paper-deep ${ring}`}
                   aria-label={`${date}${cover.caption ? `: ${cover.caption}` : ""}. ${dayPhotos.length > 1 ? `${dayPhotos.length} photos. ` : ""}Open photo`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -64,8 +122,18 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
 
             if (isFuture) {
               return (
-                <div key={date} role="gridcell" aria-disabled
-                  className="grid aspect-square place-items-center rounded-lg text-sm text-muted/50 sm:rounded-xl">
+                <div
+                  key={date}
+                  ref={(el) => {
+                    cellRefs.current[i] = el;
+                  }}
+                  role="gridcell"
+                  aria-disabled
+                  tabIndex={tabIndex}
+                  onFocus={() => setFocusedIndex(i)}
+                  onKeyDown={(e) => onGridKeyDown(e, i)}
+                  className="grid aspect-square place-items-center rounded-control text-sm text-muted"
+                >
                   {day}
                 </div>
               );
@@ -74,14 +142,20 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
             return (
               <button
                 key={date}
+                ref={(el) => {
+                  cellRefs.current[i] = el;
+                }}
                 type="button"
                 role="gridcell"
-                onClick={() => setUpload({ kind: "add", date })}
+                tabIndex={tabIndex}
+                onFocus={() => setFocusedIndex(i)}
+                onKeyDown={(e) => onGridKeyDown(e, i)}
+                onClick={(e) => openUpload({ kind: "add", date }, e.currentTarget)}
                 aria-label={`${date}. Add a photo`}
-                className={`grid aspect-square place-items-center rounded-lg border border-dashed text-sm transition-colors sm:rounded-xl ${
+                className={`grid aspect-square place-items-center rounded-control text-sm transition-colors ${
                   isToday
-                    ? `border-accent bg-accent-soft font-bold text-accent ${ring}`
-                    : "border-line bg-card/60 text-ink-soft hover:border-accent hover:text-accent"
+                    ? `border-2 border-accent bg-accent-soft font-bold text-accent ${ring}`
+                    : "border border-line/70 bg-card/40 text-ink-soft hover:border-accent hover:bg-accent-soft hover:text-accent"
                 }`}
               >
                 {isToday ? <span className="leading-tight">{day}<span className="block text-lg leading-none">+</span></span> : day}
@@ -96,10 +170,11 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
           photos={photos}
           index={lightbox}
           onIndex={setLightbox}
-          onClose={() => setLightbox(null)}
+          onClose={closeLightbox}
           onReplace={(photoId) => {
+            const date = photos[lightbox].date;
             setLightbox(null);
-            setUpload({ kind: "replace", date: photos[lightbox].date, photoId });
+            setUpload({ kind: "replace", date, photoId });
           }}
           onAddAnother={(date) => {
             setLightbox(null);
@@ -111,7 +186,7 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
         <UploadSheet
           key={upload.kind === "replace" ? upload.photoId : upload.date}
           mode={upload}
-          onClose={() => setUpload(null)}
+          onClose={closeUpload}
         />
       )}
     </>

@@ -25,6 +25,9 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const prev = addMonths(month, -1);
   const next = addMonths(month, 1);
   const isCurrent = month === currentMonth;
+  // Distinct days with at least one photo — a day can now hold several, so photos.length
+  // alone would overcount (and could exceed `elapsed`, which reads as broken).
+  const daysCaptured = new Set(photos.map((p) => p.date)).size;
 
   return (
     <>
@@ -39,12 +42,12 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           ‹ {monthLabel(prev, "short")}
         </Link>
         <p className="text-center text-sm text-ink-soft" aria-live="polite">
-          <strong className="font-display text-lg text-ink">{photos.length}</strong> of {elapsed} days
+          <strong className="font-display text-lg text-ink">{daysCaptured}</strong> of {elapsed} days captured
         </p>
         {isCurrent ? (
-          <span className="btn btn-ghost invisible min-h-10 px-3" aria-hidden>
+          <button type="button" disabled aria-label="No next month yet" className="btn btn-ghost min-h-10 px-3">
             {monthLabel(next, "short")} ›
-          </span>
+          </button>
         ) : (
           <Link href={`/calendar?m=${next}`} className="btn btn-ghost min-h-10 px-3" aria-label={`Next month, ${monthLabel(next)}`}>
             {monthLabel(next, "short")} ›

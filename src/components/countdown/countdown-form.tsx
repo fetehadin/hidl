@@ -16,7 +16,7 @@ export function CountdownForm({ defaults, locked }: { defaults: Defaults; locked
   return (
     <form action={action} className="space-y-5">
       {defaults.id && <input type="hidden" name="id" value={defaults.id} />}
-      {state.message && <p role="alert" className="rounded-xl bg-accent-soft px-4 py-3">{state.message}</p>}
+      {state.message && <p role="alert" className="rounded-control bg-accent-soft px-4 py-3">{state.message}</p>}
 
       <input type="hidden" name="kind" value={kind} />
       {locked ? (
@@ -98,7 +98,7 @@ function KindButton({ active, onClick, children }: { active: boolean; onClick: (
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
+      className={`flex-1 rounded-control border px-3 py-2.5 text-sm font-semibold transition-colors ${
         active ? "border-accent bg-accent-soft text-accent" : "border-line text-ink-soft hover:border-accent"
       }`}
     >

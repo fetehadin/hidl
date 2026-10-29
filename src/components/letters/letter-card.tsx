@@ -19,7 +19,7 @@ export function LetterCard({ letter, now }: { letter: LetterMeta; now: number })
   return (
     <Link
       href={`/letters/${letter.id}`}
-      className="group block rounded-2xl transition-transform hover:-translate-y-0.5 focus-visible:-translate-y-0.5"
+      className="group block rounded-card"
       aria-label={`${letter.title}, for ${letter.recipient}. ${
         state === "sealed" ? "Sealed" : state === "ready" ? "Ready to open" : "Opened"
       }`}

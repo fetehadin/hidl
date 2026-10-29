@@ -8,7 +8,7 @@ export function PostponeForm({ id, currentLocal }: { id: string; currentLocal: s
   const [state, action, pending] = useActionState<FormState, FormData>(postponeLetter, { status: "idle" });
 
   return (
-    <details className="group rounded-xl border border-line px-4 py-3">
+    <details className="group rounded-control border border-line px-4 py-3">
       <summary className="cursor-pointer list-none font-semibold text-ink-soft marker:hidden">
         Move the date later <span className="text-muted group-open:hidden">→</span>
       </summary>

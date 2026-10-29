@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarIcon, EnvelopeIcon, HomeIcon, HourglassIcon } from "./icons";
+import { CalendarIcon, EnvelopeIcon, HomeIcon, HourglassIcon, UserIcon } from "./icons";
 
 const LINKS = [
   { href: "/", label: "Today", Icon: HomeIcon },
@@ -10,6 +10,10 @@ const LINKS = [
   { href: "/countdown", label: "Countdown", Icon: HourglassIcon },
   { href: "/calendar", label: "Calendar", Icon: CalendarIcon },
 ] as const;
+
+// Mobile gets a 5th tab for Account, since there's no room for the header's
+// Account/Sign-out links there; desktop keeps those in the header instead.
+const MOBILE_LINKS = [...LINKS, { href: "/account", label: "Account", Icon: UserIcon }] as const;
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
@@ -46,15 +50,15 @@ export function MobileTabBar() {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-card/95 backdrop-blur sm:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="mx-auto grid max-w-md grid-cols-4">
-        {LINKS.map(({ href, label, Icon }) => {
+      <ul className="mx-auto grid max-w-md grid-cols-5">
+        {MOBILE_LINKS.map(({ href, label, Icon }) => {
           const active = isActive(pathname, href);
           return (
             <li key={href}>
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold tracking-wide ${
+                className={`flex min-h-11 flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] font-semibold tracking-wide ${
                   active ? "text-accent" : "text-muted"
                 }`}
               >

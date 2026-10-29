@@ -31,7 +31,7 @@ export default async function LettersPage({ searchParams }: PageProps<"/letters"
       </PageHeader>
 
       {justSealed && (
-        <p role="status" className="animate-fade-up mb-5 rounded-xl bg-sage-soft px-4 py-3 text-ink">
+        <p role="status" className="animate-fade-up mb-5 rounded-control bg-sage-soft px-4 py-3 text-ink">
           Sealed. It&apos;ll be waiting for you.
           <ClearDraft />
         </p>
@@ -52,7 +52,7 @@ export default async function LettersPage({ searchParams }: PageProps<"/letters"
         <div className="space-y-8">
           <LetterSection title="Ready to open" letters={ready} now={now} />
           <LetterSection title="Still sealed" letters={sealed} now={now} />
-          <LetterSection title="Opened" letters={opened} now={now} />
+          <LetterSection title="Opened" letters={opened} now={now} emptyHint="Nothing opened yet." />
         </div>
       )}
     </>
@@ -63,18 +63,39 @@ function LetterSection({
   title,
   letters,
   now,
+  emptyHint,
 }: {
   title: string;
   letters: Awaited<ReturnType<typeof listLetters>>;
   now: number;
+  /** Shown instead of hiding the section entirely, for sections worth always seeing. */
+  emptyHint?: string;
 }) {
-  if (letters.length === 0) return null;
+  if (letters.length === 0) {
+    if (!emptyHint) return null;
+    return (
+      <section>
+        <h2 className="mb-3 text-sm font-semibold tracking-wide text-muted uppercase">{title}</h2>
+        <p className="text-ink-soft">{emptyHint}</p>
+      </section>
+    );
+  }
+
+  // A fixed multi-column grid leaves a lone card (or two) looking stranded in an
+  // otherwise-empty row. Only widen the grid as far as there's content to fill it.
+  const gridClass =
+    letters.length === 1
+      ? "max-w-sm sm:max-w-md"
+      : letters.length === 2
+        ? "sm:grid-cols-2 max-w-3xl"
+        : "sm:grid-cols-2 lg:grid-cols-3";
+
   return (
     <section>
       <h2 className="mb-3 text-sm font-semibold tracking-wide text-muted uppercase">
         {title} <span className="font-normal">· {letters.length}</span>
       </h2>
-      <ul className="grid gap-4 sm:grid-cols-2">
+      <ul className={`grid gap-4 ${gridClass}`}>
         {letters.map((l) => (
           <li key={l.id}>
             <LetterCard letter={l} now={now} />

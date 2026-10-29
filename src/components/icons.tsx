@@ -52,3 +52,47 @@ export const ArrowRightIcon = (p: IconProps) => (
     <path d="M5 12h14M13 6l6 6-6 6" />
   </svg>
 );
+
+export const UserIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="8" r="3.5" />
+    <path d="M4.5 20c.9-3.8 4-6 7.5-6s6.6 2.2 7.5 6" />
+  </svg>
+);
+
+export const StarIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
+  <svg {...base} fill={filled ? "currentColor" : "none"} {...p}>
+    <path d="M12 3.5l2.5 5.4 5.8.6-4.4 4 1.3 5.8L12 16.4l-5.2 2.9 1.3-5.8-4.4-4 5.8-.6z" />
+  </svg>
+);
+
+export const WidgetIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.5" />
+    <rect x="13" y="3.5" width="7.5" height="7.5" rx="1.5" />
+    <rect x="3.5" y="13" width="7.5" height="7.5" rx="1.5" />
+    <rect x="13" y="13" width="7.5" height="7.5" rx="1.5" />
+  </svg>
+);
+
+export const EllipsisIcon = (p: IconProps) => (
+  <svg {...base} fill="currentColor" stroke="none" {...p}>
+    <circle cx="5" cy="12" r="1.8" />
+    <circle cx="12" cy="12" r="1.8" />
+    <circle cx="19" cy="12" r="1.8" />
+  </svg>
+);
+
+export const PencilIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M4 20l1-4.5L16 4.5a1.5 1.5 0 0 1 2.1 0l1.4 1.4a1.5 1.5 0 0 1 0 2.1L8.5 19 4 20Z" />
+    <path d="M14.5 6.5l3 3" />
+  </svg>
+);
+
+export const TrashIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
+    <path d="M10 11v6M14 11v6" />
+  </svg>
+);

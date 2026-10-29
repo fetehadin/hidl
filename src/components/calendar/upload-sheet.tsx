@@ -114,7 +114,7 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
         if (!busy) onClose();
       }}
       aria-labelledby={`${inputId}-title`}
-      className="m-auto mb-0 w-full max-w-lg rounded-t-3xl border border-line bg-card p-0 text-ink shadow-2xl backdrop:bg-black/50 sm:mb-auto sm:rounded-3xl"
+      className="m-auto mb-0 w-full max-w-lg rounded-t-card border border-line bg-card p-0 text-ink shadow-2xl backdrop:bg-black/50 sm:mb-auto sm:rounded-card"
     >
       <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6">
         <div className="flex items-start justify-between gap-4">
@@ -142,7 +142,7 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
               setDragOver(false);
               addFiles(e.dataTransfer.files);
             }}
-            className={`mt-4 grid aspect-[4/3] cursor-pointer place-items-center overflow-hidden rounded-2xl border-2 border-dashed text-center transition-colors ${
+            className={`mt-4 grid aspect-[4/3] cursor-pointer place-items-center overflow-hidden rounded-card border-2 border-dashed text-center transition-colors ${
               dragOver ? "border-accent bg-accent-soft" : "border-line bg-paper hover:border-accent"
             } ${busy ? "pointer-events-none opacity-70" : ""}`}
           >
@@ -172,7 +172,7 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
         {items.length > 0 && (
           <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
             {items.map((item) => (
-              <div key={item.key} className="group relative aspect-square overflow-hidden rounded-xl bg-paper-deep">
+              <div key={item.key} className="group relative aspect-square overflow-hidden rounded-control bg-paper-deep">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={item.preview} alt="" className="h-full w-full object-cover" />
                 <button
@@ -207,7 +207,7 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
         )}
 
         {error && (
-          <p role="alert" className="mt-3 rounded-xl bg-accent-soft px-3 py-2 text-sm">
+          <p role="alert" className="mt-3 rounded-control bg-accent-soft px-3 py-2 text-sm">
             {error}
           </p>
         )}

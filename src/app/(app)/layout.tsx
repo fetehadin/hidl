@@ -8,12 +8,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <div className="min-h-dvh">
-      <header className="mx-auto flex max-w-3xl items-center justify-between px-5 pt-5 pb-2 sm:pt-8">
+      <header className="mx-auto flex max-w-[70rem] items-center justify-between px-5 pt-5 pb-2 sm:pt-8">
         <Link href="/" className="font-display text-2xl font-semibold tracking-tight">
           hidl
         </Link>
         <DesktopNav />
-        <div className="flex items-center gap-4">
+        <div className="hidden items-center gap-4 sm:flex">
           <Link href="/account" className="text-sm text-muted underline-offset-4 hover:text-ink hover:underline">
             Account
           </Link>
@@ -25,7 +25,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-5 pt-2 pb-28 sm:pb-16">{children}</main>
+      <main className="mx-auto max-w-[70rem] px-5 pt-2 pb-28 sm:pb-16">{children}</main>
       <MobileTabBar />
     </div>
   );

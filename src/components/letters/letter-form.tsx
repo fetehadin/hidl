@@ -9,7 +9,7 @@ import { Markdown } from "@/components/markdown";
 import { APP_TZ, formatInAppTz, localToUtc } from "@/lib/time";
 
 export const DRAFT_KEY = "hidl:letter-draft";
-const RECIPIENTS = ["Future me", "Graduation day", "18-year-old me", "Me, after the exam", "First day of university"];
+const RECIPIENTS = ["Future me", "Me in five years", "18-year-old me", "Me, after the exam", "First day of university"];
 
 function quickPick(kind: "1m" | "6m" | "1y") {
   const base = new TZDate(Date.now(), APP_TZ);
@@ -87,7 +87,7 @@ export function LetterForm() {
       }}
     >
       {state.message && (
-        <p role="alert" className="rounded-xl bg-accent-soft px-4 py-3 text-ink">
+        <p role="alert" className="rounded-control bg-accent-soft px-4 py-3 text-ink">
           {state.message}
         </p>
       )}
@@ -114,10 +114,10 @@ export function LetterForm() {
       <div>
         <div className="mb-1.5 flex items-end justify-between">
           <label htmlFor="body" className="text-sm font-semibold text-ink-soft">Letter</label>
-          <div role="tablist" aria-label="Editor mode" className="flex rounded-lg border border-line p-0.5 text-sm">
+          <div role="tablist" aria-label="Editor mode" className="flex rounded-control border border-line p-0.5 text-sm">
             {(["write", "preview"] as const).map((t) => (
               <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-                className={`rounded-md px-3 py-1 capitalize ${tab === t ? "bg-accent-soft font-semibold" : "text-muted"}`}>
+                className={`rounded-control px-3 py-1 capitalize ${tab === t ? "bg-accent-soft font-semibold" : "text-muted"}`}>
                 {t}
               </button>
             ))}

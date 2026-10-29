@@ -26,12 +26,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
       <div className="card p-6">
         {deleted === "1" && (
-          <p role="status" className="mb-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-ink">
+          <p role="status" className="mb-4 rounded-control bg-accent-soft px-3 py-2 text-sm text-ink">
             Your account and everything in it has been deleted.
           </p>
         )}
         {message && (
-          <p role="alert" className="mb-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-ink">
+          <p role="alert" className="mb-4 rounded-control bg-accent-soft px-3 py-2 text-sm text-ink">
             {message}
           </p>
         )}
