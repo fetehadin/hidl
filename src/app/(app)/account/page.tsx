@@ -20,7 +20,7 @@ export default async function AccountPage() {
         <p className="eyebrow mb-1 text-wax">danger zone</p>
         <h2 className="font-display text-xl font-semibold">Delete your account</h2>
         <p className="mt-1 text-ink-soft">
-          Permanently removes your letters, photos, and exam settings. This can&apos;t be undone.
+          Permanently removes your letters, photos, and countdowns. This can&apos;t be undone.
         </p>
         <div className="mt-4">
           <DeleteAccountButton />

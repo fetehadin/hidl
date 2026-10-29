@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A private, single-user journal app for senior year: time-locked letters to your future self, an entrance-exam
-countdown, and a one-photo-per-day image calendar. Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 +
-Supabase (Auth, Postgres, Storage), designed to run entirely on free tiers (Vercel Hobby + Supabase free +
-optional Resend free). Access is restricted to `ALLOWED_EMAIL` — a comma-separated allowlist, or `*` to let
-anyone sign up (the data model is already correctly multi-tenant via RLS, so this is a real supported mode, not
-just a loophole).
+A journal app for senior year: time-locked letters to your future self, countdowns to any number of deadlines
+(exams with a target score, or plain deadlines), and a photo calendar with any number of photos per day.
+Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 + Supabase (Auth, Postgres, Storage), designed to run
+entirely on free tiers (Vercel Hobby + Supabase free + optional Resend/Gmail SMTP). Access is restricted to
+`ALLOWED_EMAIL` — a comma-separated allowlist, or `*` to let anyone sign up (the data model is already correctly
+multi-tenant via RLS, so this is a real supported mode, not just a loophole). Anyone can permanently delete their
+own account and everything in it from `/account`.
 
 Everything meaningful about *why* a rule exists and *where* it's enforced is in the README's "How the important
 rules are enforced" table — read that before touching letters, photos, or auth. The short version: correctness for
@@ -61,19 +62,34 @@ rendered at request time.
   and route handler that touches data must call this. A session that's valid but not on the allowlist gets signed
   out and redirected with `?error=not-allowed`.
 
-**Database-enforced invariants, not app-enforced.** The three features each push their hard rule into Postgres so
-the app layer physically cannot violate it, even with a bug:
+**Database-enforced invariants, not app-enforced.** Each feature pushes its hard rule into Postgres so the app
+layer physically cannot violate it, even with a bug:
 - *Letters* (`supabase/migrations/..._letters.sql`): `authenticated` has no `SELECT` grant on the `body` column at
   all — only `public.open_letter(id)`, a `SECURITY DEFINER` function, can return it, and only after checking
   `now() >= unlock_at` with the **database's** clock. Triggers (`letters_before_update`) make a letter immutable
   except `unlock_at`, which can only move later. `src/lib/data/letters.ts` mirrors this: `LETTER_META_COLUMNS`
   never includes `body`; reading it goes through `openLetter()` → the RPC, with `LetterSealedError` thrown on the
   `hint: "sealed"` error code.
-- *Photos*: `UNIQUE (user_id, date)` plus a `photos_before_write` trigger that rejects future dates, using
-  `app_today()` (Africa/Addis_Ababa) as the server-side source of truth.
-- *Exam settings*: see `supabase/migrations/..._exam.sql`.
+- *Photos*: a day can hold any number of photos (no per-day limit); `photos_before_write` rejects future dates
+  using `app_today()` (Africa/Addis_Ababa) as the server-side source of truth. Actions are keyed by photo `id`,
+  not date, since a day's photos aren't unique (`src/actions/photos.ts`: `addPhoto`/`replacePhoto`/`deletePhoto`).
+- *Countdowns* (`supabase/migrations/..._countdowns.sql`): a check constraint ties `kind` to which fields are
+  legal — `exam` requires `target_score`/`max_score`, `deadline` forbids them — and `kind` has no `UPDATE` grant,
+  so it can't be changed after creation. A partial unique index, `countdowns (user_id) where is_widget`, allows
+  at most one starred countdown per user; `set_widget_countdown(id)` flips it atomically (clear-then-set in one
+  function call) so that index is never transiently violated.
+- *Widget tokens*: `widget_tokens.token_hash` has no `SELECT` grant to anyone, including its owner — same
+  column-restriction pattern as `letters.body`. The public feed (`src/app/api/widget/countdown`) looks it up by
+  `=` via the service-role client; nothing else can read it back. Generating one must use plain
+  update-then-insert, not `.upsert()` — Postgres's `ON CONFLICT DO UPDATE` needs full-table `SELECT` to detect the
+  conflict, which a column-restricted table can't satisfy (`src/actions/countdowns.ts` `generateWidgetToken`).
 - Every table has RLS scoped to `user_id = auth.uid()`, and the `photos` storage bucket is split into per-user
   folders with matching storage policies.
+
+**Account deletion** (`deleteAccount()` in `src/actions/auth.ts`) removes the user's storage files first (RLS
+still applies, uses the user's own session), then deletes the `auth.users` row via `createAdminClient()`
+(service-role, `src/lib/supabase/admin.ts`) — which cascades to `letters`, `photos`, and `countdowns` via
+`on delete cascade`. Covered end-to-end in `tests/integration/account-deletion.test.ts`.
 
 **Photo upload is two-step and bypasses Vercel's body-size limit on purpose.** Images are resized client-side
 (`src/lib/image.ts`: 1600px full image + 480px thumbnail, WebP or JPEG) and uploaded directly to Supabase Storage
@@ -95,20 +111,24 @@ input through** — there's no separate client-side-only validation path to keep
 
 **Layout:**
 ```
-supabase/migrations/   SQL schema: letters (lock), exam_settings, photos + storage bucket
+supabase/migrations/   SQL schema: letters (lock), countdowns, widget_tokens, photos + storage bucket
 supabase/templates/    Magic-link email template (only needed if using custom SMTP)
 src/proxy.ts           Optimistic auth redirect (Next 16 "proxy", not middleware)
-src/lib/supabase/      Server/browser Supabase clients; requireUser() is the real auth check
+src/lib/supabase/      Server/browser Supabase clients; requireUser() is the real auth check;
+                       admin.ts is the service-role client, used only for account deletion and the widget feed
 src/lib/data/          Typed queries (letters never select `body`)
 src/lib/validation/    zod schemas shared by actions and route handlers
 src/lib/time.ts        Africa/Addis_Ababa helpers; all timestamps elsewhere should go through this
 src/lib/image.ts       Client-side resize/thumbnail before upload
-src/actions/           Server actions (the only place that mutates data, alongside the cron route)
+src/actions/           Server actions (the only place that mutates data, alongside the cron and widget routes)
 src/app/(auth)/login   Sign-in
-src/app/(app)/         Dashboard, /letters, /countdown, /calendar — all require auth
+src/app/(app)/         Dashboard, /letters, /countdown (+ /new, /[id]/edit, /settings for the widget token),
+                       /calendar, /account — all require auth
 src/app/api/cron/      Unlock-email job, behind ENABLE_UNLOCK_EMAILS
+src/app/api/widget/    Public, token-authenticated countdown feed for a phone's home-screen widget app
 tests/unit/            Pure logic (time zones, calendar math) — no external services
-tests/integration/     Real local Supabase: letter lock, one-photo-per-day, storage isolation, exam rules, emails
+tests/integration/     Real local Supabase: letter lock, multi-photo calendar, storage isolation, countdown
+                       rules, widget token, account deletion, unlock emails
 ```
 
 ## Notes
@@ -120,3 +140,6 @@ tests/integration/     Real local Supabase: letter lock, one-photo-per-day, stor
 - Mixing `pnpm build` and `pnpm dev` against the same `.next` directory can leave a stale cache that breaks
   `next/font/google` resolution under Turbopack dev (manifests as a 500 on first page load). `rm -rf .next` fixes
   it; this is a cache artifact, not an app bug.
+- CAPTCHA on the login form (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `src/app/(auth)/login/login-form.tsx`) is optional
+  and entirely client-token-passthrough: the app never holds the Turnstile secret, only Supabase does
+  (Authentication → Attack Protection). The token flows straight into `signInWithOtp`'s `captchaToken` option.

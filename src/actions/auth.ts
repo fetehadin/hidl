@@ -48,7 +48,7 @@ export async function signOut() {
 
 /**
  * Permanently deletes the signed-in user: their storage files, then the auth
- * user itself (which cascades to letters, photos, and exam_settings rows).
+ * user itself (which cascades to letters, photos, and countdowns rows).
  */
 export async function deleteAccount() {
   const { supabase, user } = await requireUser();

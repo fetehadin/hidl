@@ -17,9 +17,10 @@ beforeAll(async () => {
     recipient: "me",
     unlock_at: new Date(Date.now() + 3600_000).toISOString(),
   });
-  await me.client.from("exam_settings").insert({
-    exam_name: "entrance exam",
-    exam_at: new Date(Date.now() + 86_400_000).toISOString(),
+  await me.client.from("countdowns").insert({
+    kind: "exam",
+    title: "entrance exam",
+    target_at: new Date(Date.now() + 86_400_000).toISOString(),
     target_score: 90,
     max_score: 100,
   });
@@ -45,16 +46,16 @@ describe("account deletion", () => {
     const { error } = await admin.auth.admin.deleteUser(me.id);
     expect(error).toBeNull();
 
-    const [letters, photos, exam, remainingFiles] = await Promise.all([
+    const [letters, photos, countdowns, remainingFiles] = await Promise.all([
       admin.from("letters").select("id").eq("user_id", me.id),
       admin.from("photos").select("id").eq("user_id", me.id),
-      admin.from("exam_settings").select("user_id").eq("user_id", me.id),
+      admin.from("countdowns").select("id").eq("user_id", me.id),
       admin.storage.from("photos").list(me.id),
     ]);
 
     expect(letters.data).toEqual([]);
     expect(photos.data).toEqual([]);
-    expect(exam.data).toEqual([]);
+    expect(countdowns.data).toEqual([]);
     expect(remainingFiles.data ?? []).toEqual([]);
   });
 });

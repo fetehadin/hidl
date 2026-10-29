@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { generateWidgetToken, revokeWidgetToken } from "@/actions/exam";
+import { generateWidgetToken, revokeWidgetToken } from "@/actions/countdowns";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { publicEnv } from "@/lib/env";
 import { formatInAppTz } from "@/lib/time";
@@ -38,8 +38,8 @@ export function WidgetToken({ createdAt }: { createdAt: string | null }) {
       <h2 className="font-display text-xl font-semibold">Countdown on your lock screen</h2>
       <p className="mt-1 text-ink-soft">
         A web app can&apos;t place a live widget on Android&apos;s home screen by itself — but a widget app like{" "}
-        <strong>KWGT</strong> can, if you give it a feed URL to read. This generates that URL. It returns just your
-        exam name, date, and scores as JSON — never your letters or photos.
+        <strong>KWGT</strong> can, if you give it a feed URL to read. This generates that URL. It returns whichever
+        one countdown you&apos;ve starred below as JSON — never your letters or photos.
       </p>
 
       {feedUrl ? (
@@ -59,8 +59,10 @@ export function WidgetToken({ createdAt }: { createdAt: string | null }) {
             </button>
           </div>
           <p className="text-sm text-muted">
-            Fields in the response: <code>examName</code>, <code>examAt</code>, <code>targetScore</code>,{" "}
-            <code>maxScore</code>, <code>actualScore</code>, <code>done</code>, <code>daysLeft</code>.
+            Fields in the response: <code>kind</code>, <code>title</code>, <code>targetAt</code>,{" "}
+            <code>targetScore</code>, <code>maxScore</code>, <code>actualScore</code>, <code>done</code>,{" "}
+            <code>daysLeft</code>. <code>targetScore</code>/<code>maxScore</code>/<code>actualScore</code> are
+            <code>null</code> for a plain deadline.
           </p>
         </div>
       ) : createdAt ? (

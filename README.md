@@ -1,6 +1,6 @@
 # hidl
 
-A senior-year journal: time-locked letters, an exam countdown, and a daily photo calendar. Every account's data is
+A senior-year journal: time-locked letters, countdowns to any number of deadlines, and a daily photo calendar. Every account's data is
 fully isolated (enforced by Postgres row-level security, not just app code), so the same deployment works either
 way:
 
@@ -12,7 +12,7 @@ way:
 Features:
 
 - **Time-locked letters.** Write to your future self. A letter stays sealed until its opening date, and the database itself refuses to return the body before then.
-- **Entrance-exam countdown.** A live countdown to the exam with your target score. Afterwards it shows "Done!" and you can compare your actual score. Optionally, generate a token to feed the countdown into an Android home-screen widget (via a third-party widget app).
+- **Countdowns.** Any number of them — an exam with a target score, or a plain deadline with neither. Each shows a live countdown, then "Done!"; exams let you compare your actual score afterward. Star one to feed it into an Android home-screen widget (via a third-party widget app).
 - **Image calendar.** Any number of photos per day — pick several at once or drag and drop them — resized on your phone, kept in private storage, with a lightbox and a year-at-a-glance view.
 - **Account deletion.** Anyone can permanently delete their own account and everything in it from `/account` — no owner intervention needed.
 
@@ -33,9 +33,11 @@ photo storage run on the Supabase free plan, and the optional unlock emails use 
 | Any number of photos per day, each owned by one user | No per-day limit — `photos.user_id`/`date` are just columns, RLS and the folder-path check constraint still scope every row to its owner |
 | No photos for future days | `photos_before_write` trigger, using `app_today()` (Africa/Addis_Ababa) |
 | Users only see their own data | RLS on every table and on the `photos` storage bucket (per-user folder) |
-| The widget feed's token can't be read back, even by its owner | `exam_settings.widget_token_hash` has no `SELECT` grant to anyone — only `=` comparison from the service-role API route. Same column-restriction pattern as `letters.body`. |
+| An exam countdown always has scores; a deadline never does | A check constraint on `countdowns` — `kind = 'exam'` requires `target_score`/`max_score`, `kind = 'deadline'` forbids them. `kind` has no `UPDATE` grant, so it can't be changed after creation either. |
+| At most one countdown feeds the widget | A partial unique index, `countdowns (user_id) where is_widget`. Flipping which one is atomic via the `set_widget_countdown(id)` function, so the index is never violated mid-change. |
+| The widget feed's token can't be read back, even by its owner | `widget_tokens.token_hash` has no `SELECT` grant to anyone — only `=` comparison from the service-role API route. Same column-restriction pattern as `letters.body`. |
 | Only allowed emails can sign in (unless opened to everyone) | `ALLOWED_EMAIL` is checked in the login action, the magic-link callback and `requireUser()` on every server entry point. Set it to `*` to allow anyone to sign up — each person gets their own isolated letters/countdown/calendar, scoped by RLS. |
-| Deleting your account removes everything, not just the login | `deleteAccount()` (`src/actions/auth.ts`) removes the user's storage files first, then deletes the `auth.users` row, which cascades to `letters`, `photos`, and `exam_settings` via `on delete cascade`. Covered by `tests/integration/account-deletion.test.ts`. |
+| Deleting your account removes everything, not just the login | `deleteAccount()` (`src/actions/auth.ts`) removes the user's storage files first, then deletes the `auth.users` row, which cascades to `letters`, `photos`, and `countdowns` via `on delete cascade`. Covered by `tests/integration/account-deletion.test.ts`. |
 
 All timestamps are `timestamptz` (UTC). Calendar days are `date` values meaning the local day in Africa/Addis_Ababa. Everything is displayed in Addis time.
 
@@ -75,7 +77,7 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
 | --- | --- |
 | `pnpm dev` | Dev server |
 | `pnpm test` | Unit tests (time zones, calendar math, validation) |
-| `pnpm test:integration` | Tests against the local Supabase: letter lock, one-photo-per-day, storage isolation, exam rules, unlock emails. Needs `pnpm db:start`. Refuses to run against a non-local URL. |
+| `pnpm test:integration` | Tests against the local Supabase: letter lock, multi-photo calendar, storage isolation, countdown rules, widget token, account deletion, unlock emails. Needs `pnpm db:start`. Refuses to run against a non-local URL. |
 | `pnpm test:all` | Both |
 | `pnpm typecheck` / `pnpm lint` | Static checks |
 | `pnpm db:reset` | Recreate the local database from `supabase/migrations` |
@@ -168,7 +170,7 @@ The email contains the letter's title and a link, never the body. Each letter is
 ## Project layout
 
 ```
-supabase/migrations/      SQL schema: letters (lock), exam_settings, photos + storage bucket
+supabase/migrations/      SQL schema: letters (lock), countdowns, widget_tokens, photos + storage bucket
 supabase/templates/       Magic-link email template
 src/proxy.ts              Session refresh and optimistic redirect to /login
 src/lib/supabase/         Server and browser clients; requireUser() re-checks auth and the allowlist;
@@ -199,6 +201,7 @@ tests/unit, tests/integration
   back, which is passed straight through to `signInWithOtp`. Unset, the form skips the widget entirely.
 - **Home-screen widget (Android).** A web app can't place a live widget on a phone's home screen by itself — that
   needs a native app. `/countdown/settings` can generate a token for `GET /api/widget/countdown?token=…`, a
-  public (token-authenticated, not session-authenticated) JSON feed of just the exam countdown — never letters or
-  photos. Point a widget app like [KWGT](https://play.google.com/store/apps/details?id=org.kustom.widget) at it to
-  render it on the home screen. Only the token's SHA-256 hash is stored; the raw token is shown once, at creation.
+  public (token-authenticated, not session-authenticated) JSON feed of whichever one countdown is starred — never
+  letters or photos, and never any countdown that isn't starred. Point a widget app like
+  [KWGT](https://play.google.com/store/apps/details?id=org.kustom.widget) at it to render it on the home screen.
+  Only the token's SHA-256 hash is stored; the raw token is shown once, at creation.

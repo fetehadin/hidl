@@ -1,14 +1,15 @@
 "use client";
 
 import { useActionState } from "react";
-import { type ExamFormState, saveActualScore } from "@/actions/exam";
+import { type CountdownFormState, saveActualScore } from "@/actions/countdowns";
 
-export function ScoreForm({ max, current }: { max: number; current: number | null }) {
-  const [state, action, pending] = useActionState<ExamFormState, FormData>(saveActualScore, { status: "idle" });
+export function ScoreForm({ countdownId, max, current }: { countdownId: string; max: number; current: number | null }) {
+  const [state, action, pending] = useActionState<CountdownFormState, FormData>(saveActualScore, { status: "idle" });
   const error = state.fieldErrors?.actual_score?.[0] ?? (state.status === "error" ? state.message : undefined);
 
   return (
     <form action={action} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+      <input type="hidden" name="countdown_id" value={countdownId} />
       <div className="flex-1">
         <label htmlFor="actual_score" className="mb-1.5 block text-sm font-semibold text-ink-soft">
           {current === null ? "How did it go? Enter your score" : "Update your score"}

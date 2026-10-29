@@ -4,7 +4,7 @@ import { DashboardCard } from "@/components/dashboard-card";
 import { Envelope } from "@/components/envelope";
 import { sealInitial } from "@/components/letters/letter-card";
 import { LiveRelative } from "@/components/live-relative";
-import { getExam } from "@/lib/data/exam";
+import { getPrimaryCountdown } from "@/lib/data/countdowns";
 import { letterSummary } from "@/lib/data/letters";
 import { listPhotosForDate, signPhotos } from "@/lib/data/photos";
 import { requireUser } from "@/lib/supabase/server";
@@ -15,14 +15,14 @@ export default async function DashboardPage() {
   const now = requestNow();
   const today = todayISO(new Date(now));
 
-  const [exam, letters, todaysPhotos] = await Promise.all([
-    getExam(supabase),
+  const [countdown, letters, todaysPhotos] = await Promise.all([
+    getPrimaryCountdown(supabase),
     letterSummary(supabase),
     listPhotosForDate(supabase, today),
   ]);
   const latestPhotoRow = todaysPhotos.at(-1);
   const [photo] = latestPhotoRow ? await signPhotos(supabase, [latestPhotoRow]) : [];
-  const examDone = exam ? new Date(exam.exam_at).getTime() <= now : false;
+  const countdownDone = countdown ? new Date(countdown.target_at).getTime() <= now : false;
 
   return (
     <div>
@@ -32,30 +32,37 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {/* Exam countdown */}
-        {!exam ? (
-          <DashboardCard eyebrow="the big day" href="/countdown/settings" linkLabel="Set up your countdown" className="sm:col-span-2">
-            <p className="font-display text-xl">No exam date yet.</p>
-            <p className="text-ink-soft">Add your entrance exam date and target score.</p>
+        {/* Primary countdown */}
+        {!countdown ? (
+          <DashboardCard eyebrow="deadlines" href="/countdown/new" linkLabel="Add a countdown" className="sm:col-span-2">
+            <p className="font-display text-xl">No countdowns yet.</p>
+            <p className="text-ink-soft">Add an exam with a target score, or any other deadline.</p>
           </DashboardCard>
-        ) : examDone ? (
-          <DashboardCard eyebrow={exam.exam_name} href="/countdown" linkLabel={exam.actual_score === null ? "Enter your score" : "See how you did"} className="sm:col-span-2">
+        ) : countdownDone ? (
+          <DashboardCard eyebrow={countdown.title} href="/countdown" linkLabel={countdown.kind === "exam" && countdown.actual_score === null ? "Enter your score" : "Open countdown"} className="sm:col-span-2">
             <p className="font-display text-4xl font-semibold text-accent">Done!</p>
-            <p className="text-ink-soft">
-              {exam.actual_score === null
-                ? `Target was ${exam.target_score} / ${exam.max_score}.`
-                : `You scored ${exam.actual_score} / ${exam.max_score} (target ${exam.target_score}).`}
-            </p>
+            {countdown.kind === "exam" && (
+              <p className="text-ink-soft">
+                {countdown.actual_score === null
+                  ? `Target was ${countdown.target_score} / ${countdown.max_score}.`
+                  : `You scored ${countdown.actual_score} / ${countdown.max_score} (target ${countdown.target_score}).`}
+              </p>
+            )}
           </DashboardCard>
         ) : (
-          <DashboardCard eyebrow={exam.exam_name} href="/countdown" linkLabel="Open countdown" className="sm:col-span-2">
-            <LiveCountdown target={exam.exam_at} serverNow={now} variant="compact" />
+          <DashboardCard eyebrow={countdown.title} href="/countdown" linkLabel="Open countdown" className="sm:col-span-2">
+            <LiveCountdown target={countdown.target_at} serverNow={now} variant="compact" />
             <p className="mt-1 text-ink-soft">
-              Target{" "}
-              <strong className="font-display text-xl text-ink tabular-nums">
-                {exam.target_score} / {exam.max_score}
-              </strong>{" "}
-              · {formatInAppTz(exam.exam_at, "MMM d, yyyy")}
+              {countdown.kind === "exam" ? (
+                <>
+                  Target{" "}
+                  <strong className="font-display text-xl text-ink tabular-nums">
+                    {countdown.target_score} / {countdown.max_score}
+                  </strong>{" "}
+                  ·{" "}
+                </>
+              ) : null}
+              {formatInAppTz(countdown.target_at, "MMM d, yyyy")}
             </p>
           </DashboardCard>
         )}
