@@ -28,28 +28,33 @@ afterAll(async () => {
   await Promise.all([deleteTestUser(me), deleteTestUser(other)]);
 });
 
-describe("one photo per day", () => {
+describe("multiple photos per day", () => {
   it("allows the first photo for a day", async () => {
     const { error } = await me.client.from("photos").insert({ date: DAY, ...paths(me, DAY, 1) });
     expect(error).toBeNull();
   });
 
-  it("rejects a second row for the same day (unique constraint)", async () => {
+  it("allows a second, independent photo on the same day", async () => {
     const { error } = await me.client.from("photos").insert({ date: DAY, ...paths(me, DAY, 2) });
-    expect(error?.code).toBe("23505");
-    const { data } = await me.client.from("photos").select("date").eq("date", DAY);
-    expect(data).toHaveLength(1);
-  });
-
-  it("replacing updates the existing row instead of adding one", async () => {
-    const { error } = await me.client.from("photos").update({ ...paths(me, DAY, 3), caption: "again" }).eq("date", DAY);
     expect(error).toBeNull();
-    const { data } = await me.client.from("photos").select("image_path, caption").eq("date", DAY);
-    expect(data).toEqual([{ image_path: paths(me, DAY, 3).image_path, caption: "again" }]);
+    const { data } = await me.client.from("photos").select("image_path").eq("date", DAY);
+    expect(data).toHaveLength(2);
   });
 
-  it("the date of an existing photo can't be changed to collide with another day", async () => {
-    const { error } = await me.client.from("photos").update({ date: "2026-09-16" }).eq("date", DAY);
+  it("updating one photo's image doesn't touch the other photo on the same day", async () => {
+    const { data: rows } = await me.client.from("photos").select("id, image_path").eq("date", DAY).order("image_path");
+    const [first, second] = rows!;
+    await me.client.from("photos").update({ ...paths(me, DAY, 3), caption: "again" }).eq("id", first.id);
+    const { data } = await me.client.from("photos").select("id, image_path, caption").eq("date", DAY).order("id");
+    const updated = data!.find((r) => r.id === first.id);
+    const untouched = data!.find((r) => r.id === second.id);
+    expect(updated).toEqual({ id: first.id, image_path: paths(me, DAY, 3).image_path, caption: "again" });
+    expect(untouched?.image_path).toBe(second.image_path);
+  });
+
+  it("the date column can't be changed at all (not granted)", async () => {
+    const { data: rows } = await me.client.from("photos").select("id").eq("date", DAY).limit(1);
+    const { error } = await me.client.from("photos").update({ date: "2026-09-16" }).eq("id", rows![0].id);
     expect(error?.code).toBe("42501");
   });
 

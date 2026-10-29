@@ -6,7 +6,7 @@ import { sealInitial } from "@/components/letters/letter-card";
 import { LiveRelative } from "@/components/live-relative";
 import { getExam } from "@/lib/data/exam";
 import { letterSummary } from "@/lib/data/letters";
-import { getPhoto, signPhotos } from "@/lib/data/photos";
+import { listPhotosForDate, signPhotos } from "@/lib/data/photos";
 import { requireUser } from "@/lib/supabase/server";
 import { formatInAppTz, greeting, requestNow, todayISO } from "@/lib/time";
 
@@ -15,12 +15,13 @@ export default async function DashboardPage() {
   const now = requestNow();
   const today = todayISO(new Date(now));
 
-  const [exam, letters, photoRow] = await Promise.all([
+  const [exam, letters, todaysPhotos] = await Promise.all([
     getExam(supabase),
     letterSummary(supabase),
-    getPhoto(supabase, today),
+    listPhotosForDate(supabase, today),
   ]);
-  const [photo] = photoRow ? await signPhotos(supabase, [photoRow]) : [];
+  const latestPhotoRow = todaysPhotos.at(-1);
+  const [photo] = latestPhotoRow ? await signPhotos(supabase, [latestPhotoRow]) : [];
   const examDone = exam ? new Date(exam.exam_at).getTime() <= now : false;
 
   return (

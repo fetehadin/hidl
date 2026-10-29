@@ -30,7 +30,7 @@ photo storage run on the Supabase free plan, and the optional unlock emails use 
 | A sealed letter's body is never returned before `unlock_at` | Postgres column privileges: `authenticated` has no `SELECT` on `letters.body`. The only read path is `open_letter(id)` (`SECURITY DEFINER`), which checks ownership and `now() >= unlock_at` using the **database** clock. See `supabase/migrations/*_letters.sql`. |
 | Sealed letters can't be edited; the date only moves later | `letters_before_update` trigger plus column grants (only `unlock_at` is updatable) |
 | `opened_at` is recorded on first open and can't be faked | Set inside `open_letter`; the client has no `UPDATE` grant on it |
-| One photo per user per day | `UNIQUE (user_id, date)` on `photos` |
+| Any number of photos per day, each owned by one user | No per-day limit — `photos.user_id`/`date` are just columns, RLS and the folder-path check constraint still scope every row to its owner |
 | No photos for future days | `photos_before_write` trigger, using `app_today()` (Africa/Addis_Ababa) |
 | Users only see their own data | RLS on every table and on the `photos` storage bucket (per-user folder) |
 | Only allowed emails can sign in (unless opened to everyone) | `ALLOWED_EMAIL` is checked in the login action, the magic-link callback and `requireUser()` on every server entry point. Set it to `*` to allow anyone to sign up — each person gets their own isolated letters/countdown/calendar, scoped by RLS. |
@@ -188,6 +188,9 @@ tests/unit, tests/integration
 - Photos are resized in the browser and uploaded straight to Supabase Storage through one-time signed upload URLs,
   so large phone photos never go through a Vercel function (which has a 4.5 MB body limit). The server
   checks that the files exist in your folder before recording them, and deletes replaced or orphaned files.
+- A day can hold any number of photos. The calendar picker accepts multiple files at once — pick several, or drag
+  and drop them onto the upload sheet — and each becomes its own photo. A day's cell shows the first one with a
+  `+N` badge; open it to flip through the rest, add more, replace one, or delete one.
 - Unsent letter drafts are kept in `localStorage` on the device until the letter is sealed.
 - **CAPTCHA (optional).** Set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` to show a [Cloudflare Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile)
   widget on the login form. Its secret key goes directly into Supabase (Authentication → Attack Protection →

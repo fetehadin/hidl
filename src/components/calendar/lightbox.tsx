@@ -13,12 +13,14 @@ export function Lightbox({
   onIndex,
   onClose,
   onReplace,
+  onAddAnother,
 }: {
   photos: PhotoView[];
   index: number;
   onIndex: (i: number) => void;
   onClose: () => void;
-  onReplace: (date: string) => void;
+  onReplace: (photoId: string) => void;
+  onAddAnother: (date: string) => void;
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -58,7 +60,7 @@ export function Lightbox({
 
   function saveCaption() {
     startTransition(async () => {
-      const res = await updateCaption({ date: photo.date, caption });
+      const res = await updateCaption({ id: photo.id, caption });
       if (!res.ok) return setError(res.message);
       setEditing(false);
       router.refresh();
@@ -67,7 +69,7 @@ export function Lightbox({
 
   function remove() {
     startTransition(async () => {
-      const res = await deletePhoto(photo.date);
+      const res = await deletePhoto(photo.id);
       if (!res.ok) {
         setConfirmDelete(false);
         return setError(res.message);
@@ -153,7 +155,10 @@ export function Lightbox({
             </div>
             <span className="hidden text-white/50 sm:inline">{index + 1} of {photos.length}</span>
             <div className="flex gap-1">
-              <button type="button" onClick={() => onReplace(photo.date)} className="rounded-full px-3 py-2 hover:bg-white/10">
+              <button type="button" onClick={() => onAddAnother(photo.date)} className="rounded-full px-3 py-2 hover:bg-white/10">
+                Add another
+              </button>
+              <button type="button" onClick={() => onReplace(photo.id)} className="rounded-full px-3 py-2 hover:bg-white/10">
                 Replace
               </button>
               <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-full px-3 py-2 text-red-300 hover:bg-white/10">

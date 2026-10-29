@@ -13,6 +13,7 @@ export type PhotoRow = {
 };
 
 export type PhotoView = {
+  id: string;
   date: string;
   caption: string | null;
   thumbUrl: string;
@@ -21,13 +22,15 @@ export type PhotoView = {
 
 const COLUMNS = "id, date, image_path, thumb_path, caption, created_at";
 
+/** Multiple rows can share a date; ordered by date, then upload order within the day. */
 export async function listPhotos(supabase: SupabaseClient, from: string, to: string) {
   const { data, error } = await supabase
     .from("photos")
     .select(COLUMNS)
     .gte("date", from)
     .lte("date", to)
-    .order("date");
+    .order("date")
+    .order("created_at");
   if (error) throw error;
   return data as PhotoRow[];
 }
@@ -38,8 +41,14 @@ export async function listPhotoDates(supabase: SupabaseClient, from: string, to:
   return (data as { date: string }[]).map((r) => r.date);
 }
 
-export async function getPhoto(supabase: SupabaseClient, date: string) {
-  const { data, error } = await supabase.from("photos").select(COLUMNS).eq("date", date).maybeSingle();
+export async function listPhotosForDate(supabase: SupabaseClient, date: string) {
+  const { data, error } = await supabase.from("photos").select(COLUMNS).eq("date", date).order("created_at");
+  if (error) throw error;
+  return data as PhotoRow[];
+}
+
+export async function getPhotoById(supabase: SupabaseClient, id: string) {
+  const { data, error } = await supabase.from("photos").select(COLUMNS).eq("id", id).maybeSingle();
   if (error) throw error;
   return data as PhotoRow | null;
 }
@@ -52,6 +61,7 @@ export async function signPhotos(supabase: SupabaseClient, rows: PhotoRow[]): Pr
   if (error) throw error;
   const byPath = new Map(data.map((d) => [d.path, d.signedUrl]));
   return rows.map((r) => ({
+    id: r.id,
     date: r.date,
     caption: r.caption,
     thumbUrl: byPath.get(r.thumb_path) ?? "",

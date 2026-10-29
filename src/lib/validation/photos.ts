@@ -25,14 +25,22 @@ export const caption = z
   .optional()
   .transform((s) => s ?? null);
 
-export const savePhotoSchema = z.object({
+export const photoIdSchema = z.uuid();
+
+export const addPhotoSchema = z.object({
   date: isoDate,
   imagePath: z.string().min(1).max(200),
   thumbPath: z.string().min(1).max(200),
   caption,
 });
 
-export const captionSchema = z.object({ date: isoDate, caption });
+export const replacePhotoSchema = z.object({
+  id: photoIdSchema,
+  imagePath: z.string().min(1).max(200),
+  thumbPath: z.string().min(1).max(200),
+});
+
+export const captionSchema = z.object({ id: photoIdSchema, caption });
 
 /** Storage paths must be <uid>/<date>-<random>[-thumb].<ext> inside the user's folder. */
 export function photoPathPattern(userId: string, date: string) {
