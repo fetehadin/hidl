@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Caveat, Fraunces, Newsreader } from "next/font/google";
+import { RegisterServiceWorker } from "@/components/register-service-worker";
 import "./globals.css";
 
 const display = Fraunces({
@@ -23,6 +24,14 @@ export const metadata: Metadata = {
   title: { default: "hidl", template: "%s · hidl" },
   description: "Letters, a countdown, and a year in pictures.",
   robots: { index: false, follow: false },
+  appleWebApp: {
+    capable: true,
+    title: "hidl",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -36,7 +45,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${hand.variable} h-full`}>
-      <body className="min-h-full antialiased text-[17px] leading-relaxed">{children}</body>
+      <body className="min-h-full antialiased text-[17px] leading-relaxed">
+        <RegisterServiceWorker />
+        {children}
+      </body>
     </html>
   );
 }

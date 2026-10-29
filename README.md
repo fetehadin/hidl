@@ -15,6 +15,8 @@ Features:
 - **Countdowns.** Any number of them — an exam with a target score, or a plain deadline with neither. Each shows a live countdown, then "Done!"; exams let you compare your actual score afterward. Star one to feed it into an Android home-screen widget (via a third-party widget app).
 - **Image calendar.** Any number of photos per day — pick several at once or drag and drop them — resized on your phone, kept in private storage, with a lightbox and a year-at-a-glance view.
 - **Account deletion.** Anyone can permanently delete their own account and everything in it from `/account` — no owner intervention needed.
+- **Installable as an app.** It's a Progressive Web App — "Add to Home Screen" (Android Chrome or iOS Safari) gives
+  a real app icon and a full-screen launch with no browser UI, using the exact same sign-in session as the site.
 
 Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase (Auth, Postgres, Storage) · Vercel
 
@@ -205,3 +207,11 @@ tests/unit, tests/integration
   letters or photos, and never any countdown that isn't starred. Point a widget app like
   [KWGT](https://play.google.com/store/apps/details?id=org.kustom.widget) at it to render it on the home screen.
   Only the token's SHA-256 hash is stored; the raw token is shown once, at creation.
+- **PWA / "Add to Home Screen."** `src/app/manifest.ts` plus `public/sw.js` (a deliberately no-op service worker —
+  every page is per-user and dynamic, so there's nothing safe to cache offline; it exists only so Android's
+  install prompt treats this as a real app, not a bookmark). Installing doesn't create a separate login: it's the
+  same origin, so it shares the site's session cookie. Signing in stays persistent either way — Supabase's own
+  session has no inactivity or hard timeout configured, and the auth cookie is set to last 400 days by default —
+  so you're only signed out by explicitly signing out, clearing site data, or (on iOS specifically) Safari's
+  cross-site data cap after a long stretch of not opening the installed app, which is a platform limitation, not
+  something this app controls.

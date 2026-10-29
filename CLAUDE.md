@@ -138,8 +138,16 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
 - The login page accepts two magic-link formats from Supabase (PKCE `?code=` from the default template, or a
   cross-device-safe link from the custom template in `supabase/templates/magic_link.html`) — see `/auth/confirm`.
 - Mixing `pnpm build` and `pnpm dev` against the same `.next` directory can leave a stale cache that breaks
-  `next/font/google` resolution under Turbopack dev (manifests as a 500 on first page load). `rm -rf .next` fixes
-  it; this is a cache artifact, not an app bug.
+  `next/font/google` resolution under Turbopack dev (manifests as a 500 on first page load). Usually `rm -rf
+  .next` fixes it; occasionally `node_modules/.cache` needs clearing too. This is a cache artifact, not an app bug.
+- `src/proxy.ts`'s matcher excludes known static files/paths by name (`icon.svg`, `manifest.webmanifest`,
+  `sw.js`, `.../api/cron`, `.../api/widget`, …) rather than by a general rule. Any new unauthenticated static
+  asset or public API route needs adding here explicitly, or it 307s to `/login` instead of serving — this has
+  already happened twice (the widget API, then `sw.js`).
+- The PWA manifest/service worker (`src/app/manifest.ts`, `public/sw.js`, `RegisterServiceWorker` in
+  `src/app/layout.tsx`) make the app installable ("Add to Home Screen"). The service worker is deliberately a
+  no-op — it registers (satisfying installability checks) but caches nothing, since every page is per-user and
+  dynamic. Installing doesn't create a separate session; it's the same origin and cookie jar as the browser.
 - CAPTCHA on the login form (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `src/app/(auth)/login/login-form.tsx`) is optional
   and entirely client-token-passthrough: the app never holds the Turnstile secret, only Supabase does
   (Authentication → Attack Protection). The token flows straight into `signInWithOtp`'s `captchaToken` option.
