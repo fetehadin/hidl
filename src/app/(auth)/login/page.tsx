@@ -12,7 +12,7 @@ const ERRORS: Record<string, string> = {
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  const { error } = await searchParams;
+  const { error, deleted } = await searchParams;
   const message = typeof error === "string" ? ERRORS[error] : undefined;
 
   return (
@@ -24,6 +24,11 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       </div>
 
       <div className="card p-6">
+        {deleted === "1" && (
+          <p role="status" className="mb-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-ink">
+            Your account and everything in it has been deleted.
+          </p>
+        )}
         {message && (
           <p role="alert" className="mb-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-ink">
             {message}

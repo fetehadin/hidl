@@ -1,10 +1,20 @@
 # hidl
 
-A private, single-user journal for senior year:
+A senior-year journal: time-locked letters, an exam countdown, and a daily photo calendar. Every account's data is
+fully isolated (enforced by Postgres row-level security, not just app code), so the same deployment works either
+way:
+
+- **Private**, for one person or a short allowlist of trusted emails (`ALLOWED_EMAIL=a@x.com,b@y.com`) — the
+  original intent, and still the default posture if you set it that way.
+- **Open to anyone** (`ALLOWED_EMAIL=*`) — each person who signs up gets their own private letters, countdown, and
+  calendar; nobody can see anyone else's.
+
+Features:
 
 - **Time-locked letters.** Write to your future self. A letter stays sealed until its opening date, and the database itself refuses to return the body before then.
 - **Entrance-exam countdown.** A live countdown to the exam with your target score. Afterwards it shows "Done!" and you can compare your actual score.
 - **Image calendar.** One photo per day, resized on your phone, kept in private storage, with a lightbox and a year-at-a-glance view.
+- **Account deletion.** Anyone can permanently delete their own account and everything in it from `/account` — no owner intervention needed.
 
 Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase (Auth, Postgres, Storage) · Vercel
 
@@ -24,6 +34,7 @@ photo storage run on the Supabase free plan, and the optional unlock emails use 
 | No photos for future days | `photos_before_write` trigger, using `app_today()` (Africa/Addis_Ababa) |
 | Users only see their own data | RLS on every table and on the `photos` storage bucket (per-user folder) |
 | Only allowed emails can sign in (unless opened to everyone) | `ALLOWED_EMAIL` is checked in the login action, the magic-link callback and `requireUser()` on every server entry point. Set it to `*` to allow anyone to sign up — each person gets their own isolated letters/countdown/calendar, scoped by RLS. |
+| Deleting your account removes everything, not just the login | `deleteAccount()` (`src/actions/auth.ts`) removes the user's storage files first, then deletes the `auth.users` row, which cascades to `letters`, `photos`, and `exam_settings` via `on delete cascade`. Covered by `tests/integration/account-deletion.test.ts`. |
 
 All timestamps are `timestamptz` (UTC). Calendar days are `date` values meaning the local day in Africa/Addis_Ababa. Everything is displayed in Addis time.
 
@@ -82,13 +93,14 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
 3. **Authentication → URL Configuration**:
    - Site URL: `https://<your-app>.vercel.app`
    - Redirect URLs: `https://<your-app>.vercel.app/**`
-4. **Email template (optional).** `/auth/confirm` accepts both link formats:
-   - With Supabase's **default** template, the link is a PKCE `?code=` link. It must be opened in the same
-     browser that requested it, so on your phone, request it on your phone. If it isn't, the login page explains why.
+4. **Email template (cross-device links).** `/auth/confirm` accepts both link formats, but the custom template is
+   what makes magic links work from any device, not just the one that requested them:
+   - With Supabase's **default** template, the link is a PKCE `?code=` link that only works in the browser that
+     requested it (the login page explains this if it happens).
    - With the **custom** template (`supabase/templates/magic_link.html`, pasted into Authentication →
-     Email Templates → Magic Link and Confirm signup), the link works from any device. On the free tier,
-     Supabase only allows custom templates once you configure custom SMTP (Authentication → SMTP;
-     Resend's free SMTP works).
+     Email Templates → **Magic Link** and **Confirm signup**), the link works from any device. On the free tier,
+     Supabase only allows custom templates once you configure custom SMTP (Authentication → SMTP; Resend's free
+     SMTP, or Gmail's SMTP with an [app password](https://myaccount.google.com/apppasswords), both work).
 5. **Authentication → Sign In / Providers**: if `ALLOWED_EMAIL` is a specific list (not `*`), sign in once to
    create your account, then turn off **Allow new users to sign up** — the app's allowlist already blocks other
    emails, but this closes it at the source too. Leave sign-ups on if `ALLOWED_EMAIL=*`.
@@ -158,14 +170,15 @@ The email contains the letter's title and a link, never the body. Each letter is
 supabase/migrations/      SQL schema: letters (lock), exam_settings, photos + storage bucket
 supabase/templates/       Magic-link email template
 src/proxy.ts              Session refresh and optimistic redirect to /login
-src/lib/supabase/         Server and browser clients; requireUser() re-checks auth and the allowlist
+src/lib/supabase/         Server and browser clients; requireUser() re-checks auth and the allowlist;
+                          admin.ts is the service-role client used only for account deletion
 src/lib/data/             Typed queries (letters never select `body`)
 src/lib/validation/       zod schemas used by every server action and route handler
 src/lib/time.ts           Africa/Addis_Ababa helpers
 src/lib/image.ts          Client-side resize (1600px) and thumbnail (480px), WebP or JPEG
-src/actions/              Server actions
+src/actions/              Server actions, including account deletion (src/actions/auth.ts)
 src/app/(auth)/login      Sign-in
-src/app/(app)/            Dashboard, /letters, /countdown, /calendar (all require auth)
+src/app/(app)/            Dashboard, /letters, /countdown, /calendar, /account (all require auth)
 src/app/api/cron/         Unlock-email job (behind a flag)
 tests/unit, tests/integration
 ```

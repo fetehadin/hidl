@@ -11,6 +11,7 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   tone = "primary",
   pending = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: {
@@ -21,6 +22,7 @@ export function ConfirmDialog({
   cancelLabel?: string;
   tone?: "primary" | "danger";
   pending?: boolean;
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -54,7 +56,7 @@ export function ConfirmDialog({
             type="button"
             className={`btn ${tone === "danger" ? "bg-wax text-white hover:opacity-90" : "btn-primary"}`}
             onClick={onConfirm}
-            disabled={pending}
+            disabled={pending || confirmDisabled}
             autoFocus
           >
             {pending ? "Working…" : confirmLabel}

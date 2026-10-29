@@ -2,7 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { isAllowedEmail, publicEnv } from "@/lib/env";
-import { createClient } from "@/lib/supabase/server";
+import { PHOTO_BUCKET } from "@/lib/data/photos";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient, requireUser } from "@/lib/supabase/server";
 import { loginSchema } from "@/lib/validation/auth";
 
 export type LoginState = { status: "idle" | "sent" | "error"; message?: string };
@@ -34,4 +36,27 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+/**
+ * Permanently deletes the signed-in user: their storage files, then the auth
+ * user itself (which cascades to letters, photos, and exam_settings rows).
+ */
+export async function deleteAccount() {
+  const { supabase, user } = await requireUser();
+
+  const { data: files } = await supabase.storage.from(PHOTO_BUCKET).list(user.id);
+  if (files && files.length > 0) {
+    await supabase.storage.from(PHOTO_BUCKET).remove(files.map((f) => `${user.id}/${f.name}`));
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  if (error) {
+    console.error("deleteAccount failed", error.message);
+    redirect("/account?error=delete-failed");
+  }
+
+  await supabase.auth.signOut();
+  redirect("/login?deleted=1");
 }

@@ -13,11 +13,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           hidl
         </Link>
         <DesktopNav />
-        <form action={signOut}>
-          <button type="submit" className="text-sm text-muted underline-offset-4 hover:text-ink hover:underline">
-            Sign out
-          </button>
-        </form>
+        <div className="flex items-center gap-4">
+          <Link href="/account" className="text-sm text-muted underline-offset-4 hover:text-ink hover:underline">
+            Account
+          </Link>
+          <form action={signOut}>
+            <button type="submit" className="text-sm text-muted underline-offset-4 hover:text-ink hover:underline">
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
 
       <main className="mx-auto max-w-3xl px-5 pt-2 pb-28 sm:pb-16">{children}</main>
