@@ -189,3 +189,7 @@ tests/unit, tests/integration
   so large phone photos never go through a Vercel function (which has a 4.5 MB body limit). The server
   checks that the files exist in your folder before recording them, and deletes replaced or orphaned files.
 - Unsent letter drafts are kept in `localStorage` on the device until the letter is sealed.
+- **CAPTCHA (optional).** Set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` to show a [Cloudflare Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile)
+  widget on the login form. Its secret key goes directly into Supabase (Authentication → Attack Protection →
+  Enable Captcha protection, provider Turnstile) — the app itself never sees it, only the token Turnstile hands
+  back, which is passed straight through to `signInWithOtp`. Unset, the form skips the widget entirely.

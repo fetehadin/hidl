@@ -1,20 +1,43 @@
 "use client";
 
-import { useActionState } from "react";
+import Script from "next/script";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { type LoginState, sendMagicLink } from "@/actions/auth";
 
 const initial: LoginState = { status: "idle" };
 
-export function LoginForm() {
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (
+        el: HTMLElement,
+        opts: { sitekey: string; callback: (token: string) => void },
+      ) => void;
+    };
+  }
+}
+
+export function LoginForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) {
   const [state, action, pending] = useActionState(sendMagicLink, initial);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const widgetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!scriptLoaded || !turnstileSiteKey || !widgetRef.current || !window.turnstile) return;
+    window.turnstile.render(widgetRef.current, {
+      sitekey: turnstileSiteKey,
+      callback: setCaptchaToken,
+    });
+  }, [scriptLoaded, turnstileSiteKey]);
 
   if (state.status === "sent") {
     return (
       <div role="status" className="space-y-2 text-center">
         <p className="font-display text-2xl">Check your inbox.</p>
         <p className="text-ink-soft">
-          If that address belongs here, a sign-in link is on its way. Open it on this device, in this browser. It
-          works once and expires in an hour.
+          If that address belongs here, a sign-in link is on its way. It works once, on any device, and expires in
+          an hour.
         </p>
       </div>
     );
@@ -44,7 +67,21 @@ export function LoginForm() {
           </p>
         )}
       </div>
-      <button type="submit" className="btn btn-primary w-full" disabled={pending}>
+      {turnstileSiteKey && (
+        <>
+          <Script
+            src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+            onLoad={() => setScriptLoaded(true)}
+          />
+          <div ref={widgetRef} />
+          <input type="hidden" name="captchaToken" value={captchaToken} />
+        </>
+      )}
+      <button
+        type="submit"
+        className="btn btn-primary w-full"
+        disabled={pending || (!!turnstileSiteKey && !captchaToken)}
+      >
         {pending ? "Sending…" : "Send me a link"}
       </button>
     </form>
