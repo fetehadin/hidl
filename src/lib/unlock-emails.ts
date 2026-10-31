@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { brandedEmail } from "./email-layout";
 
 export type UnlockEmail = { to: string; subject: string; html: string; text: string };
 export type SendEmail = (email: UnlockEmail) => Promise<void>;
@@ -39,12 +40,16 @@ export async function sendUnlockEmails(admin: SupabaseClient, send: SendEmail, s
         to,
         subject: `A letter just unlocked: ${letter.title}`,
         text: `"${letter.title}" (for ${letter.recipient}) is ready to open.\n\n${url}`,
-        html: `<div style="font-family:Georgia,serif;max-width:480px;margin:0 auto;padding:24px;color:#3b2f2a;background:#fbf6ee">
-  <p style="color:#9a4a2f;margin:0 0 8px">for ${escape(letter.recipient)}</p>
-  <h2 style="font-weight:normal;margin:0 0 16px">${escape(letter.title)}</h2>
-  <p>It's time. This letter has been waiting for you.</p>
-  <p><a href="${url}" style="display:inline-block;padding:10px 18px;background:#9a4a2f;color:#fbf6ee;text-decoration:none;border-radius:6px">Open it</a></p>
-</div>`,
+        html: brandedEmail({
+          siteUrl,
+          preheader: `"${escape(letter.title)}" is ready to open.`,
+          mascot: "hidi-cheer",
+          eyebrow: `a letter for ${escape(letter.recipient)}`,
+          title: escape(letter.title),
+          intro: "It&rsquo;s time! This letter has been waiting for you. Open it whenever you&rsquo;re ready.",
+          cta: { label: "Open your letter", url },
+          note: "Only you can open it, and it stays in your journal after you do.",
+        }),
       });
     } catch (e) {
       console.error("unlock email failed", letter.id, e);

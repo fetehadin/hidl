@@ -102,8 +102,11 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
    what makes magic links work from any device, not just the one that requested them:
    - With Supabase's **default** template, the link is a PKCE `?code=` link that only works in the browser that
      requested it (the login page explains this if it happens).
-   - With the **custom** template (`supabase/templates/magic_link.html`, pasted into Authentication →
-     Email Templates → **Magic Link** and **Confirm signup**), the link works from any device. On the free tier,
+   - With the **custom** templates (branded, light teal, with the Hidi mascot), the link works from any device.
+     Paste `supabase/templates/magic_link.html` into Authentication → Email Templates → **Magic Link**
+     (subject: `Your hidl sign-in link`) and `supabase/templates/confirm_signup.html` into **Confirm signup**
+     (subject: `Welcome to hidl: confirm your email`). Their mascot images load from `{{ .SiteURL }}/email/`, so
+     Authentication → URL Configuration → **Site URL** must be your deployed app URL. On the free tier,
      Supabase only allows custom templates once you configure custom SMTP (Authentication → SMTP; Resend's free
      SMTP, or Gmail's SMTP with an [app password](https://myaccount.google.com/apppasswords), both work).
 5. **Authentication → Sign In / Providers**: if `ALLOWED_EMAIL` is a specific list (not `*`), sign in once to
@@ -173,7 +176,7 @@ The email contains the letter's title and a link, never the body. Each letter is
 
 ```
 supabase/migrations/      SQL schema: letters (lock), countdowns, widget_tokens, photos + storage bucket
-supabase/templates/       Magic-link email template
+supabase/templates/       Branded sign-in + confirm-signup email templates
 src/proxy.ts              Session refresh and optimistic redirect to /login
 src/lib/supabase/         Server and browser clients; requireUser() re-checks auth and the allowlist;
                           admin.ts is the service-role client used only for account deletion
