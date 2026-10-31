@@ -147,3 +147,19 @@ export async function deletePhoto(id: string): Promise<{ ok: true } | Fail> {
   revalidate();
   return { ok: true };
 }
+
+/** Pins a photo as its day's wallpaper (replacing any other pin that day), or unpins it. */
+export async function setCoverPhoto(id: string, pinned: boolean): Promise<{ ok: true } | Fail> {
+  const parsed = photoIdSchema.safeParse(id);
+  if (!parsed.success || typeof pinned !== "boolean") return { ok: false, message: "Invalid photo." };
+
+  const { supabase } = await requireUser();
+  const { error } = await supabase.rpc("set_cover_photo", { photo_id: parsed.data, pinned });
+  if (error) {
+    console.error("setCoverPhoto", error);
+    return { ok: false, message: "Couldn't pin that photo. Try again." };
+  }
+  revalidate();
+  revalidatePath("/memories");
+  return { ok: true };
+}

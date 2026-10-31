@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Envelope } from "@/components/envelope";
 import { LiveRelative } from "@/components/live-relative";
 import type { LetterMeta } from "@/lib/data/letters";
-import { formatEthiopian } from "@/lib/ethiopian";
+import { type CalendarPref, formatDay } from "@/lib/dates";
 
 export function letterState(letter: LetterMeta, now = Date.now()) {
   if (letter.opened_at) return "opened" as const;
@@ -13,7 +13,7 @@ export function sealInitial(recipient: string) {
   return recipient.trim().charAt(0).toUpperCase() || "✶";
 }
 
-export function LetterCard({ letter, now }: { letter: LetterMeta; now: number }) {
+export function LetterCard({ letter, now, calendar }: { letter: LetterMeta; now: number; calendar: CalendarPref }) {
   const state = letterState(letter, now);
 
   return (
@@ -35,12 +35,12 @@ export function LetterCard({ letter, now }: { letter: LetterMeta; now: number })
               <span className="font-semibold text-ink-soft">
                 <LiveRelative target={letter.unlock_at} />
               </span>
-              <span className="text-muted">{formatEthiopian(letter.unlock_at)}</span>
+              <span className="text-muted">{formatDay(letter.unlock_at, calendar)}</span>
             </>
           )}
           {state === "ready" && <span className="btn btn-primary min-h-9 px-4 text-[15px]">Open</span>}
           {state === "opened" && (
-            <span className="text-muted">Opened {formatEthiopian(letter.opened_at!)}</span>
+            <span className="text-muted">Opened {formatDay(letter.opened_at!, calendar)}</span>
           )}
         </div>
       </Envelope>

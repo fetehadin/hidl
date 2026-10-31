@@ -155,3 +155,67 @@ describe("widget token", () => {
     expect(data).toBeNull();
   });
 });
+
+describe("a widget token per countdown", () => {
+  const hash = (t: string) => createHash("sha256").update(t).digest("hex");
+  let mine: string;
+  let theirs: string;
+
+  beforeAll(async () => {
+    const a = await me.client.from("countdowns").insert(deadline(inSeconds(86400))).select("id").single();
+    const b = await other.client.from("countdowns").insert(deadline(inSeconds(86400))).select("id").single();
+    mine = a.data!.id;
+    theirs = b.data!.id;
+  });
+
+  it("a countdown can have its own token, alongside the starred-feed one", async () => {
+    const starred = await me.client.from("widget_tokens").insert({ token_hash: hash("starred-feed") });
+    const own = await me.client.from("widget_tokens").insert({ token_hash: hash("own-feed"), countdown_id: mine });
+    expect(starred.error).toBeNull();
+    expect(own.error).toBeNull();
+    const { data } = await admin.from("widget_tokens").select("countdown_id").eq("token_hash", hash("own-feed")).single();
+    expect(data!.countdown_id).toBe(mine);
+  });
+
+  it("only one token per countdown, and one starred-feed token", async () => {
+    const again = await me.client.from("widget_tokens").insert({ token_hash: hash("own-feed-2"), countdown_id: mine });
+    const starredAgain = await me.client.from("widget_tokens").insert({ token_hash: hash("starred-feed-2") });
+    expect(again.error?.code).toBe("23505");
+    expect(starredAgain.error?.code).toBe("23505");
+  });
+
+  it("can't point a token at someone else's countdown", async () => {
+    const { error } = await me.client.from("widget_tokens").insert({ token_hash: hash("sneaky"), countdown_id: theirs });
+    expect(error?.code).toBe("23503");
+  });
+
+  it("deleting the countdown deletes its token", async () => {
+    await me.client.from("countdowns").delete().eq("id", mine);
+    const { data } = await admin.from("widget_tokens").select("id").eq("token_hash", hash("own-feed")).maybeSingle();
+    expect(data).toBeNull();
+    const { data: starred } = await admin.from("widget_tokens").select("id").eq("token_hash", hash("starred-feed")).maybeSingle();
+    expect(starred).not.toBeNull();
+  });
+});
+
+describe("countdown units", () => {
+  it("defaults to years, months and days", async () => {
+    const { data, error } = await me.client.from("countdowns").insert(deadline(inSeconds(86400))).select("units").single();
+    expect(error).toBeNull();
+    expect(data!.units).toEqual(["years", "months", "days"]);
+  });
+
+  it("accepts any non-empty mix of years, months, days and hours", async () => {
+    for (const units of [["days"], ["months", "days"], ["years", "months", "days", "hours"], ["hours"]]) {
+      const { error } = await me.client.from("countdowns").insert({ ...deadline(inSeconds(86400)), units });
+      expect(error).toBeNull();
+    }
+  });
+
+  it("rejects no units, unknown units, or repeats", async () => {
+    for (const units of [[], ["weeks"], ["days", "days"]]) {
+      const { error } = await me.client.from("countdowns").insert({ ...deadline(inSeconds(86400)), units });
+      expect(error?.code).toBe("23514");
+    }
+  });
+});

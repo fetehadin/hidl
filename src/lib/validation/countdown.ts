@@ -7,6 +7,7 @@ import {
   detailField,
   KIND_INFO,
 } from "@/lib/countdown-kinds";
+import { COUNTDOWN_UNITS, type CountdownUnit, normalizeUnits } from "@/lib/countdown-units";
 import { localDateTime } from "./letters";
 
 const score = z.coerce.number({ error: "Enter a number." }).int("Whole numbers only.").min(0, "Can't be negative.");
@@ -40,10 +41,17 @@ export type CountdownInput = {
   target_score?: number;
   max_score?: number;
   details: CountdownDetails;
+  units: CountdownUnit[];
 };
 
+/** The form sends one `units` value per ticked box; parseCountdown expects them as an array. */
+const units = z
+  .array(z.enum(COUNTDOWN_UNITS, { error: "Pick from years, months, days and hours." }), { error: "Pick at least one." })
+  .min(1, "Pick at least one.")
+  .transform(normalizeUnits);
+
 function kindSchema(kind: CountdownKind) {
-  const shape: Record<string, z.ZodType> = { kind: z.literal(kind), title, target_local: localDateTime };
+  const shape: Record<string, z.ZodType> = { kind: z.literal(kind), title, target_local: localDateTime, units };
   for (const f of KIND_INFO[kind].fields) shape[detailField(f.name)] = fieldSchema(f);
   if (kind === "exam") {
     shape.target_score = score;
@@ -67,6 +75,7 @@ function kindSchema(kind: CountdownKind) {
         target_local: v.target_local as string,
         ...(kind === "exam" ? { target_score: v.target_score as number, max_score: v.max_score as number } : {}),
         details,
+        units: v.units as CountdownUnit[],
       };
     });
 }

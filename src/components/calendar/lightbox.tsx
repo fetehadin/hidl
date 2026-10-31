@@ -2,10 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { deletePhoto, updateCaption } from "@/actions/photos";
+import { deletePhoto, setCoverPhoto, updateCaption } from "@/actions/photos";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { PinIcon } from "@/components/icons";
 import { dayLabel } from "@/lib/calendar";
 import type { PhotoView } from "@/lib/data/photos";
+import { useCalendarPref } from "@/components/calendar-pref";
 import { formatEthiopian } from "@/lib/ethiopian";
 
 export function Lightbox({
@@ -24,6 +26,7 @@ export function Lightbox({
   onAddAnother: (date: string) => void;
 }) {
   const router = useRouter();
+  const ethiopian = useCalendarPref() === "ethiopian";
   const dialogRef = useRef<HTMLDialogElement>(null);
   const touchX = useRef<number | null>(null);
   const photo = photos[index];
@@ -32,6 +35,11 @@ export function Lightbox({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const [pinnedId, setPinnedId] = useState<string | null | undefined>(undefined);
+  const sameDay = photo ? photos.filter((p) => p.date === photo.date) : [];
+  // Optimistic until the refreshed photo list arrives with the new pin.
+  const isPinned = photo ? (pinnedId === undefined ? photo.isCover : pinnedId === photo.id) : false;
 
   const hasPrev = index > 0;
   const hasNext = index < photos.length - 1;
@@ -52,7 +60,22 @@ export function Lightbox({
 
   if (!photo) return null;
 
+  function togglePin() {
+    const pin = !isPinned;
+    setError(null);
+    setPinnedId(pin ? photo.id : null);
+    startTransition(async () => {
+      const res = await setCoverPhoto(photo.id, pin);
+      if (!res.ok) {
+        setPinnedId(undefined);
+        return setError(res.message);
+      }
+      router.refresh();
+    });
+  }
+
   function go(i: number) {
+    setPinnedId(undefined);
     setEditing(false);
     setError(null);
     setCaption(photos[i]?.caption ?? "");
@@ -94,12 +117,32 @@ export function Lightbox({
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
           <div>
-            <p className="font-display text-lg font-semibold text-heading">{formatEthiopian(photo.date)}</p>
-            <p className="text-sm text-muted">{dayLabel(photo.date)}</p>
+            <p className="font-display text-lg font-semibold text-heading">
+              {ethiopian ? formatEthiopian(photo.date) : dayLabel(photo.date)}
+            </p>
+            {ethiopian && <p className="text-sm text-muted">{dayLabel(photo.date)}</p>}
           </div>
-          <button type="button" onClick={onClose} className="rounded-full px-3 py-1.5 text-ocean hover:bg-mint" aria-label="Close">
-            ✕
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Only worth choosing when the day has more than one picture. */}
+            {sameDay.length > 1 && (
+              <button
+                type="button"
+                onClick={togglePin}
+                disabled={pending}
+                aria-pressed={isPinned}
+                title={isPinned ? "This is the day's wallpaper. Tap to unpin" : "Pin as this day's wallpaper in the calendar"}
+                className={`flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-bold transition-colors ${
+                  isPinned ? "bg-mint text-ocean shadow-[inset_0_0_0_2px_var(--teal)]" : "text-ocean hover:bg-mint"
+                }`}
+              >
+                <PinIcon width={18} height={18} filled={isPinned} className={isPinned ? "text-teal" : ""} />
+                {isPinned ? "Pinned" : "Pin as wallpaper"}
+              </button>
+            )}
+            <button type="button" onClick={onClose} className="grid size-11 place-items-center rounded-full text-ocean hover:bg-mint" aria-label="Close">
+              ✕
+            </button>
+          </div>
         </div>
 
         <div

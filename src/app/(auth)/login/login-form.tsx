@@ -2,7 +2,8 @@
 
 import Script from "next/script";
 import { useActionState, useEffect, useRef, useState } from "react";
-import { type LoginState, sendMagicLink } from "@/actions/auth";
+import { useFormStatus } from "react-dom";
+import { type LoginState, sendMagicLink, signInWithGoogle } from "@/actions/auth";
 
 const initial: LoginState = { status: "idle" };
 
@@ -17,7 +18,7 @@ declare global {
   }
 }
 
-export function LoginForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) {
+export function LoginForm({ turnstileSiteKey, google = false }: { turnstileSiteKey?: string; google?: boolean }) {
   const [state, action, pending] = useActionState(sendMagicLink, initial);
   const [captchaToken, setCaptchaToken] = useState("");
   const [scriptLoaded, setScriptLoaded] = useState(false);
@@ -44,46 +45,90 @@ export function LoginForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) {
   }
 
   return (
-    <form action={action} className="space-y-4" noValidate>
-      <div className="space-y-1.5">
-        <label htmlFor="email" className="block text-sm font-semibold text-ink-soft">
-          Email
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          required
-          className="field"
-          placeholder="you@example.com"
-          aria-invalid={state.status === "error"}
-          aria-describedby={state.status === "error" ? "email-error" : undefined}
-        />
-        {state.status === "error" && (
-          <p id="email-error" className="text-sm text-wax">
-            {state.message}
-          </p>
-        )}
-      </div>
-      {turnstileSiteKey && (
+    <>
+      {google && (
         <>
-          <Script
-            src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-            onLoad={() => setScriptLoaded(true)}
-          />
-          <div ref={widgetRef} />
-          <input type="hidden" name="captchaToken" value={captchaToken} />
+          <form action={signInWithGoogle}>
+            <GoogleButton />
+          </form>
+          <div className="my-5 flex items-center gap-3 text-sm font-semibold text-muted" aria-hidden>
+            <span className="h-px flex-1 bg-line" />
+            or use your email
+            <span className="h-px flex-1 bg-line" />
+          </div>
         </>
       )}
-      <button
-        type="submit"
-        className="btn btn-primary w-full"
-        disabled={pending || (!!turnstileSiteKey && !captchaToken)}
-      >
-        {pending ? "Sending…" : "Send me a link"}
-      </button>
-    </form>
+      <form action={action} className="space-y-4" noValidate>
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="block text-sm font-semibold text-ink-soft">
+            Email
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            required
+            className="field"
+            placeholder="you@example.com"
+            aria-invalid={state.status === "error"}
+            aria-describedby={state.status === "error" ? "email-error" : undefined}
+          />
+          {state.status === "error" && (
+            <p id="email-error" className="text-sm text-wax">
+              {state.message}
+            </p>
+          )}
+        </div>
+        {turnstileSiteKey && (
+          <>
+            <Script
+              src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+              onLoad={() => setScriptLoaded(true)}
+            />
+            <div ref={widgetRef} />
+            <input type="hidden" name="captchaToken" value={captchaToken} />
+          </>
+        )}
+        <button
+          type="submit"
+          className="btn btn-primary w-full"
+          disabled={pending || (!!turnstileSiteKey && !captchaToken)}
+        >
+          {pending ? "Sending…" : google ? "Email me a link" : "Send me a link"}
+        </button>
+      </form>
+    </>
+  );
+}
+
+/** Follows Google's sign-in branding: white button, the full-color "G", "Continue with Google". */
+function GoogleButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="flex min-h-12 w-full items-center justify-center gap-3 rounded-control border-2 border-aqua bg-white px-4 text-[17px] font-bold text-ink shadow-[0_3px_0_var(--aqua)] transition-[transform,box-shadow,border-color] hover:border-teal active:translate-y-[3px] active:shadow-none disabled:opacity-70"
+    >
+      {pending ? (
+        <span className="size-5 animate-spin rounded-full border-2 border-aqua border-t-teal" aria-hidden />
+      ) : (
+        <GoogleLogo />
+      )}
+      {pending ? "Opening Google…" : "Continue with Google"}
+    </button>
+  );
+}
+
+function GoogleLogo() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden>
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
   );
 }

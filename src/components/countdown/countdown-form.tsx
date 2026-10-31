@@ -5,9 +5,12 @@ import { useActionState, useState } from "react";
 import type { ReactNode } from "react";
 import { type CountdownFormState, saveCountdown } from "@/actions/countdowns";
 import { type CountdownKind, type DetailField, detailField, KIND_INFO } from "@/lib/countdown-kinds";
+import { useCalendarPref } from "@/components/calendar-pref";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { localToUtc } from "@/lib/time";
+import type { CountdownUnit } from "@/lib/countdown-units";
 import { KindBadge } from "./kind-icon";
+import { UnitPicker } from "./unit-picker";
 
 type Defaults = {
   id?: string;
@@ -18,11 +21,13 @@ type Defaults = {
   max_score: string;
   /** Detail values keyed by detail name (not form field name). */
   details: Record<string, string>;
+  units: CountdownUnit[];
 };
 
 export function CountdownForm({ defaults, locked }: { defaults: Defaults; locked: boolean }) {
   const [state, action, pending] = useActionState<CountdownFormState, FormData>(saveCountdown, { status: "idle" });
   const kind = defaults.kind;
+  const calendar = useCalendarPref();
   const info = KIND_INFO[kind];
   const err = (k: string) => state.fieldErrors?.[k]?.[0];
   const v = { ...defaults, ...state.values } as Defaults & Record<string, string>;
@@ -74,8 +79,15 @@ export function CountdownForm({ defaults, locked }: { defaults: Defaults; locked
           value={targetLocal}
           onChange={(e) => setTargetLocal(e.target.value)}
         />
-        {targetLocal && <p className="mt-1.5 text-sm text-muted">Ethiopian calendar: {formatEthiopian(localToUtc(targetLocal))}</p>}
+        {targetLocal && calendar === "ethiopian" && <p className="mt-1.5 text-sm text-muted">Ethiopian calendar: {formatEthiopian(localToUtc(targetLocal))}</p>}
       </Field>
+
+      <UnitPicker
+        key={state.values?.units ?? "initial"}
+        initial={state.values?.units ? (state.values.units.split(",") as CountdownUnit[]) : defaults.units}
+        target={targetLocal ? localToUtc(targetLocal) : null}
+        error={err("units")}
+      />
 
       {textFields.length > 0 && (
         <div className={`grid gap-4 ${textFields.length > 1 ? "sm:grid-cols-2" : ""}`}>

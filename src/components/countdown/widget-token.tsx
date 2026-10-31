@@ -6,7 +6,20 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { publicEnv } from "@/lib/public-env";
 import { formatInAppTz } from "@/lib/time";
 
-export function WidgetToken({ createdAt }: { createdAt: string | null }) {
+/**
+ * Creates, regenerates or removes a widget feed token. Without `countdown` it's the
+ * account's "starred countdown" feed; with one, that countdown's own feed.
+ */
+export function WidgetToken({
+  createdAt,
+  countdown,
+  bare = false,
+}: {
+  createdAt: string | null;
+  countdown?: { id: string; title: string };
+  /** Leave off the card chrome and intro (when shown inside a dialog). */
+  bare?: boolean;
+}) {
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +28,7 @@ export function WidgetToken({ createdAt }: { createdAt: string | null }) {
   function generate() {
     setError(null);
     startTransition(async () => {
-      const res = await generateWidgetToken();
+      const res = await generateWidgetToken(countdown?.id ?? null);
       if (!res.ok) return setError(res.message);
       setRevealedToken(res.token);
     });
@@ -23,7 +36,7 @@ export function WidgetToken({ createdAt }: { createdAt: string | null }) {
 
   function revoke() {
     startTransition(async () => {
-      const res = await revokeWidgetToken();
+      const res = await revokeWidgetToken(countdown?.id ?? null);
       setConfirmRevoke(false);
       if (!res.ok) return setError(res.message);
       setRevealedToken(null);
@@ -33,13 +46,24 @@ export function WidgetToken({ createdAt }: { createdAt: string | null }) {
   const feedUrl = revealedToken ? `${publicEnv.NEXT_PUBLIC_SITE_URL}/api/widget/countdown?token=${revealedToken}` : null;
 
   return (
-    <div className="card p-5 sm:p-6">
-      <p className="eyebrow mb-1">home screen widget</p>
-      <h2 className="font-display text-xl font-semibold">Countdown on your lock screen</h2>
-      <p className="mt-1 text-ink-soft">
-        A web app can&apos;t place a live widget on Android&apos;s home screen by itself — but a widget app like{" "}
-        <strong>KWGT</strong> can, if you give it a feed URL to read. This generates that URL. It returns whichever
-        one countdown you&apos;ve starred below as JSON — never your letters or photos.
+    <div className={bare ? "" : "card p-5 sm:p-6"}>
+      {!bare && (
+        <>
+          <p className="eyebrow mb-1">home screen widget</p>
+          <h2 className="font-display text-xl font-semibold">Your starred countdown</h2>
+        </>
+      )}
+      <p className={bare ? "text-ink-soft" : "mt-1 text-ink-soft"}>
+        A web app can&apos;t place a live widget on Android&apos;s home screen by itself, but a widget app like{" "}
+        <strong>KWGT</strong> can if you give it a feed URL to read. This makes that URL. It returns{" "}
+        {countdown ? (
+          <>
+            only <strong>{countdown.title}</strong>
+          </>
+        ) : (
+          "whichever one countdown you've starred"
+        )}{" "}
+        as JSON, never your letters or photos.
       </p>
 
       {feedUrl ? (
@@ -61,7 +85,8 @@ export function WidgetToken({ createdAt }: { createdAt: string | null }) {
           <p className="text-sm text-muted">
             Fields in the response: <code>kind</code>, <code>title</code>, <code>targetAt</code>,{" "}
             <code>targetScore</code>, <code>maxScore</code>, <code>actualScore</code>, <code>details</code>,{" "}
-            <code>done</code>, <code>daysLeft</code>. <code>targetScore</code>/<code>maxScore</code>/<code>actualScore</code>{" "}
+            <code>done</code>, <code>daysLeft</code>, <code>units</code>, <code>remaining</code> (the time left in the
+            countdown&apos;s chosen units, like <code>{"{"}&quot;months&quot;: 7, &quot;days&quot;: 13{"}"}</code>). <code>targetScore</code>/<code>maxScore</code>/<code>actualScore</code>{" "}
             are <code>null</code> for anything but an exam.
           </p>
         </div>

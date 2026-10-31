@@ -40,6 +40,28 @@ export async function sendMagicLink(_prev: LoginState, formData: FormData): Prom
   return { status: "sent" };
 }
 
+/**
+ * Starts "Continue with Google". Supabase handles the Google side; Google sends the person
+ * back to /auth/confirm with a one-time code (PKCE; the verifier is stored in a cookie
+ * here), which is exchanged for a session and checked against ALLOWED_EMAIL there.
+ */
+export async function signInWithGoogle() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${publicEnv.NEXT_PUBLIC_SITE_URL}/auth/confirm`,
+      // Always show Google's account chooser, so someone with several accounts picks the right one.
+      queryParams: { prompt: "select_account" },
+    },
+  });
+  if (error || !data.url) {
+    console.error("signInWithOAuth failed", error?.message);
+    redirect("/login?error=google-failed");
+  }
+  redirect(data.url);
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();

@@ -8,6 +8,7 @@ import { LetterPaper } from "@/components/letters/letter-paper";
 import { LetterReveal } from "@/components/letters/letter-reveal";
 import { LiveRelative } from "@/components/live-relative";
 import { getLetterMeta, openLetter } from "@/lib/data/letters";
+import { formatDay } from "@/lib/dates";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { requireUser } from "@/lib/supabase/server";
 import { formatInAppTz, utcToLocalInput } from "@/lib/time";
@@ -20,7 +21,7 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
   const parsed = letterIdSchema.safeParse(id);
   if (!parsed.success) notFound();
 
-  const { supabase } = await requireUser();
+  const { supabase, calendar } = await requireUser();
   const letter = await getLetterMeta(supabase, parsed.data);
   if (!letter) notFound();
 
@@ -42,12 +43,12 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
                 <p className="mt-5 font-display text-xl">
                   <LiveRelative target={letter.unlock_at} />
                 </p>
-                <p className="text-ink-soft">{formatEthiopian(letter.unlock_at)}</p>
+                {calendar === "ethiopian" && <p className="text-ink-soft">{formatEthiopian(letter.unlock_at)}</p>}
                 <p className="text-sm text-muted">
                   {formatInAppTz(letter.unlock_at, "EEEE, MMMM d, yyyy 'at' h:mm a")}
                 </p>
                 <p className="mt-4 text-sm text-muted">
-                  Sealed {formatEthiopian(letter.created_at)}. No peeking.
+                  Sealed {formatDay(letter.created_at, calendar)}. No peeking.
                 </p>
               </div>
             </Envelope>
@@ -77,7 +78,7 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
 }
 
 async function OpenedLetter({ id }: { id: string }) {
-  const { supabase } = await requireUser();
+  const { supabase, calendar } = await requireUser();
   const letter = await openLetter(supabase, id);
   return (
     <div className="space-y-6">
@@ -87,8 +88,9 @@ async function OpenedLetter({ id }: { id: string }) {
         body={letter.body}
         createdAt={letter.created_at}
         unlockAt={letter.unlock_at}
+        calendar={calendar}
       />
-      <p className="text-center text-sm text-muted">First opened {formatEthiopian(letter.opened_at!)}</p>
+      <p className="text-center text-sm text-muted">First opened {formatDay(letter.opened_at!, calendar)}</p>
       <div className="text-center"><DeleteLetterButton id={id} /></div>
     </div>
   );

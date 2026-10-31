@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Mascot } from "@/components/mascot";
 import { ClearPhotoCache } from "@/components/clear-photo-cache";
+import { googleSignInEnabled } from "@/lib/auth-providers";
 import { publicEnv } from "@/lib/env";
 import { LoginForm } from "./login-form";
 
@@ -10,6 +11,8 @@ const ERRORS: Record<string, string> = {
   "invalid-link": "That link looks incomplete. Request a new one.",
   "expired-link": "That link has expired or was already used. Request a new one.",
   "not-allowed": "This journal is private.",
+  "google-cancelled": "Google sign-in was cancelled. Try again, or use your email instead.",
+  "google-failed": "Couldn't sign in with Google just now. Try again, or use your email instead.",
   "other-browser":
     "Open the sign-in link in the same browser you requested it from. Request a new link here, then tap it on this device.",
 };
@@ -17,6 +20,7 @@ const ERRORS: Record<string, string> = {
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { error, deleted } = await searchParams;
   const message = typeof error === "string" ? ERRORS[error] : undefined;
+  const google = await googleSignInEnabled();
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6 py-12">
@@ -39,7 +43,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
             {message}
           </p>
         )}
-        <LoginForm turnstileSiteKey={publicEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY} />
+        <LoginForm turnstileSiteKey={publicEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY} google={google} />
       </div>
     </main>
   );

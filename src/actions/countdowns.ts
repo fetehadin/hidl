@@ -18,8 +18,11 @@ export type CountdownFormState = {
 
 type Fail = { ok: false; message: string };
 
-const echo = (formData: FormData) =>
-  Object.fromEntries([...formData].filter(([k, v]) => !k.startsWith("$") && typeof v === "string")) as Record<string, string>;
+const echo = (formData: FormData) => ({
+  ...(Object.fromEntries([...formData].filter(([k, v]) => !k.startsWith("$") && typeof v === "string")) as Record<string, string>),
+  // Several checkboxes share the name "units"; keep them all, comma-joined.
+  units: formData.getAll("units").join(","),
+});
 
 function revalidate() {
   revalidatePath("/countdown");
@@ -28,7 +31,7 @@ function revalidate() {
 }
 
 export async function saveCountdown(_prev: CountdownFormState, formData: FormData): Promise<CountdownFormState> {
-  const raw = Object.fromEntries(formData);
+  const raw: Record<string, unknown> = { ...Object.fromEntries(formData), units: formData.getAll("units") };
   const parsed = parseCountdown(raw);
   if (!parsed.success) {
     return {
@@ -50,7 +53,12 @@ export async function saveCountdown(_prev: CountdownFormState, formData: FormDat
     if (existing.kind !== parsed.data.kind) {
       return { status: "error", message: "The type can't be changed after it's created.", values: echo(formData) };
     }
-    const update: Record<string, unknown> = { title: parsed.data.title, target_at, details: parsed.data.details };
+    const update: Record<string, unknown> = {
+      title: parsed.data.title,
+      target_at,
+      details: parsed.data.details,
+      units: parsed.data.units,
+    };
     if (parsed.data.kind === "exam") {
       const max = parsed.data.max_score!;
       update.target_score = parsed.data.target_score;
@@ -71,6 +79,7 @@ export async function saveCountdown(_prev: CountdownFormState, formData: FormDat
       title: parsed.data.title,
       target_at,
       details: parsed.data.details,
+      units: parsed.data.units,
       ...(parsed.data.kind === "exam" ? { target_score: parsed.data.target_score, max_score: parsed.data.max_score } : {}),
     };
     const { error } = await supabase.from("countdowns").insert(insert);
@@ -147,46 +156,58 @@ export async function setWidgetCountdown(id: string): Promise<{ ok: true } | Fai
 
 type TokenResult = { ok: true; token: string } | Fail;
 
+/** `undefined`/null means the starred-countdown feed; otherwise one countdown's own feed. */
+function widgetTarget(countdownId: string | null | undefined): { ok: true; id: string | null } | Fail {
+  if (countdownId == null) return { ok: true, id: null };
+  const parsed = countdownIdSchema.safeParse(countdownId);
+  return parsed.success ? { ok: true, id: parsed.data } : { ok: false, message: "Invalid countdown." };
+}
+
 /**
- * Creates (or replaces) the bearer token for the read-only widget feed
- * (src/app/api/widget/countdown). Only its hash is stored; the raw token is
- * returned once and never retrievable again.
+ * Creates (or replaces) a bearer token for the read-only widget feed
+ * (src/app/api/widget/countdown): either the account's "starred countdown" feed, or one
+ * countdown's own feed when `countdownId` is given. Only its hash is stored; the raw
+ * token is returned once and never retrievable again.
  */
-export async function generateWidgetToken(): Promise<TokenResult> {
+export async function generateWidgetToken(countdownId?: string | null): Promise<TokenResult> {
+  const target = widgetTarget(countdownId);
+  if (!target.ok) return target;
   const { supabase, user } = await requireUser();
+  if (target.id && !(await getCountdown(supabase, target.id))) return { ok: false, message: "That countdown is gone." };
   const token = randomBytes(24).toString("base64url");
   const token_hash = createHash("sha256").update(token).digest("hex");
 
   // Not .upsert(): Postgres's ON CONFLICT DO UPDATE needs full-table SELECT to detect the
   // conflict, which a column-restricted table like this one (no grant on token_hash) can't
   // satisfy. Plain update-then-insert only needs the grants we actually have.
-  const { error: updateError, count } = await supabase
-    .from("widget_tokens")
-    .update({ token_hash }, { count: "exact" })
-    .eq("user_id", user.id);
+  const match = supabase.from("widget_tokens").update({ token_hash }, { count: "exact" }).eq("user_id", user.id);
+  const { error: updateError, count } = await (target.id ? match.eq("countdown_id", target.id) : match.is("countdown_id", null));
   if (updateError) {
     console.error("generateWidgetToken", updateError);
     return { ok: false, message: "Couldn't create a token. Try again." };
   }
   if (count === 0) {
-    const { error: insertError } = await supabase.from("widget_tokens").insert({ token_hash });
+    const { error: insertError } = await supabase.from("widget_tokens").insert({ token_hash, countdown_id: target.id });
     if (insertError) {
       console.error("generateWidgetToken", insertError);
       return { ok: false, message: "Couldn't create a token. Try again." };
     }
   }
 
-  revalidatePath("/countdown/settings");
+  revalidate();
   return { ok: true, token };
 }
 
-export async function revokeWidgetToken(): Promise<{ ok: true } | Fail> {
+export async function revokeWidgetToken(countdownId?: string | null): Promise<{ ok: true } | Fail> {
+  const target = widgetTarget(countdownId);
+  if (!target.ok) return target;
   const { supabase, user } = await requireUser();
-  const { error } = await supabase.from("widget_tokens").delete().eq("user_id", user.id);
+  const match = supabase.from("widget_tokens").delete().eq("user_id", user.id);
+  const { error } = await (target.id ? match.eq("countdown_id", target.id) : match.is("countdown_id", null));
   if (error) {
     console.error("revokeWidgetToken", error);
     return { ok: false, message: "Couldn't remove the token. Try again." };
   }
-  revalidatePath("/countdown/settings");
+  revalidate();
   return { ok: true };
 }

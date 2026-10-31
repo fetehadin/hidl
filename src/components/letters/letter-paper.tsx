@@ -1,5 +1,5 @@
 import { Markdown } from "@/components/markdown";
-import { formatEthiopian } from "@/lib/ethiopian";
+import { type CalendarPref, formatDay } from "@/lib/dates";
 
 export function LetterPaper({
   title,
@@ -7,6 +7,7 @@ export function LetterPaper({
   body,
   createdAt,
   unlockAt,
+  calendar,
   className = "",
 }: {
   title: string;
@@ -14,6 +15,7 @@ export function LetterPaper({
   body: string;
   createdAt: string;
   unlockAt: string;
+  calendar: CalendarPref;
   className?: string;
 }) {
   return (
@@ -22,7 +24,7 @@ export function LetterPaper({
       <h1 className="mt-1 mb-6 font-display text-2xl font-semibold leading-tight sm:text-3xl">{title}</h1>
       <Markdown>{body}</Markdown>
       <p className="mt-10 text-sm text-muted">
-        Written {formatEthiopian(createdAt)} · sealed until {formatEthiopian(unlockAt)}
+        Written {formatDay(createdAt, calendar)} · sealed until {formatDay(unlockAt, calendar)}
       </p>
     </article>
   );

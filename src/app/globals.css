@@ -389,6 +389,21 @@
     transform: rotate(12deg);
   }
 }
+/* Hidi's hop when the quick menu opens. */
+@keyframes hidi-hop {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  30% {
+    transform: translateY(2px) scale(1.08, 0.92);
+  }
+  60% {
+    transform: translateY(-10px) scale(0.96, 1.05);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
 @keyframes mascot-cheer {
   from {
     transform: translateY(0);

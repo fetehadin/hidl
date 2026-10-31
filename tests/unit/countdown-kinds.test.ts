@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { COUNTDOWN_KINDS, detailLine, KIND_INFO } from "@/lib/countdown-kinds";
 import { parseCountdown } from "@/lib/validation/countdown";
 
-const base = { title: "Something", target_local: "2026-12-20T09:00" };
+const base = { title: "Something", target_local: "2026-12-20T09:00", units: ["days", "months"] };
+const parsedBase = { title: "Something", target_local: "2026-12-20T09:00", units: ["months", "days"] };
 
 describe("parseCountdown", () => {
   it("collects a kind's details and drops blank optional ones", () => {
     const r = parseCountdown({ ...base, kind: "birthday", detail_person: " Me ", detail_birth_year: "2008", detail_note: "" });
-    expect(r.success && r.data).toEqual({ kind: "birthday", ...base, details: { person: "Me", birth_year: 2008 } });
+    expect(r.success && r.data).toEqual({ kind: "birthday", ...parsedBase, details: { person: "Me", birth_year: 2008 } });
   });
 
   it("requires whose birthday it is", () => {
@@ -17,7 +18,7 @@ describe("parseCountdown", () => {
 
   it("ignores fields that belong to another kind", () => {
     const r = parseCountdown({ ...base, kind: "work", detail_person: "Me", detail_role: "Intern", target_score: "5" });
-    expect(r.success && r.data).toEqual({ kind: "work", ...base, details: { role: "Intern" } });
+    expect(r.success && r.data).toEqual({ kind: "work", ...parsedBase, details: { role: "Intern" } });
   });
 
   it("keeps exam scores and their rules", () => {
@@ -37,6 +38,15 @@ describe("parseCountdown", () => {
       const scores = kind === "exam" ? { target_score: "1", max_score: "2" } : {};
       expect(parseCountdown({ ...base, kind, ...extra, ...scores }).success).toBe(true);
     }
+  });
+});
+
+describe("countdown units", () => {
+  it("needs at least one unit, and only known ones", () => {
+    expect(parseCountdown({ ...base, kind: "deadline", units: [] }).success).toBe(false);
+    expect(parseCountdown({ ...base, kind: "deadline", units: ["weeks"] }).success).toBe(false);
+    const r = parseCountdown({ ...base, kind: "deadline", units: ["hours", "years"] });
+    expect(r.success && r.data.units).toEqual(["years", "hours"]);
   });
 });
 

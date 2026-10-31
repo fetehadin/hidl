@@ -2,7 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarIcon, EnvelopeIcon, HomeIcon, HourglassIcon, MemoriesIcon } from "./icons";
+import { useState, type ReactNode } from "react";
+import { signOut } from "@/actions/auth";
+import { NAV_COOKIE } from "@/lib/nav-cookie";
+import {
+  CalendarIcon,
+  ChevronIcon,
+  EnvelopeIcon,
+  HomeIcon,
+  HourglassIcon,
+  MemoriesIcon,
+  SignOutIcon,
+  UserIcon,
+} from "./icons";
 
 const LINKS = [
   { href: "/", label: "Today", Icon: HomeIcon },
@@ -12,35 +24,147 @@ const LINKS = [
   { href: "/memories", label: "Memories", Icon: MemoriesIcon },
 ] as const;
 
+
+/** Width the side nav takes (sm and up), matching its two states. */
+const NAV_WIDTH = { open: "15.5rem", closed: "6rem" };
+
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function DesktopNav() {
-  const pathname = usePathname();
+/**
+ * Wraps the app: on sm+ it reserves room on the left for the side nav and exposes that
+ * width as --nav-w, so full-screen pages (the memories board) can keep their fixed
+ * overlays clear of it. The collapsed/expanded choice is kept in a cookie so the server
+ * renders the right width on the first paint.
+ */
+export function AppShell({ initialCollapsed, children }: { initialCollapsed: boolean; children: ReactNode }) {
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
+
+  function toggle() {
+    const next = !collapsed;
+    setCollapsed(next);
+    document.cookie = `${NAV_COOKIE}=${next ? "collapsed" : "open"}; path=/; max-age=31536000; samesite=lax`;
+  }
+
   return (
-    <nav aria-label="Main" className="clay hidden items-center gap-1 rounded-full p-1.5 sm:flex">
-      {LINKS.map(({ href, label, Icon }) => {
-        const active = isActive(pathname, href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[15px] font-bold transition-[background-color,transform] duration-150 active:scale-95 ${
-              active ? "bg-mint text-ocean shadow-[inset_0_0_0_2px_var(--teal)]" : "text-ocean hover:bg-mint"
-            }`}
-          >
-            <Icon width={18} height={18} className={`hidden lg:block ${active ? "text-teal" : ""}`} />
-            {label}
-          </Link>
-        );
-      })}
-    </nav>
+    <div
+      className="min-h-dvh transition-[padding] duration-300 ease-out sm:pl-[var(--nav-w)]"
+      style={{ "--nav-w": collapsed ? NAV_WIDTH.closed : NAV_WIDTH.open } as React.CSSProperties}
+    >
+      {children}
+      <SideNav collapsed={collapsed} onToggle={toggle} />
+    </div>
   );
 }
 
-/** Bottom tab bar: one chunky icon per section; the active one sits in a lifted pastel tile. */
+/**
+ * The desktop nav: a panel on the left edge. Collapsing it slides the labels away and
+ * leaves only the icons; expanding slides them back. The active page sits in a pill that
+ * glides between items.
+ */
+function SideNav({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  const pathname = usePathname();
+  const activeIndex = LINKS.findIndex((l) => isActive(pathname, l.href));
+
+  return (
+    <aside
+      className="fixed top-0 bottom-0 left-0 z-30 hidden p-3 transition-[width] duration-300 ease-out sm:block"
+      style={{ width: "var(--nav-w)" }}
+    >
+      <nav
+        aria-label="Main"
+        className="clay flex h-full flex-col overflow-hidden rounded-[1.75rem] px-3 py-4"
+      >
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "Expand the menu" : "Collapse the menu"}
+          title={collapsed ? "Show labels" : "Icons only"}
+          className="mb-4 flex h-11 shrink-0 items-center gap-3 rounded-2xl px-3 text-muted transition-colors hover:bg-mint hover:text-ocean"
+        >
+          <ChevronIcon
+            width={20}
+            height={20}
+            className={`shrink-0 transition-transform duration-300 ${collapsed ? "" : "rotate-180"}`}
+          />
+          <Label collapsed={collapsed} className="text-sm font-bold">
+            Icons only
+          </Label>
+        </button>
+
+        <ul className="relative flex flex-col gap-1.5">
+          {/* The sliding "you are here" pill. Each item is 3rem tall with a 0.375rem gap. */}
+          {activeIndex >= 0 && (
+            <li
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-12 rounded-2xl bg-mint shadow-[inset_0_0_0_2px_var(--teal)] transition-transform duration-300 ease-[cubic-bezier(.34,1.4,.64,1)]"
+              style={{ transform: `translateY(calc(${activeIndex} * 3.375rem))` }}
+            />
+          )}
+          {LINKS.map(({ href, label, Icon }) => {
+            const active = isActive(pathname, href);
+            return (
+              <li key={href} className="relative">
+                <Link
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  title={collapsed ? label : undefined}
+                  className={`flex h-12 items-center gap-3 rounded-2xl px-3.5 text-[15px] font-bold text-ocean transition-[background-color,transform] duration-150 active:scale-95 ${
+                    active ? "" : "hover:bg-mint/70"
+                  }`}
+                >
+                  <Icon width={22} height={22} strokeWidth={active ? 2.4 : 2} className={`shrink-0 ${active ? "text-teal" : ""}`} />
+                  <Label collapsed={collapsed}>{label}</Label>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="mt-auto flex flex-col gap-1.5 border-t-2 border-mint pt-3">
+          <Link
+            href="/account"
+            aria-current={pathname === "/account" ? "page" : undefined}
+            title={collapsed ? "Account" : undefined}
+            className={`flex h-11 items-center gap-3 rounded-2xl px-3.5 text-sm font-bold transition-colors hover:bg-mint ${
+              pathname === "/account" ? "bg-mint text-ocean" : "text-muted hover:text-ocean"
+            }`}
+          >
+            <UserIcon width={20} height={20} className="shrink-0" />
+            <Label collapsed={collapsed}>Account</Label>
+          </Link>
+          <form action={signOut}>
+            <button
+              type="submit"
+              title={collapsed ? "Sign out" : undefined}
+              className="flex h-11 w-full items-center gap-3 rounded-2xl px-3.5 text-sm font-bold text-muted transition-colors hover:bg-mint hover:text-ocean"
+            >
+              <SignOutIcon width={20} height={20} className="shrink-0" />
+              <Label collapsed={collapsed}>Sign out</Label>
+            </button>
+          </form>
+        </div>
+      </nav>
+    </aside>
+  );
+}
+
+/** A nav label that slides and fades out when the panel collapses (still read by screen readers). */
+function Label({ collapsed, className = "", children }: { collapsed: boolean; className?: string; children: ReactNode }) {
+  return (
+    <span
+      className={`overflow-hidden whitespace-nowrap transition-[opacity,translate] duration-200 ${
+        collapsed ? "-translate-x-3 opacity-0" : "translate-x-0 opacity-100 delay-100"
+      } ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** Bottom tab bar on phones: one chunky icon per section; the active one sits in a lifted pastel tile. */
 export function MobileTabBar() {
   const pathname = usePathname();
   return (

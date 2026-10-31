@@ -9,6 +9,8 @@ export type PhotoRow = {
   image_path: string;
   thumb_path: string;
   caption: string | null;
+  /** Pinned as the day's "wallpaper": the one the calendar shows for that day. */
+  is_cover: boolean;
   created_at: string;
 };
 
@@ -16,11 +18,12 @@ export type PhotoView = {
   id: string;
   date: string;
   caption: string | null;
+  isCover: boolean;
   thumbUrl: string;
   fullUrl: string;
 };
 
-const COLUMNS = "id, date, image_path, thumb_path, caption, created_at";
+const COLUMNS = "id, date, image_path, thumb_path, caption, is_cover, created_at";
 
 /** Multiple rows can share a date; ordered by date, then upload order within the day. */
 export async function listPhotos(supabase: SupabaseClient, from: string, to: string) {
@@ -64,6 +67,7 @@ export async function signPhotos(supabase: SupabaseClient, rows: PhotoRow[]): Pr
     id: r.id,
     date: r.date,
     caption: r.caption,
+    isCover: r.is_cover,
     thumbUrl: byPath.get(r.thumb_path) ?? "",
     fullUrl: byPath.get(r.image_path) ?? "",
   }));

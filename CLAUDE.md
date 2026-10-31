@@ -82,7 +82,13 @@ layer physically cannot violate it, even with a bug:
   so it can't be changed after creation. A partial unique index, `countdowns (user_id) where is_widget`, allows
   at most one starred countdown per user; `set_widget_countdown(id)` flips it atomically (clear-then-set in one
   function call) so that index is never transiently violated.
-- *Widget tokens*: `widget_tokens.token_hash` has no `SELECT` grant to anyone, including its owner — same
+- *Cover photos*: `photos.is_cover` marks a day's pinned "wallpaper"; a partial unique index allows one per
+  `(user_id, date)`, and `set_cover_photo(id, pinned)` moves it (clear-then-set, like `set_widget_countdown`).
+  The calendar, dashboard and month grid show the pinned photo, falling back to the first one.
+- *Widget tokens*: one row per feed. `countdown_id` null is the "starred countdown" feed; otherwise the token
+  serves only that countdown (composite FK `(countdown_id, user_id)` → `countdowns (id, user_id)`, so it can't
+  point at another user's countdown, and deleting the countdown deletes the token; `unique nulls not distinct
+  (user_id, countdown_id)`). `widget_tokens.token_hash` has no `SELECT` grant to anyone, including its owner — same
   column-restriction pattern as `letters.body`. The public feed (`src/app/api/widget/countdown`) looks it up by
   `=` via the service-role client; nothing else can read it back. Generating one must use plain
   update-then-insert, not `.upsert()` — Postgres's `ON CONFLICT DO UPDATE` needs full-table `SELECT` to detect the
@@ -137,8 +143,34 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
 
 ## Notes
 
+- **Dates are Gregorian by default**; Ethiopian is a per-user option on `/account`, stored in
+  `user_metadata.calendar` and read from the JWT claims by `requireUser()` (returned as `calendar`;
+  `setCalendarPref` refreshes the session so the new claim applies at once). Server components get it from
+  `requireUser()`; client components use `useCalendarPref()` / `useFormatDay()` from
+  `src/components/calendar-pref.tsx` (the provider is in the `(app)` layout). Don't call `formatEthiopian`
+  unconditionally for display; check the preference.
+- **Navigation:** on sm+ the nav is a left-side panel (`AppShell`/`SideNav` in `src/components/nav.tsx`) that
+  collapses to icons only; its state is the `hidl-nav` cookie (`src/lib/nav-cookie.ts`) so the server renders the
+  right width. `AppShell` sets `--nav-w`; full-screen fixed overlays (the memories board) use
+  `sm:left-[var(--nav-w)]` to stay clear of it. Phones keep the bottom tab bar.
+- **Hidi's quick menu** (`src/components/hidi-menu.tsx`) is fixed in the bottom-right corner of every app page
+  (above the tab bar on phones). Tapping it makes Hidi hop into the `hi` mood (big open smile, arms
+  relaxed: no raised hand, on purpose) and fans out four shortcuts up and to the left. The camera one goes to `/calendar?add=today`, which opens today's upload sheet. `main` has extra
+  bottom padding so pages can scroll clear of it; the dev-only Next.js badge is moved to top-right in
+  `next.config.ts` for the same reason.
+- **Countdown units:** each countdown stores `units` (any non-empty mix of years, months, days, hours; checked by
+  `countdown_units_ok` in Postgres, mirrored in `src/lib/countdown-units.ts`). `timeLeft()` splits the time left
+  into exactly those units (calendar years/months in Addis Ababa time, folding larger units into the largest
+  chosen one), drops leading zeros, and falls back to a smaller unit rather than show all zeros. The form sends one
+  `units` value per ticked box, so `saveCountdown` passes `formData.getAll("units")` to `parseCountdown`.
 - Unsent letter drafts are kept in `localStorage` on the client until the letter is sealed (never hit the server
   unsealed).
+- "Continue with Google" (`signInWithGoogle` in `src/actions/auth.ts`) is server-side PKCE: the action stores
+  the verifier cookie and redirects to Google; Google returns to `/auth/confirm?code=…`, the same code path as
+  default-template magic links. The button only renders when `googleSignInEnabled()`
+  (`src/lib/auth-providers.ts`) sees Google enabled in Auth's public `/auth/v1/settings`. Because OAuth creates the
+  `auth.users` row before the allowlist check, `/auth/confirm` deletes a just-created (< 2 min old) account that
+  fails `ALLOWED_EMAIL`. Local Google is off in `supabase/config.toml`; see the comment there to enable it.
 - The login page accepts two magic-link formats from Supabase (PKCE `?code=` from the default template, or a
   cross-device-safe link from the custom template in `supabase/templates/magic_link.html`) — see `/auth/confirm`.
 - Mixing `pnpm build` and `pnpm dev` against the same `.next` directory can leave a stale cache that breaks
@@ -177,7 +209,8 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
 - The month calendar (`src/components/calendar/month-grid.tsx`) is sized to fit the viewport without scrolling:
   its height is `min(100dvh - --chrome, square-cell height)` using container query units (the page wrapper is an
   `@container`), so cells widen on laptops and stay square on phones. If you add anything above or below the grid
-  on `/calendar`, adjust `--chrome` or it will start scrolling again.
+  on `/calendar`, adjust `--chrome` or it will start scrolling again. On sm+ `--chrome` also reserves room under
+  the grid for Hidi's corner menu, and the page's negative bottom margin cancels `main`'s bottom padding.
 - "New" on `/countdown` opens a kind picker dialog (`new-countdown-button.tsx`, `kind-picker.tsx`) that links to
   `/countdown/new?kind=…`; without `?kind` that page shows the same picker inline.
 - Visual language: a bright, **light-only** teal theme in `globals.css` (no dark mode on purpose: it renders light

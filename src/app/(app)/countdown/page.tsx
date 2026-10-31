@@ -6,6 +6,7 @@ import { NewCountdownButton } from "@/components/countdown/new-countdown-button"
 import { WidgetIcon } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { listCountdowns } from "@/lib/data/countdowns";
+import { listCountdownWidgetTokens } from "@/lib/data/widget-token";
 import { requireUser } from "@/lib/supabase/server";
 import { requestNow } from "@/lib/time";
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = { title: "Countdown" };
 
 export default async function CountdownPage() {
   const { supabase } = await requireUser();
-  const countdowns = await listCountdowns(supabase);
+  const [countdowns, widgets] = await Promise.all([listCountdowns(supabase), listCountdownWidgetTokens(supabase)]);
   const now = requestNow();
   const featured = countdowns.find((c) => c.is_widget);
   const rest = countdowns.filter((c) => c.id !== featured?.id);
@@ -24,7 +25,7 @@ export default async function CountdownPage() {
         <div className="flex gap-2">
           <Link
             href="/countdown/settings"
-            title="Feed your starred countdown to a phone home-screen widget"
+            title="A home-screen widget that always shows your starred countdown"
             className="btn btn-ghost"
           >
             <WidgetIcon width={18} height={18} />
@@ -45,11 +46,11 @@ export default async function CountdownPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {featured && <CountdownCard countdown={featured} now={now} featured />}
+          {featured && <CountdownCard countdown={featured} now={now} featured widgetCreatedAt={widgets.get(featured.id) ?? null} />}
           {rest.length > 0 && (
-            <div className={`grid gap-4 ${rest.length === 1 ? "max-w-sm sm:max-w-md" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
+            <div className={`grid gap-4 ${rest.length === 1 ? "max-w-sm sm:max-w-md" : "md:grid-cols-2 xl:grid-cols-3"}`}>
               {rest.map((c) => (
-                <CountdownCard key={c.id} countdown={c} now={now} />
+                <CountdownCard key={c.id} countdown={c} now={now} widgetCreatedAt={widgets.get(c.id) ?? null} />
               ))}
             </div>
           )}

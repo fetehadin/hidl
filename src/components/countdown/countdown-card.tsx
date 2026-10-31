@@ -7,20 +7,34 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PencilIcon, StarIcon, TrashIcon } from "@/components/icons";
 import { detailLine, KIND_INFO } from "@/lib/countdown-kinds";
 import type { Countdown } from "@/lib/data/countdowns";
+import { useCalendarPref } from "@/components/calendar-pref";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { formatInAppTz } from "@/lib/time";
 import { KindBadge } from "./kind-icon";
 import { LiveCountdown } from "./live-countdown";
 import { ScoreCompare } from "./score-compare";
 import { ScoreForm } from "./score-form";
+import { WidgetButton } from "./widget-button";
 
-export function CountdownCard({ countdown, now, featured = false }: { countdown: Countdown; now: number; featured?: boolean }) {
+export function CountdownCard({
+  countdown,
+  now,
+  featured = false,
+  widgetCreatedAt = null,
+}: {
+  countdown: Countdown;
+  now: number;
+  featured?: boolean;
+  /** When this countdown's own widget token was made, or null if it has none. */
+  widgetCreatedAt?: string | null;
+}) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const done = new Date(countdown.target_at).getTime() <= now;
-  const whenEthiopian = formatEthiopian(countdown.target_at);
+  const ethiopian = useCalendarPref() === "ethiopian";
+  const whenEthiopian = ethiopian ? formatEthiopian(countdown.target_at) : null;
   const when = formatInAppTz(countdown.target_at, "EEEE, MMMM d, yyyy 'at' h:mm a");
   const info = KIND_INFO[countdown.kind] ?? KIND_INFO.deadline;
   const details = countdown.details ?? {};
@@ -50,8 +64,8 @@ export function CountdownCard({ countdown, now, featured = false }: { countdown:
         onClick={star}
         disabled={pending}
         aria-pressed={countdown.is_widget}
-        aria-label={countdown.is_widget ? "Shown on your widget. Tap to unstar" : "Star to show this on your widget"}
-        title={countdown.is_widget ? "Shown on your widget" : "Show this on your widget"}
+        aria-label={countdown.is_widget ? "Starred: shown first on your dashboard" : "Star to show this first on your dashboard"}
+        title={countdown.is_widget ? "Starred: shown first on your dashboard" : "Star to show this first on your dashboard"}
         className={`absolute top-3 right-3 flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors ${
           countdown.is_widget ? "text-accent" : "text-muted hover:text-ink"
         }`}
@@ -59,7 +73,7 @@ export function CountdownCard({ countdown, now, featured = false }: { countdown:
         <StarIcon width={22} height={22} filled={countdown.is_widget} strokeWidth={1.5} />
       </button>
 
-      <div className={`flex flex-col gap-4 pr-11 ${featured ? "sm:flex-row sm:items-center sm:justify-between sm:gap-8" : ""}`}>
+      <div className={`flex flex-col gap-4 pr-11 ${featured ? "lg:flex-row lg:items-center lg:justify-between lg:gap-8" : ""}`}>
         <div className="flex min-w-0 gap-3.5">
           <KindBadge kind={countdown.kind} size={featured ? 52 : 44} />
           <div className="min-w-0">
@@ -68,7 +82,7 @@ export function CountdownCard({ countdown, now, featured = false }: { countdown:
               {countdown.title}
             </h2>
             {summary && <p className="mt-0.5 text-[15px] font-semibold text-ink">{summary}</p>}
-            <p className="mt-0.5 text-sm text-ink-soft">{whenEthiopian}</p>
+            {whenEthiopian && <p className="mt-0.5 text-sm text-ink-soft">{whenEthiopian}</p>}
             <p className="text-sm text-muted">{when}</p>
 
             {!done && countdown.kind === "exam" && (
@@ -85,8 +99,8 @@ export function CountdownCard({ countdown, now, featured = false }: { countdown:
         </div>
 
         {!done && (
-          <div className={featured ? "shrink-0 self-start sm:self-center" : "shrink-0"}>
-            <LiveCountdown target={countdown.target_at} serverNow={now} variant="compact" />
+          <div className={featured ? "flex min-w-0 lg:flex-1 lg:justify-end" : "shrink-0"}>
+            <LiveCountdown target={countdown.target_at} serverNow={now} units={countdown.units} size={featured ? "large" : "regular"} />
           </div>
         )}
       </div>
@@ -119,6 +133,7 @@ export function CountdownCard({ countdown, now, featured = false }: { countdown:
           <PencilIcon width={17} height={17} />
           Edit
         </Link>
+        <WidgetButton countdown={{ id: countdown.id, title: countdown.title }} createdAt={widgetCreatedAt} />
         <button
           type="button"
           onClick={() => setConfirmDelete(true)}

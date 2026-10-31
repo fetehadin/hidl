@@ -2,6 +2,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { calendarPref } from "@/lib/dates";
 import { isAllowedEmail, publicEnv } from "@/lib/env";
 
 export async function createClient() {
@@ -45,5 +46,11 @@ export async function requireUser() {
     redirect("/login?error=not-allowed");
   }
 
-  return { supabase, user: { id: claims.sub, email: claims.email as string } };
+  const metadata = claims.user_metadata as Record<string, unknown> | undefined;
+  return {
+    supabase,
+    user: { id: claims.sub, email: claims.email as string },
+    /** Which calendar to show dates in (see src/lib/dates.ts). */
+    calendar: calendarPref(metadata?.calendar),
+  };
 }

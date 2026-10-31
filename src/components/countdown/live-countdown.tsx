@@ -2,31 +2,23 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-
-function split(ms: number) {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  return {
-    days: Math.floor(total / 86400),
-    hours: Math.floor((total % 86400) / 3600),
-    minutes: Math.floor((total % 3600) / 60),
-    seconds: total % 60,
-  };
-}
-
-const pad = (n: number) => String(n).padStart(2, "0");
+import { type CountdownUnit, timeLeft, timeLeftText, unitLabel } from "@/lib/countdown-units";
 
 /**
- * Ticks every second. `serverNow` anchors the clock to the server's time so a
- * phone with a wrong clock still counts down correctly.
+ * The time left in the countdown's own units (any mix of years, months, days and hours,
+ * see src/lib/countdown-units.ts), one tile per unit. `serverNow` anchors the clock to
+ * the server's time so a phone with a wrong clock still counts down correctly.
  */
 export function LiveCountdown({
   target,
   serverNow,
-  variant = "large",
+  units,
+  size = "regular",
 }: {
   target: string;
   serverNow: number;
-  variant?: "large" | "compact";
+  units: CountdownUnit[];
+  size?: "regular" | "large";
 }) {
   const router = useRouter();
   const [now, setNow] = useState(serverNow);
@@ -36,7 +28,8 @@ export function LiveCountdown({
   useEffect(() => {
     const offset = serverNow - Date.now();
     const tick = () => setNow(Date.now() + offset);
-    const id = setInterval(tick, 1000);
+    // Hours are the smallest unit shown, so a slow tick is plenty.
+    const id = setInterval(tick, 15_000);
     return () => clearInterval(id);
   }, [serverNow]);
 
@@ -49,44 +42,48 @@ export function LiveCountdown({
     }
   }, [remaining, router]);
 
-  const { days, hours, minutes, seconds } = split(remaining);
-  const label = `${days} days, ${hours} hours, ${minutes} minutes to go`;
-
-  if (variant === "compact") {
-    return (
-      <p className="font-display text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl" aria-label={label}>
-        {days}
-        <span className="text-lg text-muted">d</span> {pad(hours)}
-        <span className="text-lg text-muted">h</span> {pad(minutes)}
-        <span className="text-lg text-muted">m</span> {pad(seconds)}
-        <span className="text-lg text-muted">s</span>
-      </p>
-    );
-  }
-
-  const units = [
-    { value: String(days), label: days === 1 ? "day" : "days" },
-    { value: pad(hours), label: "hours" },
-    { value: pad(minutes), label: "minutes" },
-    { value: pad(seconds), label: "seconds" },
-  ];
+  const parts = timeLeft(targetMs, now, units);
+  const large = size === "large";
+  const n = parts.length;
+  // Fewer tiles get bigger numbers; four still fit side by side on a phone.
+  const numberSize = large
+    ? ["text-6xl sm:text-7xl", "text-5xl sm:text-6xl", "text-4xl sm:text-5xl", "text-3xl sm:text-5xl"][n - 1]
+    : ["text-5xl", "text-4xl sm:text-5xl", "text-4xl", "text-3xl"][n - 1];
 
   return (
-    <div role="timer" aria-label={label}>
-      <ol className="grid grid-cols-4 gap-2 sm:gap-3" aria-hidden>
-        {units.map((u, i) => (
-          <li key={u.label} className="card flex flex-col items-center px-1 py-4 sm:py-6">
-            <span
-              className={`font-display font-semibold tabular-nums leading-none tracking-tight ${
-                i === 0 ? "text-accent" : ""
-              } ${u.value.length > 3 ? "text-3xl sm:text-5xl" : "text-4xl sm:text-6xl"}`}
-            >
-              {u.value}
-            </span>
-            <span className="mt-2 text-xs font-semibold tracking-wider text-muted uppercase sm:text-sm">{u.label}</span>
-          </li>
-        ))}
-      </ol>
+    <div
+      role="timer"
+      aria-label={`${timeLeftText(parts)} to go`}
+      className="grid gap-2 sm:gap-2.5"
+      style={{
+        gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`,
+        // Each tile's ideal width, but never wider than the space it's given.
+        width: `min(${n * (large ? 9 : 7.25)}rem, 100%)`,
+      }}
+    >
+      {parts.map((p, i) => (
+        <div
+          key={p.unit}
+          aria-hidden
+          className={`relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border-2 px-1.5 ${
+            large ? "py-4 sm:py-5" : "py-3"
+          } ${i === 0 ? "border-teal/60 bg-mint" : "border-aqua bg-mint/60"}`}
+        >
+          {/* a soft highlight across the top, like the clay buttons */}
+          <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/55 to-transparent" />
+          <span
+            key={p.value}
+            className={`animate-fade-up relative font-display leading-none font-semibold tracking-tight tabular-nums ${
+              i === 0 ? "text-heading" : "text-ink"
+            } ${numberSize}`}
+          >
+            {p.unit === "hours" && i > 0 ? String(p.value).padStart(2, "0") : p.value}
+          </span>
+          <span className="relative mt-1.5 text-[11px] font-extrabold tracking-wider text-muted uppercase sm:text-xs">
+            {unitLabel(p)}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

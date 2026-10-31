@@ -1,14 +1,27 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { WEEKDAYS, leadingBlanks, monthDays } from "@/lib/calendar";
 import type { PhotoView } from "@/lib/data/photos";
 import { Lightbox, UploadSheet, usePreloadPhotoTools } from "./lazy";
 
 type UploadMode = { kind: "add"; date: string } | { kind: "replace"; date: string; photoId: string };
 
-export function MonthGrid({ month, today, photos }: { month: string; today: string; photos: PhotoView[] }) {
+export function MonthGrid({
+  month,
+  today,
+  photos,
+  addToday = false,
+}: {
+  month: string;
+  today: string;
+  photos: PhotoView[];
+  /** Open the upload sheet for today right away (Hidi's camera shortcut: /calendar?add=today). */
+  addToday?: boolean;
+}) {
   usePreloadPhotoTools();
+  const router = useRouter();
   const byDate = new Map<string, PhotoView[]>();
   for (const p of photos) byDate.set(p.date, [...(byDate.get(p.date) ?? []), p]);
   const [lightbox, setLightbox] = useState<number | null>(null);
@@ -17,6 +30,17 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
   const [focusedIndex, setFocusedIndex] = useState(() => Math.max(0, days.indexOf(today)));
   const cellRefs = useRef<(HTMLElement | null)[]>([]);
   const returnFocusTo = useRef<HTMLElement | null>(null);
+
+  // Open the sheet once each time ?add=today arrives (also when already on /calendar).
+  const [handledAdd, setHandledAdd] = useState(false);
+  if (addToday !== handledAdd) {
+    setHandledAdd(addToday);
+    if (addToday) setUpload({ kind: "add", date: today });
+  }
+  useEffect(() => {
+    // Drop ?add=today so a refresh or Back doesn't reopen the sheet.
+    if (addToday) router.replace("/calendar", { scroll: false });
+  }, [addToday, router]);
 
   function moveFocus(from: number, delta: number) {
     const to = Math.min(days.length - 1, Math.max(0, from + delta));
@@ -71,10 +95,12 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
         Sized to the viewport: as tall as the screen allows (minus the header, month nav
         and tab bar, which is --chrome) but never taller than square cells would make it.
         So on a laptop the cells get wider instead of the page scrolling, and on a phone
-        they stay square. --rows is the month's number of weeks (4 to 6).
+        they stay square. --rows is the month's number of weeks (4 to 6). --chrome also
+        leaves room below the grid for Hidi's corner menu (above the tab bar on phones), so it
+        never covers a day, even on a short phone in a six-week month.
       */}
       <div
-        className="calendar-grid grid h-[max(16rem,min(calc(100dvh-var(--chrome)),calc((100cqw-1rem)*var(--rows)/7+2rem)))] grid-cols-7 grid-rows-[auto_repeat(var(--rows),minmax(0,1fr))] gap-1 text-center [--chrome:18.5rem] sm:gap-2 sm:[--chrome:16rem]"
+        className="calendar-grid grid h-[max(14rem,min(calc(100dvh-var(--chrome)),calc((100cqw-1rem)*var(--rows)/7+2rem)))] grid-cols-7 grid-rows-[auto_repeat(var(--rows),minmax(0,1fr))] gap-1 text-center [--chrome:25.75rem] sm:gap-2 sm:[--chrome:21.25rem]"
         style={{ "--rows": Math.ceil((leadingBlanks(month) + days.length) / 7) } as React.CSSProperties}
         role="grid"
         aria-label="Days of the month"
@@ -100,7 +126,8 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
             const ring = isToday ? "ring-2 ring-accent ring-offset-2 ring-offset-paper" : "";
 
             if (dayPhotos && dayPhotos.length > 0) {
-              const cover = dayPhotos[0];
+              // The pinned "wallpaper" if the day has one, else its first photo.
+              const cover = dayPhotos.find((p) => p.isCover) ?? dayPhotos[0];
               return (
                 <button
                   key={date}

@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Lightbox, UploadSheet, usePreloadPhotoTools } from "@/components/calendar/lazy";
-import { Mascot } from "@/components/mascot";
 import type { PhotoView } from "@/lib/data/photos";
+import { useCalendarPref } from "@/components/calendar-pref";
+import { Mascot } from "@/components/mascot";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { layoutMemories, memoriesBounds, type MemoryCluster } from "@/lib/memories";
 
@@ -17,6 +18,10 @@ const DOT = 28;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
+
+function weekday(date: string) {
+  return new Date(`${date}T00:00:00Z`).toLocaleString("en-US", { weekday: "long", timeZone: "UTC" });
+}
 
 function shortDate(date: string) {
   return new Date(`${date}T00:00:00Z`).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
@@ -408,7 +413,7 @@ export function MemoryBoard({ photos, today }: { photos: PhotoView[]; today: str
       </div>
 
       {/* Overlay: title + controls. The wrapper ignores the pointer so the board stays draggable underneath. */}
-      <div className="pointer-events-none fixed inset-x-0 top-[4.75rem] z-10 mx-auto flex max-w-[70rem] justify-between px-5 sm:top-[5.5rem]">
+      <div className="pointer-events-none fixed inset-x-0 top-[4.75rem] z-10 mx-auto flex max-w-[70rem] justify-between px-5 sm:top-[5.5rem] sm:left-[var(--nav-w,0px)]">
         <div className="clay pointer-events-auto px-4 py-2.5 sm:py-3">
           <p className="eyebrow">memory lane</p>
           <h1 className="font-display text-xl leading-tight font-semibold sm:text-2xl">Memories</h1>
@@ -422,7 +427,7 @@ export function MemoryBoard({ photos, today }: { photos: PhotoView[]; today: str
       <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[1] h-28 bg-gradient-to-b from-paper via-paper/80 to-transparent" />
 
       <div
-        className="pointer-events-none fixed inset-x-0 z-10 mx-auto flex max-w-[70rem] flex-col items-start gap-3 px-5 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] sm:bottom-6 sm:flex-row sm:items-end sm:justify-between"
+        className="pointer-events-none fixed inset-x-0 z-10 mx-auto flex max-w-[70rem] flex-col items-start gap-3 px-5 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] sm:left-[var(--nav-w,0px)] sm:bottom-6 sm:flex-row sm:items-end sm:justify-between sm:pr-24"
       >
         <div
           aria-hidden={!hint}
@@ -499,8 +504,13 @@ function Island({
 }) {
   const { date, x, y, r, tint, sticker, photos } = cluster;
   const isToday = date === today;
+  const ethiopian = useCalendarPref() === "ethiopian";
+  // Big line in the chosen calendar; the small line above it is the Gregorian date
+  // (Ethiopian mode) or the weekday (Gregorian mode).
+  const big = ethiopian ? formatEthiopian(date) : shortDate(date);
+  const small = isToday ? "today" : ethiopian ? shortDate(date) : weekday(date);
   return (
-    <section aria-label={`${formatEthiopian(date)}, ${photos.length} ${photos.length === 1 ? "photo" : "photos"}`} className="absolute" style={{ left: x, top: y }}>
+    <section aria-label={`${big}, ${photos.length} ${photos.length === 1 ? "photo" : "photos"}`} className="absolute" style={{ left: x, top: y }}>
       {/* the island itself: a soft pastel blob the day's photos sit on */}
       <div
         aria-hidden
@@ -555,9 +565,9 @@ function Island({
         style={{ left: sticker.x, top: sticker.y, transform: `translate(-50%, -50%) rotate(${sticker.rotate}deg)` }}
       >
         <span className="block text-[11px] font-extrabold tracking-wider text-accent uppercase">
-          {isToday ? "today" : shortDate(date)}
+          {small}
         </span>
-        <span className="block font-display text-lg leading-tight font-semibold text-ink">{formatEthiopian(date)}</span>
+        <span className="block font-display text-lg leading-tight font-semibold text-ink">{big}</span>
         {photos.length > 1 && <span className="block text-xs font-bold text-muted">{photos.length} photos</span>}
       </button>
     </section>

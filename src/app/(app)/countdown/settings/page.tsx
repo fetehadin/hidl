@@ -18,7 +18,8 @@ export default async function CountdownSettingsPage() {
       <WidgetToken createdAt={createdAt} />
       <p className="mt-4 text-center text-sm text-muted">
         Star a countdown on the <Link href="/countdown" className="underline-offset-4 hover:underline">countdown page</Link> to
-        choose which one this feed shows.
+        choose which one this feed shows. Want a widget for a specific countdown instead? Tap <strong>Widget</strong> on
+        its card.
       </p>
     </>
   );

@@ -7,12 +7,13 @@ import { LetterCard, letterState } from "@/components/letters/letter-card";
 import { PageHeader } from "@/components/page-header";
 import { listLetters } from "@/lib/data/letters";
 import { requireUser } from "@/lib/supabase/server";
+import type { CalendarPref } from "@/lib/dates";
 import { requestNow } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Letters" };
 
 export default async function LettersPage({ searchParams }: PageProps<"/letters">) {
-  const { supabase } = await requireUser();
+  const { supabase, calendar } = await requireUser();
   const [letters, { sealed: justSealed }] = await Promise.all([listLetters(supabase), searchParams]);
   const now = requestNow();
 
@@ -51,9 +52,9 @@ export default async function LettersPage({ searchParams }: PageProps<"/letters"
         </div>
       ) : (
         <div className="space-y-8">
-          <LetterSection title="Ready to open" letters={ready} now={now} />
-          <LetterSection title="Still sealed" letters={sealed} now={now} />
-          <LetterSection title="Opened" letters={opened} now={now} emptyHint="Nothing opened yet." />
+          <LetterSection title="Ready to open" letters={ready} now={now} calendar={calendar} />
+          <LetterSection title="Still sealed" letters={sealed} now={now} calendar={calendar} />
+          <LetterSection title="Opened" letters={opened} now={now} calendar={calendar} emptyHint="Nothing opened yet." />
         </div>
       )}
     </>
@@ -64,11 +65,13 @@ function LetterSection({
   title,
   letters,
   now,
+  calendar,
   emptyHint,
 }: {
   title: string;
   letters: Awaited<ReturnType<typeof listLetters>>;
   now: number;
+  calendar: CalendarPref;
   /** Shown instead of hiding the section entirely, for sections worth always seeing. */
   emptyHint?: string;
 }) {
@@ -99,7 +102,7 @@ function LetterSection({
       <ul className={`grid gap-4 ${gridClass}`}>
         {letters.map((l) => (
           <li key={l.id}>
-            <LetterCard letter={l} now={now} />
+            <LetterCard letter={l} now={now} calendar={calendar} />
           </li>
         ))}
       </ul>

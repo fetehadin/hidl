@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CountdownDetails, CountdownKind } from "@/lib/countdown-kinds";
+import type { CountdownUnit } from "@/lib/countdown-units";
 
 export type Countdown = {
   id: string;
@@ -10,11 +11,13 @@ export type Countdown = {
   max_score: number | null;
   actual_score: number | null;
   details: CountdownDetails;
+  /** Which units the time left is shown in (src/lib/countdown-units.ts). */
+  units: CountdownUnit[];
   is_widget: boolean;
   updated_at: string;
 };
 
-const COLUMNS = "id, kind, title, target_at, target_score, max_score, actual_score, details, is_widget, updated_at";
+const COLUMNS = "id, kind, title, target_at, target_score, max_score, actual_score, details, units, is_widget, updated_at";
 
 export async function listCountdowns(supabase: SupabaseClient) {
   const { data, error } = await supabase.from("countdowns").select(COLUMNS).order("target_at");
@@ -28,10 +31,8 @@ export async function getCountdown(supabase: SupabaseClient, id: string) {
   return data as Countdown | null;
 }
 
-/** The one flagged for the widget, else the soonest upcoming, else the soonest overall. */
-export async function getPrimaryCountdown(supabase: SupabaseClient) {
-  const list = await listCountdowns(supabase);
+/** The starred one, else the soonest upcoming, else the soonest overall. `list` is sorted by target_at. */
+export function pickPrimaryCountdown(list: Countdown[], now = Date.now()) {
   if (list.length === 0) return null;
-  const now = Date.now();
   return list.find((c) => c.is_widget) ?? list.find((c) => new Date(c.target_at).getTime() > now) ?? list[0];
 }

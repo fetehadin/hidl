@@ -12,8 +12,10 @@ way:
 Features:
 
 - **Time-locked letters.** Write to your future self. A letter stays sealed until its opening date, and the database itself refuses to return the body before then.
-- **Countdowns.** Any number of them, of eight kinds picked from a dialog: exam (with a target score), graduation, birthday (whose, and the age they turn), wedding, work, trip, life milestone, or anything else. Each kind has its own few details. Each shows a live countdown, then "Done!"; exams let you compare your actual score afterward. Star one to feed it into an Android home-screen widget (via a third-party widget app).
-- **Image calendar.** Any number of photos per day — pick several at once or drag and drop them — resized on your phone, kept in private storage, with a lightbox and a year-at-a-glance view.
+- **Countdowns.** Any number of them, of eight kinds picked from a dialog: exam (with a target score), graduation, birthday (whose, and the age they turn), wedding, work, trip, life milestone, or anything else. Each kind has its own few details. Each shows the time left in whatever units you pick (years, months, days and/or hours, in any mix), then "Done!"; exams let you compare your actual score afterward. The dashboard cycles through all your upcoming ones. Star one to show it first, and give any countdown its own Android home-screen widget (via a third-party widget app).
+- **Image calendar.** Any number of photos per day — pick several at once or drag and drop them — resized on your phone, kept in private storage, with a lightbox and a year-at-a-glance view. Pin one photo as a day's "wallpaper" to choose which picture the calendar shows.
+- **Hidi, your shortcut buddy.** The mascot sits in the bottom-right corner of every page. Tap it and it hops, smiles, and fans out shortcuts: add today's photo, write a letter, start a countdown, open memories.
+- **Gregorian or Ethiopian dates.** Gregorian by default; switch to the Ethiopian calendar on `/account`.
 - **Account deletion.** Anyone can permanently delete their own account and everything in it from `/account` — no owner intervention needed.
 - **Installable as an app.** It's a Progressive Web App — "Add to Home Screen" (Android Chrome or iOS Safari) gives
   a real app icon and a full-screen launch with no browser UI, using the exact same sign-in session as the site.
@@ -38,6 +40,8 @@ photo storage run on the Supabase free plan, and the optional unlock emails use 
 | An exam countdown always has scores; no other kind ever does | A check constraint on `countdowns`: `kind = 'exam'` requires `target_score`/`max_score`, every other kind forbids them. `kind` has no `UPDATE` grant, so it can't be changed after creation either. |
 | A countdown only stores the details its kind allows | `countdown_details_ok(kind, details)` in a check constraint on the `details` jsonb column: allowed keys per kind, string lengths, `birth_year` a whole number, and a birthday must say whose. The same list lives in `src/lib/countdown-kinds.ts` for the form. |
 | At most one countdown feeds the widget | A partial unique index, `countdowns (user_id) where is_widget`. Flipping which one is atomic via the `set_widget_countdown(id)` function, so the index is never violated mid-change. |
+| A day has at most one pinned "wallpaper" photo | A partial unique index, `photos (user_id, date) where is_cover`. `set_cover_photo(id, pinned)` clears the day's old pin and sets the new one in one call. |
+| A countdown's own widget token can only point at that user's countdown | `widget_tokens (countdown_id, user_id)` is a foreign key to `countdowns (id, user_id)` (`on delete cascade`), and `unique nulls not distinct (user_id, countdown_id)` allows one starred-feed token plus one per countdown. |
 | The widget feed's token can't be read back, even by its owner | `widget_tokens.token_hash` has no `SELECT` grant to anyone — only `=` comparison from the service-role API route. Same column-restriction pattern as `letters.body`. |
 | Only allowed emails can sign in (unless opened to everyone) | `ALLOWED_EMAIL` is checked in the login action, the magic-link callback and `requireUser()` on every server entry point. Set it to `*` to allow anyone to sign up — each person gets their own isolated letters/countdown/calendar, scoped by RLS. |
 | Deleting your account removes everything, not just the login | `deleteAccount()` (`src/actions/auth.ts`) removes the user's storage files first, then deletes the `auth.users` row, which cascades to `letters`, `photos`, and `countdowns` via `on delete cascade`. Covered by `tests/integration/account-deletion.test.ts`. |
@@ -114,6 +118,22 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
    create your account, then turn off **Allow new users to sign up** — the app's allowlist already blocks other
    emails, but this closes it at the source too. Leave sign-ups on if `ALLOWED_EMAIL=*`.
 6. **Project Settings → API Keys**: copy the **publishable** key and the **secret** key for Vercel.
+7. **"Continue with Google" (optional).** The login page shows the button automatically once Google is enabled
+   in Supabase (it checks Auth's public settings; no app config or redeploy needed, appears within a minute).
+   1. In [Google Cloud Console](https://console.cloud.google.com/), create a project, then open **Google Auth
+      Platform**. Under **Branding**, set the app name (`hidl`), a support email and optionally the logo
+      (`public/icon-512.png`). Under **Audience**, choose **External** and press **Publish app**, otherwise only
+      listed test users can sign in. The app only asks for name and email (`openid`, `email`, `profile`), which
+      needs no Google review.
+   2. **Clients → Create client → Web application.** Authorized JavaScript origin: `https://<your-app>.vercel.app`.
+      Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback` (Supabase shows the exact one
+      on the Google provider page).
+   3. Supabase → **Authentication → Sign In / Providers → Google**: enable it and paste the client ID and secret.
+   - Google accounts still have to pass `ALLOWED_EMAIL`. A Google account that isn't allowed is signed out, shown
+     "This journal is private", and the account that attempt created is deleted again (`/auth/confirm`).
+   - If you turned off **Allow new users to sign up** (step 5), Google works for your existing account (Supabase
+     links a Google login to the account with the same verified email) but can't create new ones.
+   - Google's screen says "continue to `<project-ref>.supabase.co`" unless you add a Supabase custom domain (paid).
 
 > Supabase's built-in email sender is rate-limited (a few emails per hour) and only delivers to members of your
 > Supabase organisation, which is fine for a single owner. Set up custom SMTP if you need more.
@@ -194,28 +214,31 @@ tests/unit, tests/integration
 
 ## Notes
 
-- **Ethiopian calendar.** Every absolute date shown to the user (letters, countdowns, the dashboard header, the
-  calendar lightbox) displays the Ethiopian calendar date, with the Gregorian date kept as a smaller secondary
-  line. This is purely a display-layer conversion (`src/lib/ethiopian.ts`, hand-rolled, no dependency) — storage
-  stays UTC `timestamptz` exactly as before, and nothing about locking/countdown logic changed. Date *inputs*
-  (datetime-local pickers) stay native Gregorian — browsers don't support an Ethiopian-calendar picker widget —
-  but show a live Ethiopian-equivalent label next to them. The calendar's month grid itself (`/calendar`) stays
+- **Gregorian or Ethiopian calendar.** Dates are shown in the Gregorian calendar by default. Choosing Ethiopian on
+  `/account` (saved in the user's auth metadata, `user_metadata.calendar`, so it follows them across devices)
+  shows every absolute date (letters, countdowns, the dashboard header, the photo viewer, memories) as the
+  Ethiopian date, with the Gregorian date kept as a smaller secondary line. This is purely a display-layer
+  conversion (`src/lib/ethiopian.ts`, hand-rolled, no dependency; `src/lib/dates.ts` picks the calendar) — storage
+  stays UTC `timestamptz`, and nothing about locking/countdown logic changes. Date *inputs* (datetime-local
+  pickers) stay native Gregorian, since browsers don't support an Ethiopian-calendar picker, but in Ethiopian mode
+  they show a live Ethiopian-equivalent label next to them. The calendar's month grid itself (`/calendar`) stays
   Gregorian-indexed, since its navigation is tied to the `?m=` query param and photo date-range queries.
 - Photos are resized in the browser and uploaded straight to Supabase Storage through one-time signed upload URLs,
   so large phone photos never go through a Vercel function (which has a 4.5 MB body limit). The server
   checks that the files exist in your folder before recording them, and deletes replaced or orphaned files.
 - A day can hold any number of photos. The calendar picker accepts multiple files at once — pick several, or drag
-  and drop them onto the upload sheet — and each becomes its own photo. A day's cell shows the first one with a
-  `+N` badge; open it to flip through the rest, add more, replace one, or delete one.
+  and drop them onto the upload sheet — and each becomes its own photo. A day's cell shows its pinned "wallpaper" (or else the first one) with a
+  `+N` badge; open it to flip through the rest, pin one as the wallpaper, add more, replace one, or delete one.
 - Unsent letter drafts are kept in `localStorage` on the device until the letter is sealed.
 - **CAPTCHA (optional).** Set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` to show a [Cloudflare Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile)
   widget on the login form. Its secret key goes directly into Supabase (Authentication → Attack Protection →
   Enable Captcha protection, provider Turnstile) — the app itself never sees it, only the token Turnstile hands
   back, which is passed straight through to `signInWithOtp`. Unset, the form skips the widget entirely.
-- **Home-screen widget (Android).** A web app can't place a live widget on a phone's home screen by itself — that
-  needs a native app. `/countdown/settings` can generate a token for `GET /api/widget/countdown?token=…`, a
-  public (token-authenticated, not session-authenticated) JSON feed of whichever one countdown is starred — never
-  letters or photos, and never any countdown that isn't starred. Point a widget app like
+- **Home-screen widgets (Android).** A web app can't place a live widget on a phone's home screen by itself — that
+  needs a native app. A token for `GET /api/widget/countdown?token=…` gives a public (token-authenticated, not
+  session-authenticated) JSON feed of exactly one countdown, never letters or photos. Make one per countdown
+  with the **Widget** button on its card (so you can have a widget for each), or one on `/countdown/settings`
+  that always follows whichever countdown is starred. Point a widget app like
   [KWGT](https://play.google.com/store/apps/details?id=org.kustom.widget) at it to render it on the home screen.
   Only the token's SHA-256 hash is stored; the raw token is shown once, at creation.
 - **PWA / "Add to Home Screen."** `src/app/manifest.ts` plus `public/sw.js` (a service worker that never caches

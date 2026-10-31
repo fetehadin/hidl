@@ -1,7 +1,9 @@
 import { KIND_INFO } from "@/lib/countdown-kinds";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRightIcon, CalendarIcon, FlameIcon, HourglassIcon } from "@/components/icons";
+import { ArrowRightIcon, CalendarIcon, FlameIcon } from "@/components/icons";
+import { CountdownStat } from "@/components/countdown/countdown-stat";
+import { KindBadge } from "@/components/countdown/kind-icon";
 import { LiveCountdown } from "@/components/countdown/live-countdown";
 import { DashboardCard } from "@/components/dashboard-card";
 import { DashboardTodayPhoto } from "@/components/dashboard-today-photo";
@@ -9,7 +11,7 @@ import { Envelope } from "@/components/envelope";
 import { sealInitial } from "@/components/letters/letter-card";
 import { Mascot, type MascotMood } from "@/components/mascot";
 import { LiveRelative } from "@/components/live-relative";
-import { getPrimaryCountdown } from "@/lib/data/countdowns";
+import { listCountdowns, pickPrimaryCountdown } from "@/lib/data/countdowns";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { letterSummary } from "@/lib/data/letters";
 import { addDays, photoStreak } from "@/lib/calendar";
@@ -18,22 +20,28 @@ import { requireUser } from "@/lib/supabase/server";
 import { daysUntil, formatInAppTz, greeting, nowInAppTz, requestNow, todayISO } from "@/lib/time";
 
 export default async function DashboardPage() {
-  const { supabase } = await requireUser();
+  const { supabase, calendar } = await requireUser();
   const now = requestNow();
   const today = todayISO(new Date(now));
 
-  const [countdown, letters, todaysPhotos, recentDates] = await Promise.all([
-    getPrimaryCountdown(supabase),
+  const [countdowns, letters, todaysPhotos, recentDates] = await Promise.all([
+    listCountdowns(supabase),
     letterSummary(supabase),
     listPhotosForDate(supabase, today),
     listPhotoDates(supabase, addDays(today, -400), today),
   ]);
   const streak = photoStreak(recentDates, today);
   const monthDays = new Set(recentDates.filter((d) => d.startsWith(today.slice(0, 7)))).size;
-  const latestPhotoRow = todaysPhotos.at(-1);
+  const countdown = pickPrimaryCountdown(countdowns, now);
+  // Every upcoming countdown, soonest first: the stat chip cycles through them, and the
+  // hero lists the next few after the primary one.
+  const upcoming = countdowns
+    .filter((c) => new Date(c.target_at).getTime() > now)
+    .map((c) => ({ ...c, days: daysUntil(c.target_at, new Date(now)) }));
+  const comingUp = upcoming.filter((c) => c.id !== countdown?.id);
+  const latestPhotoRow = todaysPhotos.find((p) => p.is_cover) ?? todaysPhotos.at(-1);
   const [photo] = latestPhotoRow ? await signPhotos(supabase, [latestPhotoRow]) : [];
   const countdownDone = countdown ? new Date(countdown.target_at).getTime() <= now : false;
-  const daysLeft = countdown && !countdownDone ? daysUntil(countdown.target_at, new Date(now)) : null;
   const hidi = companionLine({
     hour: nowInAppTz(new Date(now)).getHours(),
     streak: streak.count,
@@ -45,9 +53,13 @@ export default async function DashboardPage() {
     <div>
       <div className="flex flex-col gap-5 pt-4 pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="eyebrow mb-1">{formatEthiopian(new Date(now))}</p>
+          <p className="eyebrow mb-1">
+            {calendar === "ethiopian" ? formatEthiopian(new Date(now)) : formatInAppTz(new Date(now), "EEEE")}
+          </p>
           <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">{greeting(new Date(now))}!</h1>
-          <p className="mt-1 text-sm font-semibold text-muted">{formatInAppTz(new Date(now), "EEEE, MMMM d")}</p>
+          <p className="mt-1 text-sm font-semibold text-muted">
+            {formatInAppTz(new Date(now), calendar === "ethiopian" ? "EEEE, MMMM d" : "MMMM d, yyyy")}
+          </p>
         </div>
         <div className="animate-fade-up flex items-center gap-3 sm:max-w-sm">
           <Mascot mood={hidi.mood} size={92} />
@@ -69,12 +81,7 @@ export default async function DashboardPage() {
           value={monthDays}
           label="days this month"
         />
-        <StatChip
-          tint="tint-white"
-          icon={<HourglassIcon width={26} height={26} className="text-teal" />}
-          value={daysLeft ?? "—"}
-          label={daysLeft === null ? "no countdown" : daysLeft === 1 ? "day to go" : "days to go"}
-        />
+        <CountdownStat items={upcoming.map((c) => ({ id: c.id, title: c.title, days: c.days }))} />
       </ul>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -86,12 +93,14 @@ export default async function DashboardPage() {
           </DashboardCard>
         ) : (
           <div className="card card-interactive animate-fade-up p-6 sm:col-span-2 sm:p-8">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <p className="eyebrow mb-1">{countdownDone ? "it's over" : (KIND_INFO[countdown.kind] ?? KIND_INFO.deadline).eyebrow}</p>
                 <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{countdown.title}</h2>
-                <p className="mt-1 text-ink-soft">{formatEthiopian(countdown.target_at)}</p>
-                <p className="text-sm text-muted">{formatInAppTz(countdown.target_at, "EEEE, MMMM d, yyyy")}</p>
+                {calendar === "ethiopian" && <p className="mt-1 text-ink-soft">{formatEthiopian(countdown.target_at)}</p>}
+                <p className={calendar === "ethiopian" ? "text-sm text-muted" : "mt-1 text-ink-soft"}>
+                  {formatInAppTz(countdown.target_at, "EEEE, MMMM d, yyyy")}
+                </p>
 
                 {countdown.kind === "exam" && (
                   <p className="mt-4">
@@ -116,14 +125,55 @@ export default async function DashboardPage() {
                 </Link>
               </div>
 
-              <div className="shrink-0 self-start sm:self-center">
+              <div className="flex min-w-0 lg:flex-1 lg:justify-end">
                 {countdownDone ? (
                   <p className="font-display text-5xl font-semibold text-accent sm:text-6xl">{(KIND_INFO[countdown.kind] ?? KIND_INFO.deadline).doneText}</p>
                 ) : (
-                  <LiveCountdown target={countdown.target_at} serverNow={now} variant="compact" />
+                  <LiveCountdown target={countdown.target_at} serverNow={now} units={countdown.units} size="large" />
                 )}
               </div>
             </div>
+
+            {comingUp.length > 0 && (
+              <div className="mt-6 border-t-2 border-mint pt-4">
+                <h3 className="eyebrow mb-2">also coming up</h3>
+                <ul className="grid gap-2 sm:grid-cols-3">
+                  {comingUp.slice(0, 3).map((c) => (
+                    <li key={c.id}>
+                      <Link
+                        href="/countdown"
+                        className="flex items-center gap-3 rounded-2xl bg-mint/60 px-3 py-2.5 transition-colors hover:bg-mint"
+                      >
+                        <KindBadge kind={c.kind} size={36} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-bold text-ink">{c.title}</span>
+                          <span className="block text-xs font-semibold text-muted">
+                            {formatInAppTz(c.target_at, "MMM d, yyyy")}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-right">
+                          <span className="block font-display text-xl leading-none font-semibold text-heading tabular-nums">
+                            {c.days}
+                          </span>
+                          <span className="block text-[10px] font-extrabold tracking-wide text-muted uppercase">
+                            {c.days === 1 ? "day" : "days"}
+                          </span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                {comingUp.length > 3 && (
+                  <Link
+                    href="/countdown"
+                    className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-accent underline-offset-4 hover:underline"
+                  >
+                    {comingUp.length - 3} more
+                    <ArrowRightIcon width={14} height={14} />
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         )}
 

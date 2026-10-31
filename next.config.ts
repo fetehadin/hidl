@@ -11,6 +11,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Hidi's quick menu owns the bottom-right corner and the side nav the left edge; keep the
+  // dev-only badge out of both.
+  devIndicators: { position: "top-right" },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

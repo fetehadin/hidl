@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { openLetterAction } from "@/actions/letters";
 import { Envelope } from "@/components/envelope";
+import { useCalendarPref } from "@/components/calendar-pref";
 import { LetterPaper } from "./letter-paper";
 
 type Props = {
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export function LetterReveal(props: Props) {
+  const calendar = useCalendarPref();
   const [phase, setPhase] = useState<"idle" | "opening" | "open">("idle");
   const [body, setBody] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +63,7 @@ export function LetterReveal(props: Props) {
           className="reveal-letter [animation-delay:0ms]"
           title={props.title}
           recipient={props.recipient}
+          calendar={calendar}
           body={body}
           createdAt={props.createdAt}
           unlockAt={props.unlockAt}

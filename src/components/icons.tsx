@@ -27,9 +27,13 @@ export const EnvelopeIcon = (p: IconProps) => (
   </svg>
 );
 
+/** Capped glass with sand running down: a slanted wedge on top, a mound below. */
 export const HourglassIcon = (p: IconProps) => (
   <svg {...base} {...p}>
-    <path d="M6.5 3h11M6.5 21h11M7.5 3c0 5 9 6 9 9s-9 4-9 9M16.5 3c0 5-9 6-9 9s9 4 9 9" />
+    <path d="M5 3h14M5 21h14" strokeWidth={2.5} />
+    <path d="M7 3v1.6c0 4.2 3.7 5.6 4.3 7.4C10.7 13.8 7 15.2 7 19.4V21M17 3v1.6c0 4.2-3.7 5.6-4.3 7.4.6 1.8 4.3 3.2 4.3 7.4V21" />
+    <path d="M9.3 7.5 14.7 6.1c-.5 2-1.6 3.3-2.7 4.3-1.1-.8-2.1-1.7-2.7-2.9Z" fill="currentColor" stroke="none" />
+    <path d="M8.9 19.3c.2-2.2 1.7-3.8 3.1-4.8 1.4 1 2.9 2.6 3.1 4.8Z" fill="currentColor" stroke="none" />
   </svg>
 );
 
@@ -172,5 +176,31 @@ export const FlagIcon = (p: IconProps) => (
 export const CloseIcon = (p: IconProps) => (
   <svg {...base} {...p}>
     <path d="M6 6l12 12M18 6 6 18" />
+  </svg>
+);
+
+export const CameraIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.5-2.2h5.6L16.3 7h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" />
+    <circle cx="12" cy="12.8" r="3.4" />
+  </svg>
+);
+
+export const PinIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
+  <svg {...base} {...p}>
+    <path d="M9 3.5h6M10 3.5v5.2L7 12.5h10l-3-3.8V3.5Z" fill={filled ? "currentColor" : "none"} />
+    <path d="M12 12.5v8" />
+  </svg>
+);
+
+export const ChevronIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="m9 5 7 7-7 7" />
+  </svg>
+);
+
+export const SignOutIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10" />
   </svg>
 );

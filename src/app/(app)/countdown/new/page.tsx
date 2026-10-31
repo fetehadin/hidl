@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CountdownForm } from "@/components/countdown/countdown-form";
 import { KindPicker } from "@/components/countdown/kind-picker";
+import { DEFAULT_UNITS } from "@/lib/countdown-units";
 import { PageHeader } from "@/components/page-header";
 import { isCountdownKind, KIND_INFO } from "@/lib/countdown-kinds";
 import { requireUser } from "@/lib/supabase/server";
@@ -22,7 +23,7 @@ export default async function NewCountdownPage({ searchParams }: PageProps<"/cou
             <CountdownForm
               key={kind}
               locked={false}
-              defaults={{ kind, title: "", target_local: "", target_score: "", max_score: "", details: {} }}
+              defaults={{ kind, title: "", target_local: "", target_score: "", max_score: "", details: {}, units: DEFAULT_UNITS }}
             />
           </div>
         </>

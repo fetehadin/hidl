@@ -9,7 +9,8 @@ import { useId, type ReactNode } from "react";
  *
  * Purely decorative unless `label` is passed, in which case it gets role="img".
  */
-export type MascotMood = "happy" | "wave" | "cheer" | "sleepy" | "curious";
+/** "hi" is a big open smile, arms relaxed (used when Hidi opens its quick menu). */
+export type MascotMood = "happy" | "wave" | "cheer" | "sleepy" | "curious" | "hi";
 
 const INK = "#0f3f45";
 
@@ -134,7 +135,7 @@ export function Mascot({
         )}
 
         {/* mouth */}
-        {mood === "cheer" ? (
+        {mood === "cheer" || mood === "hi" ? (
           <>
             <path d="M51 70 Q60 84 69 70 Z" fill={INK} />
             <path d="M55 76 Q60 80.5 65 76 Q60 73.5 55 76Z" fill="#f49aa5" />

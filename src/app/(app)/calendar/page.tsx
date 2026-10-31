@@ -10,7 +10,7 @@ import { monthParam } from "@/lib/validation/photos";
 export const metadata: Metadata = { title: "Calendar" };
 
 export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
-  const { m } = await searchParams;
+  const { m, add } = await searchParams;
   const today = todayISO();
   const currentMonth = monthOf(today);
   const requested = monthParam.parse(typeof m === "string" ? m : undefined);
@@ -29,7 +29,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const daysCaptured = new Set(photos.map((p) => p.date)).size;
 
   return (
-    <div className="@container -mb-10 sm:-mb-14">
+    <div className="@container -mb-[6.5rem] sm:-mb-[5.5rem]">
       {/* Kept to two short rows so the whole month fits on screen without scrolling. */}
       <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2 pt-2 sm:pt-3">
         <div className="min-w-0">
@@ -72,7 +72,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       </p>
 
       <div className="card p-2 sm:p-4">
-        <MonthGrid key={month} month={month} today={today} photos={photos} />
+        <MonthGrid key={month} month={month} today={today} photos={photos} addToday={add === "today"} />
       </div>
     </div>
   );

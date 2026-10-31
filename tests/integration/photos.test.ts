@@ -124,3 +124,55 @@ describe("photo storage bucket", () => {
     expect(up.error).not.toBeNull();
   });
 });
+
+describe("pinned wallpaper photo", () => {
+  const PIN_DAY = "2026-09-20";
+  let a: string;
+  let b: string;
+
+  beforeAll(async () => {
+    const { data, error } = await me.client
+      .from("photos")
+      .insert([
+        { date: PIN_DAY, ...paths(me, PIN_DAY, 1) },
+        { date: PIN_DAY, ...paths(me, PIN_DAY, 2) },
+      ])
+      .select("id");
+    if (error) throw error;
+    [a, b] = data!.map((r) => r.id);
+  });
+
+  const pinned = async () => {
+    const { data } = await me.client.from("photos").select("id").eq("date", PIN_DAY).eq("is_cover", true);
+    return data!.map((r) => r.id);
+  };
+
+  it("pins one photo as the day's wallpaper", async () => {
+    const { error } = await me.client.rpc("set_cover_photo", { photo_id: a, pinned: true });
+    expect(error).toBeNull();
+    expect(await pinned()).toEqual([a]);
+  });
+
+  it("pinning another photo that day moves the pin, atomically", async () => {
+    const { error } = await me.client.rpc("set_cover_photo", { photo_id: b, pinned: true });
+    expect(error).toBeNull();
+    expect(await pinned()).toEqual([b]);
+  });
+
+  it("a direct update can't give a day two pins", async () => {
+    const { error } = await me.client.from("photos").update({ is_cover: true }).eq("id", a);
+    expect(error?.code).toBe("23505");
+    expect(await pinned()).toEqual([b]);
+  });
+
+  it("unpinning leaves the day with no pin", async () => {
+    await me.client.rpc("set_cover_photo", { photo_id: b, pinned: false });
+    expect(await pinned()).toEqual([]);
+  });
+
+  it("can't pin someone else's photo", async () => {
+    const { error } = await other.client.rpc("set_cover_photo", { photo_id: a, pinned: true });
+    expect(error).not.toBeNull();
+    expect(await pinned()).toEqual([]);
+  });
+});

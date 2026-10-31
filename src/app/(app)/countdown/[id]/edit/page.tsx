@@ -33,6 +33,7 @@ export default async function EditCountdownPage({ params }: PageProps<"/countdow
             target_local: utcToLocalInput(countdown.target_at),
             target_score: countdown.target_score !== null ? String(countdown.target_score) : "",
             max_score: countdown.max_score !== null ? String(countdown.max_score) : "",
+            units: countdown.units,
             details: Object.fromEntries(Object.entries(countdown.details ?? {}).map(([k, val]) => [k, String(val)])),
           }}
         />
