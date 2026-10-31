@@ -111,3 +111,66 @@ export const FlameIcon = (p: IconProps) => (
     <path d="M12 21c-1.7 0-2.9-1.2-2.9-2.8 0-1.8 1.5-2.7 2.3-4.3.9 1.4 3.5 2.5 3.5 4.4 0 1.6-1.2 2.7-2.9 2.7Z" />
   </svg>
 );
+
+/* Countdown kinds */
+
+export const ExamIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <rect x="5" y="3.5" width="14" height="17" rx="2" />
+    <path d="M9 3.5h6v2.5H9zM8.5 11l2 2 4-4M8.5 16.5h7" />
+  </svg>
+);
+
+export const GraduationIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M2.5 9 12 4.5 21.5 9 12 13.5z" />
+    <path d="M6.5 11v4.5c0 1.4 2.5 3 5.5 3s5.5-1.6 5.5-3V11M21.5 9v5" />
+  </svg>
+);
+
+export const CakeIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M4 20.5h16M5 20.5v-7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7" />
+    <path d="M5 15.5c1.5 1.2 3 1.2 4.5 0s3-1.2 4.5 0 3 1.2 5 0M12 11.5V8" />
+    <path d="M12 3.5c1 1.2 1.2 2.4 0 3.5-1.2-1.1-1-2.3 0-3.5z" fill="currentColor" />
+  </svg>
+);
+
+export const RingsIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <circle cx="9" cy="14.5" r="5.5" />
+    <circle cx="15" cy="14.5" r="5.5" />
+    <path d="m7 5 2 2.5 2-2.5-1-1.5H8z" />
+  </svg>
+);
+
+export const BriefcaseIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <rect x="3" y="7" width="18" height="13" rx="2" />
+    <path d="M9 7V5.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5.5V7M3 12.5h18M11 12.5v1.5h2v-1.5" />
+  </svg>
+);
+
+export const PlaneIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M10.5 13.5 3 11l1.5-1.5 8 .5 4-4.5c1-1 2.6-1.4 3.2-.7.7.6.3 2.2-.7 3.2L14.5 12l.5 8-1.5 1.5-2.5-7.5-3 2.5.5 2.5-1.2 1.2-1.6-3.3L2.4 15.3 3.6 14l2.5.5z" />
+  </svg>
+);
+
+export const SproutIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M12 21v-8M12 13c0-4 2.5-6.5 7.5-6.5 0 4.5-2.5 6.5-7.5 6.5zM12 15.5c0-3.5-2-5.5-6.5-5.5 0 3.8 2 5.5 6.5 5.5z" />
+  </svg>
+);
+
+export const FlagIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M5 21V4M5 4.5c4-2 7 2 11 0v8.5c-4 2-7-2-11 0" />
+  </svg>
+);
+
+export const CloseIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </svg>
+);

@@ -1,6 +1,6 @@
 # hidl
 
-A senior-year journal: time-locked letters, countdowns to any number of deadlines, and a daily photo calendar. Every account's data is
+A personal journal: time-locked letters, countdowns to any number of deadlines, and a daily photo calendar. Every account's data is
 fully isolated (enforced by Postgres row-level security, not just app code), so the same deployment works either
 way:
 
@@ -12,7 +12,7 @@ way:
 Features:
 
 - **Time-locked letters.** Write to your future self. A letter stays sealed until its opening date, and the database itself refuses to return the body before then.
-- **Countdowns.** Any number of them — an exam with a target score, or a plain deadline with neither. Each shows a live countdown, then "Done!"; exams let you compare your actual score afterward. Star one to feed it into an Android home-screen widget (via a third-party widget app).
+- **Countdowns.** Any number of them, of eight kinds picked from a dialog: exam (with a target score), graduation, birthday (whose, and the age they turn), wedding, work, trip, life milestone, or anything else. Each kind has its own few details. Each shows a live countdown, then "Done!"; exams let you compare your actual score afterward. Star one to feed it into an Android home-screen widget (via a third-party widget app).
 - **Image calendar.** Any number of photos per day — pick several at once or drag and drop them — resized on your phone, kept in private storage, with a lightbox and a year-at-a-glance view.
 - **Account deletion.** Anyone can permanently delete their own account and everything in it from `/account` — no owner intervention needed.
 - **Installable as an app.** It's a Progressive Web App — "Add to Home Screen" (Android Chrome or iOS Safari) gives
@@ -35,7 +35,8 @@ photo storage run on the Supabase free plan, and the optional unlock emails use 
 | Any number of photos per day, each owned by one user | No per-day limit — `photos.user_id`/`date` are just columns, RLS and the folder-path check constraint still scope every row to its owner |
 | No photos for future days | `photos_before_write` trigger, using `app_today()` (Africa/Addis_Ababa) |
 | Users only see their own data | RLS on every table and on the `photos` storage bucket (per-user folder) |
-| An exam countdown always has scores; a deadline never does | A check constraint on `countdowns` — `kind = 'exam'` requires `target_score`/`max_score`, `kind = 'deadline'` forbids them. `kind` has no `UPDATE` grant, so it can't be changed after creation either. |
+| An exam countdown always has scores; no other kind ever does | A check constraint on `countdowns`: `kind = 'exam'` requires `target_score`/`max_score`, every other kind forbids them. `kind` has no `UPDATE` grant, so it can't be changed after creation either. |
+| A countdown only stores the details its kind allows | `countdown_details_ok(kind, details)` in a check constraint on the `details` jsonb column: allowed keys per kind, string lengths, `birth_year` a whole number, and a birthday must say whose. The same list lives in `src/lib/countdown-kinds.ts` for the form. |
 | At most one countdown feeds the widget | A partial unique index, `countdowns (user_id) where is_widget`. Flipping which one is atomic via the `set_widget_countdown(id)` function, so the index is never violated mid-change. |
 | The widget feed's token can't be read back, even by its owner | `widget_tokens.token_hash` has no `SELECT` grant to anyone — only `=` comparison from the service-role API route. Same column-restriction pattern as `letters.body`. |
 | Only allowed emails can sign in (unless opened to everyone) | `ALLOWED_EMAIL` is checked in the login action, the magic-link callback and `requireUser()` on every server entry point. Set it to `*` to allow anyone to sign up — each person gets their own isolated letters/countdown/calendar, scoped by RLS. |

@@ -5,9 +5,11 @@ import { useState, useTransition } from "react";
 import { deleteCountdown, setWidgetCountdown } from "@/actions/countdowns";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PencilIcon, StarIcon, TrashIcon } from "@/components/icons";
+import { detailLine, KIND_INFO } from "@/lib/countdown-kinds";
 import type { Countdown } from "@/lib/data/countdowns";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { formatInAppTz } from "@/lib/time";
+import { KindBadge } from "./kind-icon";
 import { LiveCountdown } from "./live-countdown";
 import { ScoreCompare } from "./score-compare";
 import { ScoreForm } from "./score-form";
@@ -20,6 +22,10 @@ export function CountdownCard({ countdown, now, featured = false }: { countdown:
   const done = new Date(countdown.target_at).getTime() <= now;
   const whenEthiopian = formatEthiopian(countdown.target_at);
   const when = formatInAppTz(countdown.target_at, "EEEE, MMMM d, yyyy 'at' h:mm a");
+  const info = KIND_INFO[countdown.kind] ?? KIND_INFO.deadline;
+  const details = countdown.details ?? {};
+  const summary = detailLine(countdown.kind, details, Number(formatInAppTz(countdown.target_at, "yyyy")));
+  const note = typeof details.note === "string" ? details.note : null;
 
   function remove() {
     startTransition(async () => {
@@ -54,23 +60,28 @@ export function CountdownCard({ countdown, now, featured = false }: { countdown:
       </button>
 
       <div className={`flex flex-col gap-4 pr-11 ${featured ? "sm:flex-row sm:items-center sm:justify-between sm:gap-8" : ""}`}>
-        <div className="min-w-0">
-          <p className="eyebrow">{done ? "it's over" : countdown.kind === "exam" ? "the big day" : "deadline"}</p>
-          <h2 className={`font-display font-semibold tracking-tight ${featured ? "text-2xl sm:text-3xl" : "text-xl"}`}>
-            {countdown.title}
-          </h2>
-          <p className="mt-0.5 text-sm text-ink-soft">{whenEthiopian}</p>
-          <p className="text-sm text-muted">{when}</p>
+        <div className="flex min-w-0 gap-3.5">
+          <KindBadge kind={countdown.kind} size={featured ? 52 : 44} />
+          <div className="min-w-0">
+            <p className="eyebrow">{done ? "it's over" : info.eyebrow}</p>
+            <h2 className={`font-display font-semibold tracking-tight ${featured ? "text-2xl sm:text-3xl" : "text-xl"}`}>
+              {countdown.title}
+            </h2>
+            {summary && <p className="mt-0.5 text-[15px] font-semibold text-ink">{summary}</p>}
+            <p className="mt-0.5 text-sm text-ink-soft">{whenEthiopian}</p>
+            <p className="text-sm text-muted">{when}</p>
 
-          {!done && countdown.kind === "exam" && (
-            <p className="mt-3">
-              <span className="block text-sm font-semibold text-ink-soft">Target score</span>
-              <strong className={`font-display tabular-nums text-ink ${featured ? "text-2xl" : "text-xl"}`}>
-                {countdown.target_score}
-              </strong>
-              <span className="text-muted"> / {countdown.max_score}</span>
-            </p>
-          )}
+            {!done && countdown.kind === "exam" && (
+              <p className="mt-3">
+                <span className="block text-sm font-semibold text-ink-soft">Target score</span>
+                <strong className={`font-display tabular-nums text-ink ${featured ? "text-2xl" : "text-xl"}`}>
+                  {countdown.target_score}
+                </strong>
+                <span className="text-muted"> / {countdown.max_score}</span>
+              </p>
+            )}
+            {note && <p className="mt-2 text-sm text-ink-soft italic">{note}</p>}
+          </div>
         </div>
 
         {!done && (
@@ -82,7 +93,7 @@ export function CountdownCard({ countdown, now, featured = false }: { countdown:
 
       {done && (
         <div className="mt-4 space-y-4">
-          <p className="font-display text-3xl font-semibold text-accent">Done!</p>
+          <p className="font-display text-3xl font-semibold text-accent">{info.doneText}</p>
           {countdown.kind === "exam" && countdown.max_score !== null && countdown.target_score !== null && (
             <>
               {countdown.actual_score !== null && (

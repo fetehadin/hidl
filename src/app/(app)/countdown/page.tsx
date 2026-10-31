@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Mascot } from "@/components/mascot";
 import { CountdownCard } from "@/components/countdown/countdown-card";
+import { NewCountdownButton } from "@/components/countdown/new-countdown-button";
 import { WidgetIcon } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { listCountdowns } from "@/lib/data/countdowns";
@@ -29,7 +30,7 @@ export default async function CountdownPage() {
             <WidgetIcon width={18} height={18} />
             Widget
           </Link>
-          <Link href="/countdown/new" className="btn btn-primary">New</Link>
+          <NewCountdownButton />
         </div>
       </PageHeader>
 
@@ -38,9 +39,9 @@ export default async function CountdownPage() {
           <Mascot mood="curious" size={110} />
           <p className="mt-4 font-display text-2xl font-semibold">No countdowns yet.</p>
           <p className="mt-1 max-w-xs text-ink-soft">
-            Add an exam with a target score, or any other deadline you&apos;re counting down to.
+            An exam, a birthday, a wedding, a trip: anything you&apos;re counting down to.
           </p>
-          <Link href="/countdown/new" className="btn btn-primary mt-5">Add one</Link>
+          <NewCountdownButton label="Add one" className="mt-5" />
         </div>
       ) : (
         <div className="space-y-4">

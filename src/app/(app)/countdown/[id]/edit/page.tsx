@@ -23,7 +23,7 @@ export default async function EditCountdownPage({ params }: PageProps<"/countdow
     <>
       <Link href="/countdown" className="text-sm text-muted hover:text-ink">← Countdown</Link>
       <PageHeader eyebrow="edit" title={countdown.title} />
-      <div className="card p-5 sm:p-6">
+      <div className="card max-w-2xl p-5 sm:p-6">
         <CountdownForm
           locked
           defaults={{
@@ -33,6 +33,7 @@ export default async function EditCountdownPage({ params }: PageProps<"/countdow
             target_local: utcToLocalInput(countdown.target_at),
             target_score: countdown.target_score !== null ? String(countdown.target_score) : "",
             max_score: countdown.max_score !== null ? String(countdown.max_score) : "",
+            details: Object.fromEntries(Object.entries(countdown.details ?? {}).map(([k, val]) => [k, String(val)])),
           }}
         />
       </div>

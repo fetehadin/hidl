@@ -60,9 +60,9 @@ export function WidgetToken({ createdAt }: { createdAt: string | null }) {
           </div>
           <p className="text-sm text-muted">
             Fields in the response: <code>kind</code>, <code>title</code>, <code>targetAt</code>,{" "}
-            <code>targetScore</code>, <code>maxScore</code>, <code>actualScore</code>, <code>done</code>,{" "}
-            <code>daysLeft</code>. <code>targetScore</code>/<code>maxScore</code>/<code>actualScore</code> are
-            <code>null</code> for a plain deadline.
+            <code>targetScore</code>, <code>maxScore</code>, <code>actualScore</code>, <code>details</code>,{" "}
+            <code>done</code>, <code>daysLeft</code>. <code>targetScore</code>/<code>maxScore</code>/<code>actualScore</code>{" "}
+            are <code>null</code> for anything but an exam.
           </p>
         </div>
       ) : createdAt ? (

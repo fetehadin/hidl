@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A journal app for senior year: time-locked letters to your future self, countdowns to any number of deadlines
+A personal journal app (for anyone, not only students): time-locked letters to your future self, countdowns to any number of deadlines
 (exams with a target score, or plain deadlines), and a photo calendar with any number of photos per day.
 Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 + Supabase (Auth, Postgres, Storage), designed to run
 entirely on free tiers (Vercel Hobby + Supabase free + optional Resend/Gmail SMTP). Access is restricted to
@@ -73,8 +73,12 @@ layer physically cannot violate it, even with a bug:
 - *Photos*: a day can hold any number of photos (no per-day limit); `photos_before_write` rejects future dates
   using `app_today()` (Africa/Addis_Ababa) as the server-side source of truth. Actions are keyed by photo `id`,
   not date, since a day's photos aren't unique (`src/actions/photos.ts`: `addPhoto`/`replacePhoto`/`deletePhoto`).
-- *Countdowns* (`supabase/migrations/..._countdowns.sql`): a check constraint ties `kind` to which fields are
-  legal — `exam` requires `target_score`/`max_score`, `deadline` forbids them — and `kind` has no `UPDATE` grant,
+- *Countdowns* (`supabase/migrations/..._countdowns.sql`, `..._countdown_kinds.sql`): eight kinds (`exam`,
+  `graduation`, `birthday`, `wedding`, `work`, `trip`, `life`, and `deadline`, shown as "Other"). A check
+  constraint ties scores to kind (`exam` requires `target_score`/`max_score`, every other kind forbids them), and
+  per-kind details live in a `details` jsonb column checked by `countdown_details_ok(kind, details)` (allowed keys,
+  types, lengths). Its key list is mirrored in `src/lib/countdown-kinds.ts` (labels, form fields, card text), which
+  the zod schema (`parseCountdown`) is built from; change both together. `kind` has no `UPDATE` grant,
   so it can't be changed after creation. A partial unique index, `countdowns (user_id) where is_widget`, allows
   at most one starred countdown per user; `set_widget_countdown(id)` flips it atomically (clear-then-set in one
   function call) so that index is never transiently violated.
@@ -156,6 +160,12 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   origin, islands spiral-packed so they never overlap; output is rounded so SSR and client markup match). Camera
   moves write straight to the DOM; React only re-renders when an island first nears the viewport (that's when its
   thumbnails load).
+- The month calendar (`src/components/calendar/month-grid.tsx`) is sized to fit the viewport without scrolling:
+  its height is `min(100dvh - --chrome, square-cell height)` using container query units (the page wrapper is an
+  `@container`), so cells widen on laptops and stay square on phones. If you add anything above or below the grid
+  on `/calendar`, adjust `--chrome` or it will start scrolling again.
+- "New" on `/countdown` opens a kind picker dialog (`new-countdown-button.tsx`, `kind-picker.tsx`) that links to
+  `/countdown/new?kind=…`; without `?kind` that page shows the same picker inline.
 - Visual language: a bright, **light-only** teal theme in `globals.css` (no dark mode on purpose: it renders light
   even when the OS prefers dark; `color-scheme: light` + `viewport.colorScheme`). Page is `--mint` with a white
   glow, cards/nav/fields are white with `--aqua` borders, a few feature cards and memory islands are aqua,
@@ -164,4 +174,5 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   too). White on `--teal` is only 3.7:1, so primary button labels are large+bold (AA large text) and small teal
   text (`text-accent`, focus rings) uses `--ocean`. `.btn` is a chunky "arcade" button whose bottom edge collapses
   on press. The mascot, Hidi, is `src/components/mascot.tsx`
-  (moods: happy, wave, cheer, sleepy, curious); `src/app/icon.svg` and `public/icon-*.png` are its face.
+  (moods: happy, wave, cheer, sleepy, curious); `src/app/icon.svg`, `public/icon-*.png` and `apple-touch-icon.png` are the full character on a mint tile (the
+  PNGs are full-bleed with Hidi inside the maskable safe zone).

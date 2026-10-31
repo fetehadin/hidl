@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
   const { data } = await admin
     .from("countdowns")
-    .select("kind, title, target_at, target_score, max_score, actual_score")
+    .select("kind, title, target_at, target_score, max_score, actual_score, details")
     .eq("user_id", tokenRow.user_id)
     .eq("is_widget", true)
     .maybeSingle();
@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
       targetScore: data.target_score,
       maxScore: data.max_score,
       actualScore: data.actual_score,
+      details: data.details,
       done,
       daysLeft: done ? 0 : daysUntil(data.target_at),
     },

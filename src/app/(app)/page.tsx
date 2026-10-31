@@ -1,3 +1,4 @@
+import { KIND_INFO } from "@/lib/countdown-kinds";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRightIcon, CalendarIcon, FlameIcon, HourglassIcon } from "@/components/icons";
@@ -81,13 +82,13 @@ export default async function DashboardPage() {
         {!countdown ? (
           <DashboardCard eyebrow="deadlines" href="/countdown/new" linkLabel="Add a countdown" className="sm:col-span-2">
             <p className="font-display text-xl">No countdowns yet.</p>
-            <p className="text-ink-soft">Add an exam with a target score, or any other deadline.</p>
+            <p className="text-ink-soft">An exam, a birthday, a trip: anything you&apos;re counting down to.</p>
           </DashboardCard>
         ) : (
           <div className="card card-interactive animate-fade-up p-6 sm:col-span-2 sm:p-8">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="eyebrow mb-1">{countdownDone ? "it's over" : "the big day"}</p>
+                <p className="eyebrow mb-1">{countdownDone ? "it's over" : (KIND_INFO[countdown.kind] ?? KIND_INFO.deadline).eyebrow}</p>
                 <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{countdown.title}</h2>
                 <p className="mt-1 text-ink-soft">{formatEthiopian(countdown.target_at)}</p>
                 <p className="text-sm text-muted">{formatInAppTz(countdown.target_at, "EEEE, MMMM d, yyyy")}</p>
@@ -117,7 +118,7 @@ export default async function DashboardPage() {
 
               <div className="shrink-0 self-start sm:self-center">
                 {countdownDone ? (
-                  <p className="font-display text-5xl font-semibold text-accent sm:text-6xl">Done!</p>
+                  <p className="font-display text-5xl font-semibold text-accent sm:text-6xl">{(KIND_INFO[countdown.kind] ?? KIND_INFO.deadline).doneText}</p>
                 ) : (
                   <LiveCountdown target={countdown.target_at} serverNow={now} variant="compact" />
                 )}

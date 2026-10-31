@@ -10,7 +10,7 @@ import { formatEthiopian } from "@/lib/ethiopian";
 import { APP_TZ, formatInAppTz, localToUtc } from "@/lib/time";
 
 export const DRAFT_KEY = "hidl:letter-draft";
-const RECIPIENTS = ["Future me", "Me in five years", "18-year-old me", "Me, after the exam", "First day of university"];
+const RECIPIENTS = ["Future me", "Me in five years", "Me in ten years", "Me on my next birthday", "Me, after the big day"];
 
 function quickPick(kind: "1m" | "6m" | "1y") {
   const base = new TZDate(Date.now(), APP_TZ);
@@ -102,7 +102,7 @@ export function LetterForm() {
           </datalist>
         </Field>
         <Field label="Occasion" hint="optional" id="occasion" error={err("occasion")}>
-          <input id="occasion" name="occasion" maxLength={80} className="field" placeholder="Graduation"
+          <input id="occasion" name="occasion" maxLength={80} className="field" placeholder="A new job"
             value={draft.occasion} onChange={set("occasion")} />
         </Field>
       </div>

@@ -4,7 +4,7 @@ import { useId, type ReactNode } from "react";
 
 /**
  * Hidi, the app's companion: a squishy aqua puff with a sprout on top
- * (something small that keeps growing through senior year). Drawn as flat
+ * (something small that keeps growing, like the life it keeps track of). Drawn as flat
  * "clay" shapes: soft radial shading, no outlines, so it matches the UI.
  *
  * Purely decorative unless `label` is passed, in which case it gets role="img".

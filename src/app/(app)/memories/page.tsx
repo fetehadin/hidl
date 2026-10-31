@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Memories" };
 export default async function MemoriesPage() {
   const { supabase } = await requireUser();
   const today = todayISO();
-  // Every photo ever (it's one person's senior year), oldest → newest; the board
+  // Every photo ever (it's one person's journal), oldest → newest; the board
   // groups them by day itself. Thumbnails only load as islands come into view.
   const photos = await signPhotos(supabase, await listPhotos(supabase, "1900-01-01", today));
 

@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getCountdown } from "@/lib/data/countdowns";
 import { requireUser } from "@/lib/supabase/server";
 import { localToUtc } from "@/lib/time";
-import { actualScoreSchema, countdownIdSchema, countdownSchema } from "@/lib/validation/countdown";
+import { actualScoreSchema, countdownIdSchema, parseCountdown } from "@/lib/validation/countdown";
 
 export type CountdownFormState = {
   status: "idle" | "error" | "saved";
@@ -29,12 +29,12 @@ function revalidate() {
 
 export async function saveCountdown(_prev: CountdownFormState, formData: FormData): Promise<CountdownFormState> {
   const raw = Object.fromEntries(formData);
-  const parsed = countdownSchema.safeParse(raw);
+  const parsed = parseCountdown(raw);
   if (!parsed.success) {
     return {
       status: "error",
       message: "Check the highlighted fields.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
+      fieldErrors: parsed.fieldErrors,
       values: echo(formData),
     };
   }
@@ -44,14 +44,20 @@ export async function saveCountdown(_prev: CountdownFormState, formData: FormDat
   const id = typeof raw.id === "string" && raw.id ? raw.id : null;
 
   if (id) {
-    const update: Record<string, unknown> = { title: parsed.data.title, target_at };
+    // kind can't change (no UPDATE grant), so the details must fit the stored kind.
+    const existing = await getCountdown(supabase, id);
+    if (!existing) return { status: "error", message: "That countdown is gone.", values: echo(formData) };
+    if (existing.kind !== parsed.data.kind) {
+      return { status: "error", message: "The type can't be changed after it's created.", values: echo(formData) };
+    }
+    const update: Record<string, unknown> = { title: parsed.data.title, target_at, details: parsed.data.details };
     if (parsed.data.kind === "exam") {
+      const max = parsed.data.max_score!;
       update.target_score = parsed.data.target_score;
-      update.max_score = parsed.data.max_score;
+      update.max_score = max;
       // Keep a recorded score only if it still fits the new max and the deadline is still in the past.
-      const existing = await getCountdown(supabase, id);
-      let actual = existing?.actual_score ?? null;
-      if (actual !== null && (actual > parsed.data.max_score || new Date(target_at).getTime() > Date.now())) actual = null;
+      let actual = existing.actual_score;
+      if (actual !== null && (actual > max || new Date(target_at).getTime() > Date.now())) actual = null;
       update.actual_score = actual;
     }
     const { error } = await supabase.from("countdowns").update(update).eq("id", id);
@@ -60,16 +66,13 @@ export async function saveCountdown(_prev: CountdownFormState, formData: FormDat
       return { status: "error", message: "Couldn't save. Try again.", values: echo(formData) };
     }
   } else {
-    const insert: Record<string, unknown> =
-      parsed.data.kind === "exam"
-        ? {
-            kind: "exam",
-            title: parsed.data.title,
-            target_at,
-            target_score: parsed.data.target_score,
-            max_score: parsed.data.max_score,
-          }
-        : { kind: "deadline", title: parsed.data.title, target_at };
+    const insert: Record<string, unknown> = {
+      kind: parsed.data.kind,
+      title: parsed.data.title,
+      target_at,
+      details: parsed.data.details,
+      ...(parsed.data.kind === "exam" ? { target_score: parsed.data.target_score, max_score: parsed.data.max_score } : {}),
+    };
     const { error } = await supabase.from("countdowns").insert(insert);
     if (error) {
       console.error("saveCountdown", error);

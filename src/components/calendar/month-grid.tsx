@@ -67,7 +67,18 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
 
   return (
     <>
-      <div className="grid grid-cols-7 gap-1 text-center sm:gap-2" role="grid" aria-label="Days of the month">
+      {/*
+        Sized to the viewport: as tall as the screen allows (minus the header, month nav
+        and tab bar, which is --chrome) but never taller than square cells would make it.
+        So on a laptop the cells get wider instead of the page scrolling, and on a phone
+        they stay square. --rows is the month's number of weeks (4 to 6).
+      */}
+      <div
+        className="calendar-grid grid h-[max(16rem,min(calc(100dvh-var(--chrome)),calc((100cqw-1rem)*var(--rows)/7+2rem)))] grid-cols-7 grid-rows-[auto_repeat(var(--rows),minmax(0,1fr))] gap-1 text-center [--chrome:18.5rem] sm:gap-2 sm:[--chrome:16rem]"
+        style={{ "--rows": Math.ceil((leadingBlanks(month) + days.length) / 7) } as React.CSSProperties}
+        role="grid"
+        aria-label="Days of the month"
+      >
         <div role="row" className="contents">
           {WEEKDAYS.map((d) => (
             <div key={d} role="columnheader" className="pb-1 text-[11px] font-semibold tracking-wider text-muted uppercase">
@@ -102,7 +113,7 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
                   onFocus={() => setFocusedIndex(i)}
                   onKeyDown={(e) => onGridKeyDown(e, i)}
                   onClick={(e) => openLightbox(photos.indexOf(cover), e.currentTarget)}
-                  className={`group relative aspect-square overflow-hidden rounded-control bg-paper-deep ${ring}`}
+                  className={`group relative min-h-0 overflow-hidden rounded-control bg-paper-deep ${ring}`}
                   aria-label={`${date}${cover.caption ? `: ${cover.caption}` : ""}. ${dayPhotos.length > 1 ? `${dayPhotos.length} photos. ` : ""}Open photo`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -132,7 +143,7 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
                   tabIndex={tabIndex}
                   onFocus={() => setFocusedIndex(i)}
                   onKeyDown={(e) => onGridKeyDown(e, i)}
-                  className="grid aspect-square place-items-center rounded-control text-sm text-muted"
+                  className="grid min-h-0 place-items-center rounded-control text-sm text-muted"
                 >
                   {day}
                 </div>
@@ -152,7 +163,7 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
                 onKeyDown={(e) => onGridKeyDown(e, i)}
                 onClick={(e) => openUpload({ kind: "add", date }, e.currentTarget)}
                 aria-label={`${date}. Add a photo`}
-                className={`grid aspect-square place-items-center rounded-control text-sm transition-colors ${
+                className={`grid min-h-0 place-items-center rounded-control text-sm transition-colors ${
                   isToday
                     ? `border-2 border-accent bg-accent-soft font-bold text-accent ${ring}`
                     : "border border-line/70 bg-card/40 text-ink-soft hover:border-accent hover:bg-accent-soft hover:text-accent"

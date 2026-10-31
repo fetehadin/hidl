@@ -43,7 +43,7 @@ export default async function LettersPage({ searchParams }: PageProps<"/letters"
           <Mascot mood="happy" size={110} />
           <p className="mt-4 font-display text-2xl font-semibold">No letters yet.</p>
           <p className="mt-1 max-w-xs text-ink-soft">
-            Write to yourself on graduation day, your birthday, or a year from now. Once sealed, it stays sealed.
+            Write to yourself for a big day, your next birthday, or a year from now. Once sealed, it stays sealed.
           </p>
           <Link href="/letters/new" className="btn btn-primary mt-5">
             Write your first letter

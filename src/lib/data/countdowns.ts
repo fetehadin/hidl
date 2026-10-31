@@ -1,18 +1,20 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { CountdownDetails, CountdownKind } from "@/lib/countdown-kinds";
 
 export type Countdown = {
   id: string;
-  kind: "exam" | "deadline";
+  kind: CountdownKind;
   title: string;
   target_at: string;
   target_score: number | null;
   max_score: number | null;
   actual_score: number | null;
+  details: CountdownDetails;
   is_widget: boolean;
   updated_at: string;
 };
 
-const COLUMNS = "id, kind, title, target_at, target_score, max_score, actual_score, is_widget, updated_at";
+const COLUMNS = "id, kind, title, target_at, target_score, max_score, actual_score, details, is_widget, updated_at";
 
 export async function listCountdowns(supabase: SupabaseClient) {
   const { data, error } = await supabase.from("countdowns").select(COLUMNS).order("target_at");

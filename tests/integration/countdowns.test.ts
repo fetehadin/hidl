@@ -68,6 +68,36 @@ describe("countdowns", () => {
     expect(error?.code).toBe("42501");
   });
 
+  it("allows the newer kinds with their own details", async () => {
+    const { error } = await me.client.from("countdowns").insert([
+      { kind: "birthday", title: "18th", target_at: inSeconds(86400), details: { person: "Me", birth_year: 2008 } },
+      { kind: "wedding", title: "Wedding", target_at: inSeconds(86400), details: { couple: "S & D", venue: "Hall" } },
+      { kind: "trip", title: "Lalibela", target_at: inSeconds(86400), details: {} },
+    ]);
+    expect(error).toBeNull();
+  });
+
+  it("rejects details that don't belong to the kind, or are malformed", async () => {
+    const bad = [
+      { kind: "work", details: { person: "Me" } }, // not a work field
+      { kind: "birthday", details: { birth_year: 2008 } }, // whose birthday is required
+      { kind: "birthday", details: { person: "Me", birth_year: "2008" } }, // year must be a number
+      { kind: "life", details: { note: "x".repeat(201) } }, // too long
+      { kind: "deadline", details: [] }, // not an object
+    ];
+    for (const b of bad) {
+      const { error } = await me.client.from("countdowns").insert({ title: "Bad", target_at: inSeconds(86400), ...b });
+      expect(error?.code, JSON.stringify(b)).toBe("23514");
+    }
+  });
+
+  it("only exams carry scores, whatever the kind", async () => {
+    const { error } = await me.client
+      .from("countdowns")
+      .insert({ kind: "graduation", title: "Grad", target_at: inSeconds(86400), target_score: 1, max_score: 2 });
+    expect(error?.code).toBe("23514");
+  });
+
   it("is invisible to other users", async () => {
     const { data } = await other.client.from("countdowns").select("title");
     expect(data).toEqual([]);
