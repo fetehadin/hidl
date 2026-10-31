@@ -3,12 +3,12 @@
 import { useRef, useState } from "react";
 import { WEEKDAYS, leadingBlanks, monthDays } from "@/lib/calendar";
 import type { PhotoView } from "@/lib/data/photos";
-import { Lightbox } from "./lightbox";
-import { UploadSheet } from "./upload-sheet";
+import { Lightbox, UploadSheet, usePreloadPhotoTools } from "./lazy";
 
 type UploadMode = { kind: "add"; date: string } | { kind: "replace"; date: string; photoId: string };
 
 export function MonthGrid({ month, today, photos }: { month: string; today: string; photos: PhotoView[] }) {
+  usePreloadPhotoTools();
   const byDate = new Map<string, PhotoView[]>();
   for (const p of photos) byDate.set(p.date, [...(byDate.get(p.date) ?? []), p]);
   const [lightbox, setLightbox] = useState<number | null>(null);

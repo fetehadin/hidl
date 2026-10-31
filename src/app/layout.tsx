@@ -14,15 +14,19 @@ const body = Nunito({
   subsets: ["latin"],
 });
 
+// Only used on some pages (reading a letter, the envelope's handwriting), so they aren't
+// preloaded on every page: the browser fetches them the first time a page actually uses them.
 const letter = Newsreader({
   variable: "--font-letter",
   subsets: ["latin"],
+  preload: false,
 });
 
 const hand = Caveat({
   variable: "--font-hand",
   subsets: ["latin"],
   weight: ["500", "600"],
+  preload: false,
 });
 
 export const metadata: Metadata = {

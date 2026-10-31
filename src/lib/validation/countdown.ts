@@ -4,6 +4,7 @@ import {
   type CountdownDetails,
   type CountdownKind,
   type DetailField,
+  detailField,
   KIND_INFO,
 } from "@/lib/countdown-kinds";
 import { localDateTime } from "./letters";
@@ -31,8 +32,6 @@ function fieldSchema(f: DetailField): z.ZodType {
   return z.preprocess(blankToUndefined, s.optional());
 }
 
-/** Form field name for a detail, e.g. `detail_person`. */
-export const detailField = (name: string) => `detail_${name}`;
 
 export type CountdownInput = {
   kind: CountdownKind;

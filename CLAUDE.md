@@ -147,11 +147,25 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
 - `src/proxy.ts`'s matcher excludes known static files/paths by name (`icon.svg`, `manifest.webmanifest`,
   `sw.js`, `.../api/cron`, `.../api/widget`, …) rather than by a general rule. Any new unauthenticated static
   asset or public API route needs adding here explicitly, or it 307s to `/login` instead of serving — this has
-  already happened twice (the widget API, then `sw.js`).
+  already happened twice (the widget API, then `sw.js`). `offline.html` is in it too.
 - The PWA manifest/service worker (`src/app/manifest.ts`, `public/sw.js`, `RegisterServiceWorker` in
-  `src/app/layout.tsx`) make the app installable ("Add to Home Screen"). The service worker is deliberately a
-  no-op — it registers (satisfying installability checks) but caches nothing, since every page is per-user and
-  dynamic. Installing doesn't create a separate session; it's the same origin and cookie jar as the browser.
+  `src/app/layout.tsx`) make the app installable ("Add to Home Screen"). The service worker never caches pages
+  (every page is per-user and dynamic). It does two other things: caches **photo files** by storage path,
+  ignoring the signed-URL token (photo paths are immutable, but the token changes on every render, so without
+  this every visit re-downloaded every photo), wiped by `ClearPhotoCache` on `/login` (where sign-out and account
+  deletion land); and serves `public/offline.html` when a navigation fails offline (with navigation preload, so
+  online navigations aren't slowed). Bump the cache names in `sw.js` if the cached format changes. Installing
+  doesn't create a separate session; it's the same origin and cookie jar as the browser.
+- Performance rules this app relies on:
+  - `vercel.json` pins functions to `cdg1` (Paris), next to the Supabase project (`eu-west-3`). Vercel's
+    default region is Washington DC, which put an ocean between every query and the database. If the Supabase
+    project ever moves, move this too.
+  - Client components must not import zod or anything that does (`src/lib/validation/*`, `src/lib/env.ts`).
+    Browser code reads settings from `src/lib/public-env.ts`; shared constants used by forms live outside
+    `validation/` (e.g. `detailField` in `countdown-kinds.ts`).
+  - The upload sheet (Supabase browser client, ~70 KB) and photo viewer are loaded through
+    `src/components/calendar/lazy.tsx` (`next/dynamic` + idle preload); import them from there, not directly.
+  - Only Fredoka and Nunito are preloaded; Newsreader and Caveat load on the pages that use them.
 - CAPTCHA on the login form (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `src/app/(auth)/login/login-form.tsx`) is optional
   and entirely client-token-passthrough: the app never holds the Turnstile secret, only Supabase does
   (Authentication → Attack Protection). The token flows straight into `signInWithOtp`'s `captchaToken` option.

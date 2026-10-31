@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { UploadSheet } from "@/components/calendar/upload-sheet";
+import { UploadSheet, usePreloadPhotoTools } from "@/components/calendar/lazy";
 import type { PhotoView } from "@/lib/data/photos";
 
 export function DashboardTodayPhoto({ photo, today }: { photo: PhotoView | null; today: string }) {
+  usePreloadPhotoTools({ lightbox: false });
   const [uploading, setUploading] = useState(false);
 
   if (photo) {

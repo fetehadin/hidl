@@ -4,10 +4,9 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import type { ReactNode } from "react";
 import { type CountdownFormState, saveCountdown } from "@/actions/countdowns";
-import { type CountdownKind, type DetailField, KIND_INFO } from "@/lib/countdown-kinds";
+import { type CountdownKind, type DetailField, detailField, KIND_INFO } from "@/lib/countdown-kinds";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { localToUtc } from "@/lib/time";
-import { detailField } from "@/lib/validation/countdown";
 import { KindBadge } from "./kind-icon";
 
 type Defaults = {

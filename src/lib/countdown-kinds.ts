@@ -127,6 +127,9 @@ export const KIND_INFO: Record<CountdownKind, KindInfo> = {
   },
 };
 
+/** Form field name for a detail, e.g. `detail_person`. */
+export const detailField = (name: string) => `detail_${name}`;
+
 export function isCountdownKind(v: unknown): v is CountdownKind {
   return typeof v === "string" && (COUNTDOWN_KINDS as readonly string[]).includes(v);
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Mascot } from "@/components/mascot";
+import { ClearPhotoCache } from "@/components/clear-photo-cache";
 import { publicEnv } from "@/lib/env";
 import { LoginForm } from "./login-form";
 
@@ -19,6 +20,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6 py-12">
+      <ClearPhotoCache />
       <div className="mb-8 flex flex-col items-center text-center">
         <Mascot mood="wave" size={128} label="Hidi, the hidl mascot, waving hello" />
         <p className="eyebrow mt-3 mb-1">your journal</p>

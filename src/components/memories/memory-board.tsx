@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Lightbox } from "@/components/calendar/lightbox";
-import { UploadSheet } from "@/components/calendar/upload-sheet";
+import { Lightbox, UploadSheet, usePreloadPhotoTools } from "@/components/calendar/lazy";
 import { Mascot } from "@/components/mascot";
 import type { PhotoView } from "@/lib/data/photos";
 import { formatEthiopian } from "@/lib/ethiopian";
@@ -33,6 +32,7 @@ function shortDate(date: string) {
  * when its images start loading.
  */
 export function MemoryBoard({ photos, today }: { photos: PhotoView[]; today: string }) {
+  usePreloadPhotoTools();
   const clusters = useMemo(() => layoutMemories(photos), [photos]);
   const indexById = useMemo(() => new Map(photos.map((p, i) => [p.id, i])), [photos]);
 

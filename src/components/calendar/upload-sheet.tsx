@@ -76,8 +76,8 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
 
         const bucket = createClient().storage.from("photos");
         const [full, thumb] = await Promise.all([
-          bucket.uploadToSignedUrl(ticket.image.path, ticket.image.token, item.image.full, { contentType: item.image.type }),
-          bucket.uploadToSignedUrl(ticket.thumb.path, ticket.thumb.token, item.image.thumb, { contentType: item.image.type }),
+          bucket.uploadToSignedUrl(ticket.image.path, ticket.image.token, item.image.full, { contentType: item.image.type, cacheControl: "31536000" }),
+          bucket.uploadToSignedUrl(ticket.thumb.path, ticket.thumb.token, item.image.thumb, { contentType: item.image.type, cacheControl: "31536000" }),
         ]);
         if (full.error || thumb.error) throw new Error("Upload failed. Check your connection and try again.");
 

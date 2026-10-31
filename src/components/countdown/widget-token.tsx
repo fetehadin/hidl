@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { generateWidgetToken, revokeWidgetToken } from "@/actions/countdowns";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { publicEnv } from "@/lib/env";
+import { publicEnv } from "@/lib/public-env";
 import { formatInAppTz } from "@/lib/time";
 
 export function WidgetToken({ createdAt }: { createdAt: string | null }) {

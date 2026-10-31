@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-/** Registers the no-op service worker that makes the home-screen install prompt available. */
+/** Registers public/sw.js: makes the home-screen install available and caches photo files. */
 export function RegisterServiceWorker() {
   useEffect(() => {
     if ("serviceWorker" in navigator) {

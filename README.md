@@ -218,9 +218,10 @@ tests/unit, tests/integration
   letters or photos, and never any countdown that isn't starred. Point a widget app like
   [KWGT](https://play.google.com/store/apps/details?id=org.kustom.widget) at it to render it on the home screen.
   Only the token's SHA-256 hash is stored; the raw token is shown once, at creation.
-- **PWA / "Add to Home Screen."** `src/app/manifest.ts` plus `public/sw.js` (a deliberately no-op service worker —
-  every page is per-user and dynamic, so there's nothing safe to cache offline; it exists only so Android's
-  install prompt treats this as a real app, not a bookmark). Installing doesn't create a separate login: it's the
+- **PWA / "Add to Home Screen."** `src/app/manifest.ts` plus `public/sw.js` (a service worker that never caches
+  pages, since every page is per-user and dynamic, but keeps photo files on the device so each is downloaded
+  once, cleared on sign-out, and shows a friendly offline page when there's no connection; it also lets Android's
+  install prompt treat this as a real app, not a bookmark). Installing doesn't create a separate login: it's the
   same origin, so it shares the site's session cookie. Signing in stays persistent either way — Supabase's own
   session has no inactivity or hard timeout configured, and the auth cookie is set to last 400 days by default —
   so you're only signed out by explicitly signing out, clearing site data, or (on iOS specifically) Safari's
