@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { EnvelopeIcon, PlusIcon } from "@/components/icons";
+import { Mascot } from "@/components/mascot";
+import { PlusIcon } from "@/components/icons";
 import { ClearDraft } from "@/components/letters/clear-draft";
 import { LetterCard, letterState } from "@/components/letters/letter-card";
 import { PageHeader } from "@/components/page-header";
@@ -39,8 +40,8 @@ export default async function LettersPage({ searchParams }: PageProps<"/letters"
 
       {letters.length === 0 ? (
         <div className="card flex flex-col items-center px-6 py-12 text-center">
-          <EnvelopeIcon width={40} height={40} className="text-accent" />
-          <p className="mt-3 font-display text-2xl">No letters yet.</p>
+          <Mascot mood="happy" size={110} />
+          <p className="mt-4 font-display text-2xl font-semibold">No letters yet.</p>
           <p className="mt-1 max-w-xs text-ink-soft">
             Write to yourself on graduation day, your birthday, or a year from now. Once sealed, it stays sealed.
           </p>

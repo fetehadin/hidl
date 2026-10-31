@@ -89,15 +89,15 @@ export function Lightbox({
         onClose();
       }}
       aria-label={`Photo for ${dayLabel(photo.date)}`}
-      className="m-0 h-dvh max-h-none w-screen max-w-none bg-black/95 p-0 text-white backdrop:bg-black"
+      className="m-0 h-dvh max-h-none w-screen max-w-none bg-white p-0 text-ink backdrop:bg-white"
     >
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
           <div>
-            <p className="font-display text-lg">{formatEthiopian(photo.date)}</p>
-            <p className="text-sm text-white/60">{dayLabel(photo.date)}</p>
+            <p className="font-display text-lg font-semibold text-heading">{formatEthiopian(photo.date)}</p>
+            <p className="text-sm text-muted">{dayLabel(photo.date)}</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-full px-3 py-1.5 text-white/80 hover:bg-white/10" aria-label="Close">
+          <button type="button" onClick={onClose} className="rounded-full px-3 py-1.5 text-ocean hover:bg-mint" aria-label="Close">
             ✕
           </button>
         </div>
@@ -118,14 +118,14 @@ export function Lightbox({
             key={photo.fullUrl}
             src={photo.fullUrl}
             alt={photo.caption ?? `Photo from ${dayLabel(photo.date)}`}
-            className="animate-fade-up max-h-full max-w-full rounded-control object-contain"
+            className="animate-fade-up max-h-full max-w-full rounded-control object-contain shadow-[0_16px_40px_-20px_rgb(var(--shadow)/0.45)]"
           />
           <button type="button" onClick={() => go(index - 1)} disabled={!hasPrev} aria-label="Previous photo"
-            className="absolute top-1/2 left-2 hidden -translate-y-1/2 rounded-full bg-white/10 px-4 py-3 text-2xl hover:bg-white/20 disabled:opacity-0 sm:block">
+            className="absolute top-1/2 left-2 hidden -translate-y-1/2 rounded-full bg-mint px-4 py-3 text-2xl text-ocean hover:bg-aqua disabled:opacity-0 sm:block">
             ‹
           </button>
           <button type="button" onClick={() => go(index + 1)} disabled={!hasNext} aria-label="Next photo"
-            className="absolute top-1/2 right-2 hidden -translate-y-1/2 rounded-full bg-white/10 px-4 py-3 text-2xl hover:bg-white/20 disabled:opacity-0 sm:block">
+            className="absolute top-1/2 right-2 hidden -translate-y-1/2 rounded-full bg-mint px-4 py-3 text-2xl text-ocean hover:bg-aqua disabled:opacity-0 sm:block">
             ›
           </button>
         </div>
@@ -137,35 +137,35 @@ export function Lightbox({
               <input id="lightbox-caption" value={caption} maxLength={140} autoFocus
                 onChange={(e) => setCaption(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && saveCaption()}
-                className="min-h-11 flex-1 rounded-control border border-white/20 bg-white/10 px-3 text-white placeholder:text-white/50"
+                className="field min-h-11 flex-1 px-3"
                 placeholder="Add a caption" />
-              <button type="button" className="btn bg-white text-black" onClick={saveCaption} disabled={pending}>
+              <button type="button" className="btn btn-primary" onClick={saveCaption} disabled={pending}>
                 Save
               </button>
             </div>
           ) : (
-            <button type="button" onClick={() => setEditing(true)} className="w-full text-left text-lg text-white/90">
-              {photo.caption ?? <span className="text-white/50">Add a caption…</span>}
+            <button type="button" onClick={() => setEditing(true)} className="w-full text-left text-lg text-ink">
+              {photo.caption ?? <span className="text-muted">Add a caption…</span>}
             </button>
           )}
-          {error && <p role="alert" className="mt-2 text-sm text-red-300">{error}</p>}
+          {error && <p role="alert" className="mt-2 text-sm text-wax">{error}</p>}
 
           <div className="mt-3 flex items-center justify-between text-sm">
             <div className="flex gap-1 sm:hidden">
               <button type="button" onClick={() => go(index - 1)} disabled={!hasPrev}
-                className="rounded-full px-3 py-2 hover:bg-white/10 disabled:opacity-30" aria-label="Previous photo">‹ Prev</button>
+                className="rounded-full px-3 py-2 hover:bg-mint text-ocean disabled:opacity-30" aria-label="Previous photo">‹ Prev</button>
               <button type="button" onClick={() => go(index + 1)} disabled={!hasNext}
-                className="rounded-full px-3 py-2 hover:bg-white/10 disabled:opacity-30" aria-label="Next photo">Next ›</button>
+                className="rounded-full px-3 py-2 hover:bg-mint text-ocean disabled:opacity-30" aria-label="Next photo">Next ›</button>
             </div>
-            <span className="hidden text-white/50 sm:inline">{index + 1} of {photos.length}</span>
+            <span className="hidden text-muted sm:inline">{index + 1} of {photos.length}</span>
             <div className="flex gap-1">
-              <button type="button" onClick={() => onAddAnother(photo.date)} className="rounded-full px-3 py-2 hover:bg-white/10">
+              <button type="button" onClick={() => onAddAnother(photo.date)} className="rounded-full px-3 py-2 hover:bg-mint text-ocean">
                 Add another
               </button>
-              <button type="button" onClick={() => onReplace(photo.id)} className="rounded-full px-3 py-2 hover:bg-white/10">
+              <button type="button" onClick={() => onReplace(photo.id)} className="rounded-full px-3 py-2 hover:bg-mint text-ocean">
                 Replace
               </button>
-              <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-full px-3 py-2 text-red-300 hover:bg-white/10">
+              <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-full px-3 py-2 text-wax hover:bg-mint text-ocean">
                 Delete
               </button>
             </div>

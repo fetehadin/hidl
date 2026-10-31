@@ -114,7 +114,7 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
         if (!busy) onClose();
       }}
       aria-labelledby={`${inputId}-title`}
-      className="m-auto mb-0 w-full max-w-lg rounded-t-card border border-line bg-card p-0 text-ink shadow-2xl backdrop:bg-black/50 sm:mb-auto sm:rounded-card"
+      className="m-auto mb-0 w-full max-w-lg rounded-t-card border border-line bg-card p-0 text-ink shadow-2xl backdrop:bg-mint/70 backdrop:backdrop-blur-[2px] sm:mb-auto sm:rounded-card"
     >
       <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6">
         <div className="flex items-start justify-between gap-4">
@@ -180,7 +180,7 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
                   onClick={() => removeItem(item.key)}
                   disabled={busy}
                   aria-label="Remove this photo"
-                  className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/80"
+                  className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-ocean/85 text-xs text-white hover:bg-ocean"
                 >
                   ✕
                 </button>

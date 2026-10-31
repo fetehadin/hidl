@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Mascot } from "@/components/mascot";
 import { CountdownCard } from "@/components/countdown/countdown-card";
-import { HourglassIcon, WidgetIcon } from "@/components/icons";
+import { WidgetIcon } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { listCountdowns } from "@/lib/data/countdowns";
 import { requireUser } from "@/lib/supabase/server";
@@ -34,8 +35,8 @@ export default async function CountdownPage() {
 
       {countdowns.length === 0 ? (
         <div className="card flex flex-col items-center px-6 py-12 text-center">
-          <HourglassIcon width={40} height={40} className="text-accent" />
-          <p className="mt-3 font-display text-2xl">No countdowns yet.</p>
+          <Mascot mood="curious" size={110} />
+          <p className="mt-4 font-display text-2xl font-semibold">No countdowns yet.</p>
           <p className="mt-1 max-w-xs text-ink-soft">
             Add an exam with a target score, or any other deadline you&apos;re counting down to.
           </p>

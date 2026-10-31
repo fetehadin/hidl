@@ -50,7 +50,7 @@ export default async function YearPage({ searchParams }: PageProps<"/calendar/ye
             <span className="font-normal text-ink-soft"> of {elapsedDays} so far</span>
           </p>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-paper-deep" aria-hidden>
-            <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
+            <div className="h-full rounded-full bg-fresh" style={{ width: `${pct}%` }} />
           </div>
           <p className="mt-1 text-sm text-muted">{pct}% of the year&apos;s days</p>
         </div>
@@ -83,11 +83,11 @@ export default async function YearPage({ searchParams }: PageProps<"/calendar/ye
                       key={d}
                       className={`aspect-square rounded-[3px] ${
                         filled.has(d)
-                          ? "bg-accent"
+                          ? "bg-teal"
                           : d > today
                             ? "bg-transparent"
                             : d === today
-                              ? "ring-1 ring-accent"
+                              ? "ring-1 ring-teal"
                               : "bg-paper-deep"
                       }`}
                     />

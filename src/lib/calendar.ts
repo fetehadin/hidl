@@ -45,3 +45,26 @@ export function dayLabel(dateISO: string) {
 }
 
 export const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+export function addDays(dateISO: string, delta: number) {
+  const d = new Date(`${dateISO}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Consecutive days with at least one photo, ending today. Like any daily
+ * streak, it isn't broken yet if today simply hasn't been captured: it then
+ * counts back from yesterday, and `todayDone` says whether today is in.
+ */
+export function photoStreak(dates: Iterable<string>, today: string) {
+  const set = new Set(dates);
+  const todayDone = set.has(today);
+  let day = todayDone ? today : addDays(today, -1);
+  let count = 0;
+  while (set.has(day)) {
+    count++;
+    day = addDays(day, -1);
+  }
+  return { count, todayDone };
+}

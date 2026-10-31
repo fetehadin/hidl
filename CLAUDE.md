@@ -123,10 +123,10 @@ src/lib/image.ts       Client-side resize/thumbnail before upload
 src/actions/           Server actions (the only place that mutates data, alongside the cron and widget routes)
 src/app/(auth)/login   Sign-in
 src/app/(app)/         Dashboard, /letters, /countdown (+ /new, /[id]/edit, /settings for the widget token),
-                       /calendar, /account — all require auth
+                       /calendar, /memories, /account — all require auth
 src/app/api/cron/      Unlock-email job, behind ENABLE_UNLOCK_EMAILS
 src/app/api/widget/    Public, token-authenticated countdown feed for a phone's home-screen widget app
-tests/unit/            Pure logic (time zones, calendar math) — no external services
+tests/unit/            Pure logic (time zones, calendar math, memories layout) — no external services
 tests/integration/     Real local Supabase: letter lock, multi-photo calendar, storage isolation, countdown
                        rules, widget token, account deletion, unlock emails
 ```
@@ -151,3 +151,17 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
 - CAPTCHA on the login form (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `src/app/(auth)/login/login-form.tsx`) is optional
   and entirely client-token-passthrough: the app never holds the Turnstile secret, only Supabase does
   (Authentication → Attack Protection). The token flows straight into `signInWithOtp`'s `captchaToken` option.
+- `/memories` (`src/components/memories/memory-board.tsx`) is a full-screen pannable/zoomable board: one "island"
+  per day, laid out by the pure, deterministic `layoutMemories()` in `src/lib/memories.ts` (newest day at the
+  origin, islands spiral-packed so they never overlap; output is rounded so SSR and client markup match). Camera
+  moves write straight to the DOM; React only re-renders when an island first nears the viewport (that's when its
+  thumbnails load).
+- Visual language: a bright, **light-only** teal theme in `globals.css` (no dark mode on purpose: it renders light
+  even when the OS prefers dark; `color-scheme: light` + `viewport.colorScheme`). Page is `--mint` with a white
+  glow, cards/nav/fields are white with `--aqua` borders, a few feature cards and memory islands are aqua,
+  `--fresh` is for highlights/progress, `--teal` for buttons/icons/active, `--ocean` for headings and small
+  important text. Never put large surfaces in teal/ocean or black (the photo viewer and dialog backdrops are light
+  too). White on `--teal` is only 3.7:1, so primary button labels are large+bold (AA large text) and small teal
+  text (`text-accent`, focus rings) uses `--ocean`. `.btn` is a chunky "arcade" button whose bottom edge collapses
+  on press. The mascot, Hidi, is `src/components/mascot.tsx`
+  (moods: happy, wave, cheer, sleepy, curious); `src/app/icon.svg` and `public/icon-*.png` are its face.

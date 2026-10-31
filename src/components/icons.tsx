@@ -8,7 +8,7 @@ const base = {
   viewBox: "0 0 24 24",
   fill: "none",
   stroke: "currentColor",
-  strokeWidth: 1.7,
+  strokeWidth: 2,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
   "aria-hidden": true,
@@ -94,5 +94,20 @@ export const TrashIcon = (p: IconProps) => (
   <svg {...base} {...p}>
     <path d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
     <path d="M10 11v6M14 11v6" />
+  </svg>
+);
+
+export const MemoriesIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <rect x="3.2" y="6.5" width="11" height="13" rx="2" transform="rotate(-8 8.7 13)" />
+    <rect x="9.5" y="4" width="11" height="13" rx="2" transform="rotate(7 15 10.5)" />
+    <path d="m11.3 13.6 2.4-2.6 2.2 2 1.4-1.4 2 2" />
+  </svg>
+);
+
+export const FlameIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M12 21c-3.9 0-6.5-2.6-6.5-6.1 0-3.6 2.7-5.6 3.9-8.9.3 2 1.3 3.3 2.6 4 0-2.9 1.2-5.4 3.6-7 .1 3.4 4.9 6.3 4.9 11.4 0 4-3 6.6-8.5 6.6Z" />
+    <path d="M12 21c-1.7 0-2.9-1.2-2.9-2.8 0-1.8 1.5-2.7 2.3-4.3.9 1.4 3.5 2.5 3.5 4.4 0 1.6-1.2 2.7-2.9 2.7Z" />
   </svg>
 );

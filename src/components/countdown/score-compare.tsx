@@ -15,7 +15,7 @@ export function ScoreCompare({ actual, target, max }: { actual: number; target: 
 
       <div className="relative mt-6 mb-8" aria-hidden>
         <div className="h-3 overflow-hidden rounded-full bg-paper-deep">
-          <div className={`h-full rounded-full ${diff >= 0 ? "bg-sage" : "bg-accent"}`} style={{ width: pct(actual) }} />
+          <div className={`h-full rounded-full ${diff >= 0 ? "bg-teal" : "bg-fresh"}`} style={{ width: pct(actual) }} />
         </div>
         <div className="absolute -top-1.5 h-6 w-0.5 bg-ink" style={{ left: pct(target) }} />
         <span className="absolute top-6 -translate-x-1/2 text-xs whitespace-nowrap text-ink-soft" style={{ left: pct(target) }}>

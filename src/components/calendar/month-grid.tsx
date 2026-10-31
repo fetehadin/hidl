@@ -112,7 +112,7 @@ export function MonthGrid({ month, today, photos }: { month: string; today: stri
                     {day}
                   </span>
                   {dayPhotos.length > 1 && (
-                    <span className="absolute right-1 bottom-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    <span className="absolute right-1 bottom-1 rounded-full bg-ocean/85 px-1.5 py-0.5 text-[10px] font-bold text-white">
                       +{dayPhotos.length - 1}
                     </span>
                   )}

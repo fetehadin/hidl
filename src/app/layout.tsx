@@ -1,16 +1,21 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat, Fraunces, Newsreader } from "next/font/google";
+import { Caveat, Fredoka, Newsreader, Nunito } from "next/font/google";
 import { RegisterServiceWorker } from "@/components/register-service-worker";
 import "./globals.css";
 
-const display = Fraunces({
+// Rounded, friendly faces for the UI; a book serif is kept only for reading letters.
+const display = Fredoka({
   variable: "--font-display",
   subsets: ["latin"],
-  axes: ["SOFT", "opsz"],
 });
 
-const body = Newsreader({
+const body = Nunito({
   variable: "--font-body",
+  subsets: ["latin"],
+});
+
+const letter = Newsreader({
+  variable: "--font-letter",
   subsets: ["latin"],
 });
 
@@ -35,16 +40,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5ede0" },
-    { media: "(prefers-color-scheme: dark)", color: "#1b1613" },
-  ],
+  // Light only, regardless of the OS preference.
+  themeColor: "#c8e6e2",
+  colorScheme: "light",
   viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${hand.variable} h-full`}>
+    <html lang="en" className={`${display.variable} ${body.variable} ${hand.variable} ${letter.variable} h-full`}>
       <body className="min-h-full antialiased text-[17px] leading-relaxed">
         <RegisterServiceWorker />
         {children}
