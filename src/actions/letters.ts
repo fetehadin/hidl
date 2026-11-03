@@ -26,12 +26,12 @@ export async function createLetter(_prev: FormState, formData: FormData): Promis
     };
   }
 
-  const unlockAt = localToUtc(parsed.data.unlock_local);
+  const { supabase, timeZone } = await requireUser();
+  const unlockAt = localToUtc(parsed.data.unlock_local, timeZone);
   if (unlockAt.getTime() < Date.now() + MIN_LEAD_MS) {
     return { status: "error", fieldErrors: { unlock_local: ["Pick a time in the future."] } };
   }
 
-  const { supabase } = await requireUser();
   const { title, recipient, occasion, body } = parsed.data;
   const { error } = await supabase
     .from("letters")
@@ -75,11 +75,11 @@ export async function postponeLetter(_prev: FormState, formData: FormData): Prom
   const values = { unlock_local: String(formData.get("unlock_local") ?? "") };
   if (!parsed.success) return { status: "error", message: "Pick a valid date and time.", values };
 
-  const { supabase } = await requireUser();
+  const { supabase, timeZone } = await requireUser();
   const current = await getLetterMeta(supabase, parsed.data.id);
   if (!current) return { status: "error", message: "Letter not found." };
 
-  const next = localToUtc(parsed.data.unlock_local);
+  const next = localToUtc(parsed.data.unlock_local, timeZone);
   if (next.getTime() <= new Date(current.unlock_at).getTime()) {
     return { status: "error", message: "The new date has to be later than the current one.", values };
   }

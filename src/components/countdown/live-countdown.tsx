@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useTimeZone } from "@/components/calendar-pref";
 import { type CountdownUnit, timeLeft, timeLeftText, unitLabel } from "@/lib/countdown-units";
 
 /**
@@ -21,6 +22,7 @@ export function LiveCountdown({
   size?: "regular" | "large";
 }) {
   const router = useRouter();
+  const timeZone = useTimeZone();
   const [now, setNow] = useState(serverNow);
   const refreshed = useRef(false);
   const targetMs = new Date(target).getTime();
@@ -46,7 +48,7 @@ export function LiveCountdown({
     }
   }, [remaining, router]);
 
-  const parts = timeLeft(targetMs, now, units);
+  const parts = timeLeft(targetMs, now, units, timeZone);
   const large = size === "large";
   const n = parts.length;
   // Fewer tiles get bigger numbers; four still fit side by side on a phone.

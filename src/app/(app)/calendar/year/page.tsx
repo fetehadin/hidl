@@ -11,12 +11,12 @@ export const metadata: Metadata = { title: "Year at a glance" };
 
 export default async function YearPage({ searchParams }: PageProps<"/calendar/year">) {
   const { y } = await searchParams;
-  const today = todayISO();
+  const { supabase, timeZone } = await requireUser();
+  const today = todayISO(timeZone);
   const thisYear = Number(today.slice(0, 4));
   const parsed = yearParam.parse(typeof y === "string" ? y : undefined);
   const year = parsed && parsed <= thisYear ? parsed : thisYear;
 
-  const { supabase } = await requireUser();
   const filled = new Set(await listPhotoDates(supabase, `${year}-01-01`, `${year}-12-31`));
 
   const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);

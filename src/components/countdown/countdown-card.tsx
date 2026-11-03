@@ -7,9 +7,9 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PencilIcon, StarIcon, TrashIcon } from "@/components/icons";
 import { detailLine, KIND_INFO } from "@/lib/countdown-kinds";
 import type { Countdown } from "@/lib/data/countdowns";
-import { useCalendarPref } from "@/components/calendar-pref";
+import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
 import { formatEthiopian } from "@/lib/ethiopian";
-import { formatInAppTz } from "@/lib/time";
+import { formatInTz } from "@/lib/time";
 import { KindBadge } from "./kind-icon";
 import { LiveCountdown } from "./live-countdown";
 import { ScoreCompare } from "./score-compare";
@@ -34,11 +34,12 @@ export function CountdownCard({
 
   const done = new Date(countdown.target_at).getTime() <= now;
   const ethiopian = useCalendarPref() === "ethiopian";
-  const whenEthiopian = ethiopian ? formatEthiopian(countdown.target_at) : null;
-  const when = formatInAppTz(countdown.target_at, "EEEE, MMMM d, yyyy 'at' h:mm a");
+  const timeZone = useTimeZone();
+  const whenEthiopian = ethiopian ? formatEthiopian(countdown.target_at, timeZone) : null;
+  const when = formatInTz(countdown.target_at, "EEEE, MMMM d, yyyy 'at' h:mm a", timeZone);
   const info = KIND_INFO[countdown.kind] ?? KIND_INFO.deadline;
   const details = countdown.details ?? {};
-  const summary = detailLine(countdown.kind, details, Number(formatInAppTz(countdown.target_at, "yyyy")));
+  const summary = detailLine(countdown.kind, details, Number(formatInTz(countdown.target_at, "yyyy", timeZone)));
   const note = typeof details.note === "string" ? details.note : null;
 
   function remove() {

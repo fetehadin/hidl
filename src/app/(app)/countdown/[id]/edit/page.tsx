@@ -15,7 +15,7 @@ export default async function EditCountdownPage({ params }: PageProps<"/countdow
   const parsed = countdownIdSchema.safeParse(id);
   if (!parsed.success) notFound();
 
-  const { supabase } = await requireUser();
+  const { supabase, timeZone } = await requireUser();
   const countdown = await getCountdown(supabase, parsed.data);
   if (!countdown) notFound();
 
@@ -30,7 +30,7 @@ export default async function EditCountdownPage({ params }: PageProps<"/countdow
             id: countdown.id,
             kind: countdown.kind,
             title: countdown.title,
-            target_local: utcToLocalInput(countdown.target_at),
+            target_local: utcToLocalInput(countdown.target_at, timeZone),
             target_score: countdown.target_score !== null ? String(countdown.target_score) : "",
             max_score: countdown.max_score !== null ? String(countdown.max_score) : "",
             units: countdown.units,

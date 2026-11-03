@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { openLetterAction } from "@/actions/letters";
 import { Envelope } from "@/components/envelope";
-import { useCalendarPref } from "@/components/calendar-pref";
+import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
 import { decryptBody } from "@/lib/e2ee";
 import { useLetterKey } from "./letter-key";
 import { LetterPaper } from "./letter-paper";
@@ -26,6 +26,7 @@ export function EncryptedLetterReveal(props: Props) {
 
 export function LetterReveal(props: Props & { decrypt?: (body: string) => Promise<string> }) {
   const calendar = useCalendarPref();
+  const timeZone = useTimeZone();
   const [phase, setPhase] = useState<"idle" | "opening" | "open">("idle");
   const [body, setBody] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +82,7 @@ export function LetterReveal(props: Props & { decrypt?: (body: string) => Promis
           title={props.title}
           recipient={props.recipient}
           calendar={calendar}
+          timeZone={timeZone}
           body={body}
           createdAt={props.createdAt}
           unlockAt={props.unlockAt}

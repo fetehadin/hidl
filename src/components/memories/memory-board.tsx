@@ -6,7 +6,7 @@ import { Lightbox, UploadSheet, usePreloadPhotoTools } from "@/components/calend
 import type { PhotoView } from "@/lib/data/photos";
 import { useCalendarPref } from "@/components/calendar-pref";
 import { Mascot } from "@/components/mascot";
-import { formatEthiopian } from "@/lib/ethiopian";
+import { formatEthiopianDay } from "@/lib/ethiopian";
 import { layoutMemories, memoriesBounds, type MemoryCluster } from "@/lib/memories";
 
 type Camera = { tx: number; ty: number; scale: number };
@@ -508,7 +508,7 @@ function Island({
   const ethiopian = useCalendarPref() === "ethiopian";
   // Big line in the chosen calendar; the small line above it is the Gregorian date
   // (Ethiopian mode) or the weekday (Gregorian mode).
-  const big = ethiopian ? formatEthiopian(date) : shortDate(date);
+  const big = ethiopian ? formatEthiopianDay(date) : shortDate(date);
   const small = isToday ? "today" : ethiopian ? shortDate(date) : weekday(date);
   return (
     <section aria-label={`${big}, ${photos.length} ${photos.length === 1 ? "photo" : "photos"}`} className="absolute" style={{ left: x, top: y }}>

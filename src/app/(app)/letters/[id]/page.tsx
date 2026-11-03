@@ -15,7 +15,7 @@ import type { KeyBundle } from "@/lib/e2ee";
 import { formatDay } from "@/lib/dates";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { requireUser } from "@/lib/supabase/server";
-import { formatInAppTz, utcToLocalInput } from "@/lib/time";
+import { formatInTz, utcToLocalInput } from "@/lib/time";
 import { letterIdSchema } from "@/lib/validation/letters";
 
 export const metadata: Metadata = { title: "Letter" };
@@ -25,7 +25,7 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
   const parsed = letterIdSchema.safeParse(id);
   if (!parsed.success) notFound();
 
-  const { supabase, calendar, user } = await requireUser();
+  const { supabase, calendar, user, timeZone } = await requireUser();
   const letter = await getLetterMeta(supabase, parsed.data);
   if (!letter) notFound();
   // Only an encrypted letter that's ready to read needs the key on this page.
@@ -49,17 +49,17 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
                 <p className="mt-5 font-display text-xl">
                   <LiveRelative target={letter.unlock_at} />
                 </p>
-                {calendar === "ethiopian" && <p className="text-ink-soft">{formatEthiopian(letter.unlock_at)}</p>}
+                {calendar === "ethiopian" && <p className="text-ink-soft">{formatEthiopian(letter.unlock_at, timeZone)}</p>}
                 <p className="text-sm text-muted">
-                  {formatInAppTz(letter.unlock_at, "EEEE, MMMM d, yyyy 'at' h:mm a")}
+                  {formatInTz(letter.unlock_at, "EEEE, MMMM d, yyyy 'at' h:mm a", timeZone)}
                 </p>
                 <p className="mt-4 text-sm text-muted">
-                  Sealed {formatDay(letter.created_at, calendar)}. No peeking.
+                  Sealed {formatDay(letter.created_at, calendar, timeZone)}. No peeking.
                 </p>
               </div>
             </Envelope>
             <div className="mx-auto max-w-md space-y-4">
-              <PostponeForm id={letter.id} currentLocal={utcToLocalInput(letter.unlock_at)} />
+              <PostponeForm id={letter.id} currentLocal={utcToLocalInput(letter.unlock_at, timeZone)} />
               <div className="text-center"><DeleteLetterButton id={letter.id} /></div>
             </div>
           </div>
@@ -100,7 +100,7 @@ async function OpenedLetter({ id, encrypted, userId, bundle }: {
   userId: string;
   bundle: KeyBundle | null;
 }) {
-  const { supabase, calendar } = await requireUser();
+  const { supabase, calendar, timeZone } = await requireUser();
   const letter = await openLetter(supabase, id);
   const paper = {
     title: letter.title,
@@ -109,6 +109,7 @@ async function OpenedLetter({ id, encrypted, userId, bundle }: {
     createdAt: letter.created_at,
     unlockAt: letter.unlock_at,
     calendar,
+    timeZone,
   };
   return (
     <div className="space-y-6">
@@ -119,7 +120,7 @@ async function OpenedLetter({ id, encrypted, userId, bundle }: {
       ) : (
         <LetterPaper {...paper} />
       )}
-      <p className="text-center text-sm text-muted">First opened {formatDay(letter.opened_at!, calendar)}</p>
+      <p className="text-center text-sm text-muted">First opened {formatDay(letter.opened_at!, calendar, timeZone)}</p>
       <div className="text-center"><DeleteLetterButton id={id} /></div>
     </div>
   );

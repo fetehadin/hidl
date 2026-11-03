@@ -11,12 +11,12 @@ export const metadata: Metadata = { title: "Calendar" };
 
 export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
   const { m, add } = await searchParams;
-  const today = todayISO();
+  const { supabase, timeZone } = await requireUser();
+  const today = todayISO(timeZone);
   const currentMonth = monthOf(today);
   const requested = monthParam.parse(typeof m === "string" ? m : undefined);
   const month = requested && requested <= currentMonth ? requested : currentMonth;
 
-  const { supabase } = await requireUser();
   const last = `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
   const photos = await signPhotos(supabase, await listPhotos(supabase, `${month}-01`, last));
 

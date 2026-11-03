@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { calendarPref } from "@/lib/dates";
 import { isAllowedEmail, publicEnv } from "@/lib/env";
+import { TZ_COOKIE, resolveTimeZone } from "@/lib/time";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -36,7 +37,7 @@ export async function createClient() {
  * Use in every server component, server action and route handler that touches data.
  */
 export async function requireUser() {
-  const supabase = await createClient();
+  const [supabase, cookieStore] = await Promise.all([createClient(), cookies()]);
   const { data, error } = await supabase.auth.getClaims();
   const claims = data?.claims;
 
@@ -52,5 +53,10 @@ export async function requireUser() {
     user: { id: claims.sub, email: claims.email as string },
     /** Which calendar to show dates in (see src/lib/dates.ts). */
     calendar: calendarPref(metadata?.calendar),
+    /**
+     * The user's IANA time zone, for "today" and every displayed time (see src/lib/time.ts).
+     * From the cookie TimeZoneSync keeps matched to the device; DEFAULT_TZ until the first sync.
+     */
+    timeZone: resolveTimeZone(cookieStore.get(TZ_COOKIE)?.value),
   };
 }

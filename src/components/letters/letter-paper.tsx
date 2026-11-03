@@ -8,6 +8,7 @@ export function LetterPaper({
   createdAt,
   unlockAt,
   calendar,
+  timeZone,
   className = "",
 }: {
   title: string;
@@ -16,6 +17,7 @@ export function LetterPaper({
   createdAt: string;
   unlockAt: string;
   calendar: CalendarPref;
+  timeZone: string;
   className?: string;
 }) {
   return (
@@ -24,7 +26,7 @@ export function LetterPaper({
       <h1 className="mt-1 mb-6 font-display text-2xl font-semibold leading-tight sm:text-3xl">{title}</h1>
       <Markdown>{body}</Markdown>
       <p className="mt-10 text-sm text-muted">
-        Written {formatDay(createdAt, calendar)} · sealed until {formatDay(unlockAt, calendar)}
+        Written {formatDay(createdAt, calendar, timeZone)} · sealed until {formatDay(unlockAt, calendar, timeZone)}
       </p>
     </article>
   );

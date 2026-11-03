@@ -39,7 +39,8 @@ layer physically cannot violate it, even with a bug:
   passphrase or the recovery key), so old letters still open. `open_letter` predates `encrypted`; read the flag
   from the letter's meta. Older letters (`encrypted = false`) stay plain text: they're immutable once sealed.
 - *Photos*: a day can hold any number of photos (no per-day limit); `photos_before_write` rejects future dates
-  using `app_today()` (Africa/Addis_Ababa) as the server-side source of truth. Actions are keyed by photo `id`,
+  using the database clock in the owner's time zone (`user_settings.time_zone`, else Africa/Addis_Ababa) as the
+  server-side source of truth. Actions are keyed by photo `id`,
   not date, since a day's photos aren't unique (`src/actions/photos.ts`: `addPhoto`/`replacePhoto`/`deletePhoto`).
 - *Videos* (`..._photo_videos.sql`): a calendar entry can be a short video, stored as a `photos` row with
   `media_type = 'video'`: `image_path` is the video (uploaded as-is, not re-encoded) and `thumb_path` a still
@@ -91,11 +92,25 @@ via one-time signed URLs, never through a Vercel function. The flow (`src/action
    `createSignedUrls` as an existence check) before writing the DB row; deletes the uploaded files on any failure,
    and the photo's previous files on replace.
 
-**Time zone handling is centralized in `src/lib/time.ts`.** All timestamps are stored as `timestamptz` (UTC); all
-display and "today" logic happens in `Africa/Addis_Ababa` via `@date-fns/tz`. Use `todayISO()` /
-`nowInAppTz()` / `localToUtc()` / `utcToLocalInput()` rather than constructing `Date`s directly when a value will
-be shown to or entered by the user — the countdown, calendar, and letter-unlock logic all depend on this being
-consistent between client display and server validation.
+<a id="time-zones"></a>**Time zones are per user, like any global app** (`src/lib/time.ts`,
+`..._user_time_zones.sql`). Instants are `timestamptz` (UTC); a calendar day is the user's local day. How a user's
+zone is known:
+1. `TimeZoneSync` (in `src/components/calendar-pref.tsx`, mounted by the `(app)` layout) compares the device's zone
+   (`Intl.DateTimeFormat().resolvedOptions().timeZone`) with the one the server rendered with. On the first visit,
+   after travelling, or on a new device, they differ, so it calls `setTimeZone` and `router.refresh()`.
+2. `setTimeZone` (`src/actions/preferences.ts`) validates the name, saves it in `user_settings` (update-then-insert,
+   since the table is column-restricted), and only then sets the `hidl-tz` cookie. The cookie and the row therefore
+   can't drift apart.
+3. `requireUser()` returns `timeZone` from that cookie (validated, else `DEFAULT_TZ` = Africa/Addis_Ababa, the zone
+   all pre-existing data was written in). Server code passes it on, and `CalendarPrefProvider` hands the same value
+   to client components through `useTimeZone()`. Server and client therefore render identical dates.
+4. Places with no session read the stored row instead. The database's `photos_before_write` judges "no future
+   photos" in the owner's zone, and the widget feed computes `daysLeft`/`remaining` in it (and returns `timeZone`).
+
+Every helper takes the zone explicitly, with no hidden default, so a call site that forgets it fails to compile.
+Wall-clock inputs (`datetime-local`) are interpreted in the user's zone on both the client preview and the server
+action. A "YYYY-MM-DD" day string is already a local day: format it with `src/lib/calendar.ts` /
+`formatEthiopianDay`, never through a zone (a western zone would shift it a day back).
 
 **Validation (`src/lib/validation/*.ts`, zod) is the single schema every server action and route handler parses
 input through** — there's no separate client-side-only validation path to keep in sync.
@@ -112,7 +127,7 @@ src/lib/supabase/      Server/browser Supabase clients; requireUser() is the rea
                        route builds its own service-role client)
 src/lib/data/          Typed queries (letters never select `body`)
 src/lib/validation/    zod schemas shared by actions and route handlers
-src/lib/time.ts        Africa/Addis_Ababa helpers; all timestamps elsewhere should go through this
+src/lib/time.ts        Per-user time zone helpers (zone always passed in); all timestamps go through this
 src/lib/image.ts       Client-side resize/thumbnail before upload
 src/actions/           Server actions (the only place that mutates data, alongside the cron and widget routes)
 src/app/(auth)/login   Sign-in
@@ -161,7 +176,7 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   `next.config.ts` for the same reason.
 - **Countdown units:** each countdown stores `units` (any non-empty mix of years, months, days, hours; checked by
   `countdown_units_ok` in Postgres, mirrored in `src/lib/countdown-units.ts`). `timeLeft()` splits the time left
-  into exactly those units (calendar years/months in Addis Ababa time, folding larger units into the largest
+  into exactly those units (calendar years/months in the user's time zone, folding larger units into the largest
   chosen one), drops leading zeros, and falls back to a smaller unit rather than show all zeros. The form sends one
   `units` value per ticked box, so `saveCountdown` passes `formData.getAll("units")` to `parseCountdown`.
 - Unsent letter drafts are kept in `localStorage` on the client until the letter is sealed (never hit the server

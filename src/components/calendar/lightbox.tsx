@@ -8,7 +8,7 @@ import { PinIcon } from "@/components/icons";
 import { dayLabel } from "@/lib/calendar";
 import type { PhotoView } from "@/lib/data/photos";
 import { useCalendarPref } from "@/components/calendar-pref";
-import { formatEthiopian } from "@/lib/ethiopian";
+import { formatEthiopianDay } from "@/lib/ethiopian";
 
 export function Lightbox({
   photos,
@@ -118,7 +118,7 @@ export function Lightbox({
         <div className="flex items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
           <div>
             <p className="font-display text-lg font-semibold text-heading">
-              {ethiopian ? formatEthiopian(photo.date) : dayLabel(photo.date)}
+              {ethiopian ? formatEthiopianDay(photo.date) : dayLabel(photo.date)}
             </p>
             {ethiopian && <p className="text-sm text-muted">{dayLabel(photo.date)}</p>}
           </div>

@@ -2,6 +2,7 @@
 
 import { useOptimistic, useState, useTransition } from "react";
 import { setCalendarPref } from "@/actions/preferences";
+import { useTimeZone } from "@/components/calendar-pref";
 import { type CalendarPref, formatDay } from "@/lib/dates";
 
 const OPTIONS: { value: CalendarPref; label: string }[] = [
@@ -12,6 +13,7 @@ const OPTIONS: { value: CalendarPref; label: string }[] = [
 export function CalendarChoice({ current, now }: { current: CalendarPref; now: number }) {
   const [optimistic, setOptimistic] = useOptimistic(current);
   const [error, setError] = useState<string | null>(null);
+  const timeZone = useTimeZone();
   const [, startTransition] = useTransition();
 
   function choose(value: CalendarPref) {
@@ -47,7 +49,7 @@ export function CalendarChoice({ current, now }: { current: CalendarPref; now: n
               />
               <span>
                 <span className="block font-bold text-ink">{o.label}</span>
-                <span className="block text-sm text-muted">Today is {formatDay(new Date(now), o.value)}</span>
+                <span className="block text-sm text-muted">Today is {formatDay(new Date(now), o.value, timeZone)}</span>
               </span>
             </label>
           );

@@ -5,9 +5,9 @@ import { useActionState, useState } from "react";
 import type { ReactNode } from "react";
 import { type CountdownFormState, saveCountdown } from "@/actions/countdowns";
 import { type CountdownKind, type DetailField, detailField, KIND_INFO } from "@/lib/countdown-kinds";
-import { useCalendarPref } from "@/components/calendar-pref";
+import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
 import { formatEthiopian } from "@/lib/ethiopian";
-import { localToUtc } from "@/lib/time";
+import { localToUtc, timeZoneCity } from "@/lib/time";
 import type { CountdownUnit } from "@/lib/countdown-units";
 import { KindBadge } from "./kind-icon";
 import { UnitPicker } from "./unit-picker";
@@ -28,6 +28,7 @@ export function CountdownForm({ defaults, locked }: { defaults: Defaults; locked
   const [state, action, pending] = useActionState<CountdownFormState, FormData>(saveCountdown, { status: "idle" });
   const kind = defaults.kind;
   const calendar = useCalendarPref();
+  const timeZone = useTimeZone();
   const info = KIND_INFO[kind];
   const err = (k: string) => state.fieldErrors?.[k]?.[0];
   const v = { ...defaults, ...state.values } as Defaults & Record<string, string>;
@@ -69,7 +70,7 @@ export function CountdownForm({ defaults, locked }: { defaults: Defaults; locked
         />
       </Field>
 
-      <Field id="target_local" label="Date and time" hint="Addis Ababa time" error={err("target_local")}>
+      <Field id="target_local" label="Date and time" hint={`${timeZoneCity(timeZone)} time`} error={err("target_local")}>
         <input
           id="target_local"
           name="target_local"
@@ -79,13 +80,13 @@ export function CountdownForm({ defaults, locked }: { defaults: Defaults; locked
           value={targetLocal}
           onChange={(e) => setTargetLocal(e.target.value)}
         />
-        {targetLocal && calendar === "ethiopian" && <p className="mt-1.5 text-sm text-muted">Ethiopian calendar: {formatEthiopian(localToUtc(targetLocal))}</p>}
+        {targetLocal && calendar === "ethiopian" && <p className="mt-1.5 text-sm text-muted">Ethiopian calendar: {formatEthiopian(localToUtc(targetLocal, timeZone), timeZone)}</p>}
       </Field>
 
       <UnitPicker
         key={state.values?.units ?? "initial"}
         initial={state.values?.units ? (state.values.units.split(",") as CountdownUnit[]) : defaults.units}
-        target={targetLocal ? localToUtc(targetLocal) : null}
+        target={targetLocal ? localToUtc(targetLocal, timeZone) : null}
         error={err("units")}
       />
 
