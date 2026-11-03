@@ -2,6 +2,7 @@
   "expo": {
     "name": "hidl",
     "slug": "hidl",
+    "owner": "fetebuild",
     "scheme": "hidl",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -38,6 +39,11 @@
           ]
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "98fba00e-9373-4564-b086-b41a8842f2aa"
+      }
+    }
   }
 }
