@@ -123,7 +123,10 @@ still applies, uses the user's own session), then deletes the `auth.users` row v
 with a frame-grab thumbnail) and uploaded directly to Supabase Storage
 via one-time signed URLs, never through a Vercel function. The flow (`src/actions/photos.ts`):
 1. `prepareUpload()` — issues a `createSignedUploadUrl` for both the image and the thumbnail.
-2. (client uploads both files directly to Supabase Storage)
+2. (client uploads both files directly to Supabase Storage) — the upload sheet does steps 1–2 **in the
+   background as soon as a photo is picked**, so Save usually only runs step 3. Files for a photo that's removed
+   from the sheet, or never saved (the sheet closes), are deleted via `discardUpload()`, which only touches the
+   user's own files and never ones a `photos` row points at. (A tab closed mid-way can still leave orphans.)
 3. `savePhoto()` — verifies both paths match the user's folder pattern and that the files actually exist
    (`createSignedUrls` as an existence check) before writing the DB row; deletes orphaned files on any failure and
    deletes the previous day's files on replace.
@@ -232,6 +235,15 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   - The upload sheet (Supabase browser client, ~70 KB) and photo viewer are loaded through
     `src/components/calendar/lazy.tsx` (`next/dynamic` + idle preload); import them from there, not directly.
   - Only Fredoka and Nunito are preloaded; Newsreader and Caveat load on the pages that use them.
+  - Tab switching: the five nav tabs are `prefetch` (full: data + code) and `next.config.ts` sets
+    `experimental.staleTimes` (dynamic 30s, static 120s), so a tab you tap or revisit renders from the client
+    cache instead of waiting on the server. This is safe only because **every mutating server action calls
+    `revalidatePath`**, which clears that cache; keep it that way for new actions. `LiveCountdown` therefore only
+    applies the server-clock correction for skews over 5 minutes (a cached page isn't a wrong clock).
+  - Photo prep (`src/lib/image.ts`): WebP encoding is feature-detected once; Safari can't encode WebP and would
+    otherwise make (and discard) a large PNG per size. The thumbnail is drawn from the 1600px copy, not the
+    original.
+  - `/icon.svg` gets a real `Cache-Control` in `next.config.ts`; it's re-requested on every client navigation.
 - CAPTCHA on the login form (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `src/app/(auth)/login/login-form.tsx`) is optional
   and entirely client-token-passthrough: the app never holds the Turnstile secret, only Supabase does
   (Authentication → Attack Protection). The token flows straight into `signInWithOtp`'s `captchaToken` option.

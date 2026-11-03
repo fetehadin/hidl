@@ -118,6 +118,7 @@ function SideNav({ collapsed, onToggle, avatar }: { collapsed: boolean; onToggle
               <li key={href} className="relative">
                 <Link
                   href={href}
+                  prefetch
                   aria-current={active ? "page" : undefined}
                   title={collapsed ? label : undefined}
                   className={`flex h-12 items-center gap-3 rounded-2xl px-3.5 text-[15px] font-bold text-ocean transition-[background-color,transform] duration-150 active:scale-95 ${
@@ -174,7 +175,11 @@ function Label({ collapsed, className = "", children }: { collapsed: boolean; cl
   );
 }
 
-/** Bottom tab bar on phones: one chunky icon per section; the active one sits in a lifted pastel tile. */
+/**
+ * Bottom tab bar on phones: one chunky icon per section; the active one sits in a lifted pastel tile.
+ * Tabs are prefetched in full (data and code), so a tap shows the page at once instead of a
+ * skeleton while the phone waits on the network; kept for staleTimes.static (next.config.ts).
+ */
 export function MobileTabBar() {
   const pathname = usePathname();
   return (
@@ -190,6 +195,7 @@ export function MobileTabBar() {
             <li key={href}>
               <Link
                 href={href}
+                prefetch
                 aria-current={active ? "page" : undefined}
                 className={`mx-auto flex min-h-12 max-w-[4.5rem] flex-col items-center justify-center gap-0.5 rounded-2xl border-2 py-1.5 text-[11px] font-extrabold tracking-wide transition-transform duration-150 active:scale-90 ${
                   active ? "border-teal bg-mint text-ocean" : "border-transparent text-muted"

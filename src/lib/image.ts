@@ -21,28 +21,46 @@ export type ProcessedMedia = {
 const FULL_EDGE = 1600;
 const THUMB_EDGE = 480;
 
-async function encode(source: CanvasImageSource, width: number, height: number, maxEdge: number, quality: number) {
+let webpSupport: boolean | undefined;
+/**
+ * Whether this browser can *encode* WebP. Safari can't: asked for WebP, canvas.toBlob quietly
+ * returns a PNG instead, which is slow to make and huge. Checked once, so Safari goes
+ * straight to JPEG rather than encoding a PNG and throwing it away (twice per photo).
+ */
+function canEncodeWebp() {
+  if (webpSupport === undefined) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 1;
+    webpSupport = c.toDataURL("image/webp").startsWith("data:image/webp");
+  }
+  return webpSupport;
+}
+
+function scaled(source: CanvasImageSource, width: number, height: number, maxEdge: number) {
   const scale = Math.min(1, maxEdge / Math.max(width, height));
-  const w = Math.max(1, Math.round(width * scale));
-  const h = Math.max(1, Math.round(height * scale));
   const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas is not available.");
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(source, 0, 0, w, h);
-
-  const toBlob = (type: string) =>
-    new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
-  const webp = await toBlob("image/webp");
-  if (webp && webp.type === "image/webp") return webp;
-  const jpeg = await toBlob("image/jpeg");
-  if (!jpeg) throw new Error("Couldn't encode the image.");
-  return jpeg;
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas;
 }
 
+function toBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
+  return new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Couldn't encode the image."))), type, quality),
+  );
+}
+
+const imageType = () => (canEncodeWebp() ? "image/webp" : "image/jpeg");
 const extOf = (type: string): ImageExt => (type === "image/webp" ? "webp" : "jpg");
+
+/** A small JPEG/WebP of any drawable (a photo's full-size canvas, a video frame). */
+async function encodeThumb(source: CanvasImageSource, width: number, height: number) {
+  return toBlob(scaled(source, width, height, THUMB_EDGE), imageType(), 0.75);
+}
 
 async function processImage(file: File): Promise<ProcessedMedia> {
   let bitmap: ImageBitmap;
@@ -52,17 +70,16 @@ async function processImage(file: File): Promise<ProcessedMedia> {
     throw new Error("This browser can't read that image format. Try a JPEG or PNG.");
   }
   try {
-    const full = await encode(bitmap, bitmap.width, bitmap.height, FULL_EDGE, 0.85);
-    const thumb = await encode(bitmap, bitmap.width, bitmap.height, THUMB_EDGE, 0.75);
-    return {
-      mediaType: "image",
-      full,
-      fullType: full.type,
-      fullExt: extOf(full.type),
-      thumb,
-      thumbType: thumb.type,
-      thumbExt: extOf(thumb.type),
-    };
+    const type = imageType();
+    // Scale the (often 12 MP) original down once; the thumbnail comes from that copy, which is
+    // far cheaper than shrinking the original a second time. Both encode in parallel.
+    const fullCanvas = scaled(bitmap, bitmap.width, bitmap.height, FULL_EDGE);
+    bitmap.close();
+    const [full, thumb] = await Promise.all([
+      toBlob(fullCanvas, type, 0.85),
+      toBlob(scaled(fullCanvas, fullCanvas.width, fullCanvas.height, THUMB_EDGE), type, 0.75),
+    ]);
+    return { mediaType: "image", full, fullType: full.type, fullExt: extOf(full.type), thumb, thumbType: thumb.type, thumbExt: extOf(thumb.type) };
   } finally {
     bitmap.close();
   }
@@ -102,7 +119,7 @@ function grabFrame(file: File): Promise<Blob> {
       video.currentTime = Math.min(0.5, (video.duration || 0) / 2);
     };
     video.onseeked = () => {
-      encode(video, video.videoWidth, video.videoHeight, THUMB_EDGE, 0.75).then(
+      encodeThumb(video, video.videoWidth, video.videoHeight).then(
         (blob) => finish(() => resolve(blob)),
         () => fail(),
       );

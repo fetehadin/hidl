@@ -15,7 +15,19 @@ const nextConfig: NextConfig = {
   // dev-only badge out of both.
   devIndicators: { position: "top-right" },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // The tab icon is re-requested on every client navigation; without a lifetime it cost a
+      // round trip each time (Next serves it with max-age=0, must-revalidate).
+      { source: "/icon.svg", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }] },
+    ];
+  },
+  experimental: {
+    // Client-side reuse of pages you've just seen, so switching back and forth between tabs
+    // doesn't wait on the server each time (Next 16 defaults dynamic pages to 0s). In-app
+    // changes still show at once: every server action that mutates calls revalidatePath,
+    // which clears this cache. `static` also covers the fully prefetched tabs (nav.tsx).
+    staleTimes: { dynamic: 30, static: 120 },
   },
   // Every page is per-user and rendered at request time, so Cache Components/PPR stay off.
   turbopack: {

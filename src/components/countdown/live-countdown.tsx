@@ -26,8 +26,12 @@ export function LiveCountdown({
   const targetMs = new Date(target).getTime();
 
   useEffect(() => {
-    const offset = serverNow - Date.now();
+    // Trust the phone's clock unless it's clearly wrong. A small gap is just a page kept in
+    // the client cache for a little while (next.config.ts staleTimes), not a bad clock.
+    const skew = serverNow - Date.now();
+    const offset = Math.abs(skew) > 5 * 60_000 ? skew : 0;
     const tick = () => setNow(Date.now() + offset);
+    tick();
     // Hours are the smallest unit shown, so a slow tick is plenty.
     const id = setInterval(tick, 15_000);
     return () => clearInterval(id);

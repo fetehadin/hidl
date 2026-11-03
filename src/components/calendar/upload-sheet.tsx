@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { addPhoto, prepareUpload, replacePhoto } from "@/actions/photos";
+import { addPhoto, discardUpload, prepareUpload, replacePhoto } from "@/actions/photos";
 import { dayLabel } from "@/lib/calendar";
 import { type ProcessedMedia, processMedia } from "@/lib/image";
 import { MAX_UPLOAD_BYTES, formatMB } from "@/lib/media";
@@ -11,7 +11,38 @@ import { VideoBadge } from "./video-badge";
 
 type Mode = { kind: "add"; date: string } | { kind: "replace"; date: string; photoId: string };
 
-type PendingItem = { key: string; media: ProcessedMedia; preview: string; error?: string };
+type Uploaded = { imagePath: string; thumbPath: string };
+
+type PendingItem = {
+  key: string;
+  media: ProcessedMedia;
+  preview: string;
+  /** Started as soon as the photo is picked, so Save usually only has to record it. */
+  upload: Promise<Uploaded>;
+  uploaded: boolean;
+};
+
+/** Sends one photo's (or video's) two files straight to Storage via one-time signed URLs. */
+async function uploadFiles(date: string, media: ProcessedMedia): Promise<Uploaded> {
+  const ticket = await prepareUpload(date, media.fullExt, media.thumbExt);
+  if (!ticket.ok) throw new Error(ticket.message);
+  const bucket = createClient().storage.from("photos");
+  const [full, thumb] = await Promise.all([
+    bucket.uploadToSignedUrl(ticket.image.path, ticket.image.token, media.full, { contentType: media.fullType, cacheControl: "31536000" }),
+    bucket.uploadToSignedUrl(ticket.thumb.path, ticket.thumb.token, media.thumb, { contentType: media.thumbType, cacheControl: "31536000" }),
+  ]);
+  if (full.error || thumb.error) {
+    // Storage enforces the 5 MB cap itself; say so if that's what stopped it.
+    if (media.full.size > MAX_UPLOAD_BYTES) throw new Error(`That file is over ${formatMB(MAX_UPLOAD_BYTES)}.`);
+    throw new Error("Upload failed. Check your connection and try again.");
+  }
+  return { imagePath: ticket.image.path, thumbPath: ticket.thumb.path };
+}
+
+/** Best effort: delete what was uploaded for a photo that won't be saved. */
+function discard(upload: Promise<Uploaded>) {
+  upload.then((u) => discardUpload([u.imagePath, u.thumbPath]), () => {});
+}
 
 /** "photo", "video", "3 photos", "2 photos and a video"... for the save button. */
 function itemsLabel(items: PendingItem[]) {
@@ -28,6 +59,11 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputId = useId();
   const [items, setItems] = useState<PendingItem[]>([]);
+  // Mirrors `items` for the unmount cleanup, which can't read state.
+  const itemsRef = useRef<PendingItem[]>([]);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
   const [caption, setCaption] = useState(initialCaption ?? "");
   const [dragOver, setDragOver] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -43,11 +79,13 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
   }, []);
 
   useEffect(() => {
+    // On close: anything still here was never saved, so drop its uploaded files too.
     return () => {
-      for (const item of items) URL.revokeObjectURL(item.preview);
+      for (const item of itemsRef.current) {
+        URL.revokeObjectURL(item.preview);
+        discard(item.upload);
+      }
     };
-    // Only on unmount: revoking on every items change would break previews still in use.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function addFiles(files: FileList | File[] | null) {
@@ -61,7 +99,13 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
         const media = await processMedia(file);
         // Videos preview as their still frame (the same picture the calendar will show).
         const preview = URL.createObjectURL(media.mediaType === "video" ? media.thumb : media.full);
-        setItems((prev) => [...prev, { key: String(nextKey++), media, preview }]);
+        const key = String(nextKey++);
+        const upload = uploadFiles(mode.date, media);
+        upload.then(
+          () => setItems((prev) => prev.map((i) => (i.key === key ? { ...i, uploaded: true } : i))),
+          () => {}, // retried on Save
+        );
+        setItems((prev) => [...prev, { key, media, preview, upload, uploaded: false }]);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Couldn't read that file.");
       }
@@ -69,12 +113,15 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
     setProcessing(false);
   }
 
-  function removeItem(key: string) {
-    setItems((prev) => {
-      const item = prev.find((i) => i.key === key);
-      if (item) URL.revokeObjectURL(item.preview);
-      return prev.filter((i) => i.key !== key);
-    });
+  /** `saved`: it's a photo now, so keep its files; otherwise they're deleted. */
+  function removeItem(key: string, saved = false) {
+    const item = itemsRef.current.find((i) => i.key === key);
+    if (item) {
+      URL.revokeObjectURL(item.preview);
+      if (!saved) discard(item.upload);
+    }
+    itemsRef.current = itemsRef.current.filter((i) => i.key !== key);
+    setItems((prev) => prev.filter((i) => i.key !== key));
   }
 
   async function save() {
@@ -82,34 +129,33 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
     setError(null);
     setUploading(true);
     try {
+      const count = items.length;
       for (const item of items) {
         const { media } = item;
-        const ticket = await prepareUpload(mode.date, media.fullExt, media.thumbExt);
-        if (!ticket.ok) throw new Error(ticket.message);
-
-        const bucket = createClient().storage.from("photos");
-        const [full, thumb] = await Promise.all([
-          bucket.uploadToSignedUrl(ticket.image.path, ticket.image.token, media.full, { contentType: media.fullType, cacheControl: "31536000" }),
-          bucket.uploadToSignedUrl(ticket.thumb.path, ticket.thumb.token, media.thumb, { contentType: media.thumbType, cacheControl: "31536000" }),
-        ]);
-        if (full.error || thumb.error) {
-          // Storage enforces the 5 MB cap itself; say so if that's what stopped it.
-          if (media.full.size > MAX_UPLOAD_BYTES) throw new Error(`That file is over ${formatMB(MAX_UPLOAD_BYTES)}.`);
-          throw new Error("Upload failed. Check your connection and try again.");
+        // Usually already done in the background; if that attempt failed, try once more now.
+        let files: Uploaded;
+        try {
+          files = await item.upload;
+        } catch {
+          files = await uploadFiles(mode.date, media);
+          // Remember the retry's files, so closing without saving still cleans them up.
+          const retried = { ...item, upload: Promise.resolve(files), uploaded: true };
+          itemsRef.current = itemsRef.current.map((i) => (i.key === item.key ? retried : i));
+          setItems((prev) => prev.map((i) => (i.key === item.key ? retried : i)));
         }
 
         const result =
           mode.kind === "replace"
-            ? await replacePhoto({ id: mode.photoId, mediaType: media.mediaType, imagePath: ticket.image.path, thumbPath: ticket.thumb.path })
+            ? await replacePhoto({ id: mode.photoId, mediaType: media.mediaType, imagePath: files.imagePath, thumbPath: files.thumbPath })
             : await addPhoto({
                 date: mode.date,
                 mediaType: media.mediaType,
-                imagePath: ticket.image.path,
-                thumbPath: ticket.thumb.path,
-                caption: items.length === 1 ? caption : null,
+                imagePath: files.imagePath,
+                thumbPath: files.thumbPath,
+                caption: count === 1 ? caption : null,
               });
         if (!result.ok) throw new Error(result.message);
-        removeItem(item.key);
+        removeItem(item.key, true);
       }
       router.refresh();
       onClose();
@@ -194,6 +240,11 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
               <div key={item.key} className="group relative aspect-square overflow-hidden rounded-control bg-paper-deep">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={item.preview} alt="" className="h-full w-full object-cover" />
+                {!item.uploaded && (
+                  <span className="absolute inset-x-0 bottom-0 bg-white/80 py-0.5 text-center text-[10px] font-bold text-ocean">
+                    uploading…
+                  </span>
+                )}
                 {item.media.mediaType === "video" && <VideoBadge />}
                 <button
                   type="button"

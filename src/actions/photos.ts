@@ -174,3 +174,25 @@ export async function setCoverPhoto(id: string, pinned: boolean): Promise<{ ok: 
   revalidatePath("/memories");
   return { ok: true };
 }
+
+/**
+ * Deletes files uploaded in the background for a photo that was then removed or never saved
+ * (the upload sheet starts uploading as soon as a photo is picked). Only the user's own files,
+ * and never ones a saved photo still points at.
+ */
+export async function discardUpload(paths: string[]): Promise<void> {
+  if (!Array.isArray(paths) || paths.length === 0 || paths.length > 2) return;
+  const { supabase, user } = await requireUser();
+  const own = new RegExp(`^${user.id}/\\d{4}-\\d{2}-\\d{2}-[a-z0-9]{10,}(-thumb)?\\.(webp|jpg|mp4|webm|mov)$`);
+  const candidates = paths.filter((p) => typeof p === "string" && own.test(p));
+  if (candidates.length === 0) return;
+  const list = candidates.map((p) => `"${p}"`).join(",");
+  const { data: used, error } = await supabase
+    .from("photos")
+    .select("image_path, thumb_path")
+    .or(`image_path.in.(${list}),thumb_path.in.(${list})`);
+  if (error) return; // when unsure, keep the files
+  const inUse = new Set((used ?? []).flatMap((r) => [r.image_path, r.thumb_path]));
+  const orphans = candidates.filter((p) => !inUse.has(p));
+  if (orphans.length) await supabase.storage.from(PHOTO_BUCKET).remove(orphans);
+}
