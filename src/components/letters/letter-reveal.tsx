@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { openLetterAction } from "@/actions/letters";
 import { Envelope } from "@/components/envelope";
 import { useCalendarPref } from "@/components/calendar-pref";
+import { decryptBody } from "@/lib/e2ee";
+import { useLetterKey } from "./letter-key";
 import { LetterPaper } from "./letter-paper";
 
 type Props = {
@@ -16,7 +18,13 @@ type Props = {
   unlockAt: string;
 };
 
-export function LetterReveal(props: Props) {
+/** An end-to-end encrypted letter: same reveal, decrypted on this device once it's released. */
+export function EncryptedLetterReveal(props: Props) {
+  const key = useLetterKey();
+  return <LetterReveal {...props} decrypt={(body) => decryptBody(key, body)} />;
+}
+
+export function LetterReveal(props: Props & { decrypt?: (body: string) => Promise<string> }) {
   const calendar = useCalendarPref();
   const [phase, setPhase] = useState<"idle" | "opening" | "open">("idle");
   const [body, setBody] = useState<string | null>(null);
@@ -31,7 +39,16 @@ export function LetterReveal(props: Props) {
         setError(result.message);
         return;
       }
-      setBody(result.body);
+      let text = result.body;
+      if (props.decrypt) {
+        try {
+          text = await props.decrypt(result.body);
+        } catch {
+          setError("This letter couldn't be decrypted with your key.");
+          return;
+        }
+      }
+      setBody(text);
       setPhase("opening");
       setTimeout(() => setPhase("open"), 700);
     });

@@ -2,19 +2,22 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** Every column except `body`, which the database refuses to return directly. */
 export const LETTER_META_COLUMNS =
-  "id, title, recipient, occasion, unlock_at, created_at, opened_at" as const;
+  "id, title, recipient, occasion, encrypted, unlock_at, created_at, opened_at" as const;
 
 export type LetterMeta = {
   id: string;
   title: string;
   recipient: string;
   occasion: string | null;
+  /** The body is end-to-end encrypted (src/lib/e2ee.ts); older letters are plain text. */
+  encrypted: boolean;
   unlock_at: string;
   created_at: string;
   opened_at: string | null;
 };
 
-export type OpenedLetter = LetterMeta & { body: string };
+/** What open_letter() returns (it predates `encrypted`; take that from the letter's meta). */
+export type OpenedLetter = Omit<LetterMeta, "encrypted"> & { body: string };
 
 export class LetterSealedError extends Error {
   constructor() {

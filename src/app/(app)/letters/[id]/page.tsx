@@ -5,9 +5,13 @@ import { Envelope } from "@/components/envelope";
 import { letterState, sealInitial } from "@/components/letters/letter-card";
 import { DeleteLetterButton, PostponeForm } from "@/components/letters/letter-manage";
 import { LetterPaper } from "@/components/letters/letter-paper";
-import { LetterReveal } from "@/components/letters/letter-reveal";
+import { DecryptedLetter } from "@/components/letters/decrypted-letter";
+import { LetterKeyGate } from "@/components/letters/letter-key";
+import { EncryptedLetterReveal, LetterReveal } from "@/components/letters/letter-reveal";
 import { LiveRelative } from "@/components/live-relative";
-import { getLetterMeta, openLetter } from "@/lib/data/letters";
+import { getKeyBundle } from "@/lib/data/letter-keys";
+import { type LetterMeta, getLetterMeta, openLetter } from "@/lib/data/letters";
+import type { KeyBundle } from "@/lib/e2ee";
 import { formatDay } from "@/lib/dates";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { requireUser } from "@/lib/supabase/server";
@@ -21,9 +25,11 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
   const parsed = letterIdSchema.safeParse(id);
   if (!parsed.success) notFound();
 
-  const { supabase, calendar } = await requireUser();
+  const { supabase, calendar, user } = await requireUser();
   const letter = await getLetterMeta(supabase, parsed.data);
   if (!letter) notFound();
+  // Only an encrypted letter that's ready to read needs the key on this page.
+  const bundle = letter.encrypted && letterState(letter) !== "sealed" ? await getKeyBundle(supabase) : null;
 
   const state = letterState(letter);
   const initial = sealInitial(letter.recipient);
@@ -59,37 +65,60 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
           </div>
         )}
 
-        {state === "ready" && (
-          <LetterReveal
-            id={letter.id}
-            title={letter.title}
-            recipient={letter.recipient}
-            occasion={letter.occasion}
-            initial={initial}
-            createdAt={letter.created_at}
-            unlockAt={letter.unlock_at}
-          />
-        )}
+        {state === "ready" &&
+          (letter.encrypted ? (
+            <LetterKeyGate userId={user.id} bundle={bundle}>
+              <EncryptedLetterReveal {...revealProps(letter, initial)} />
+            </LetterKeyGate>
+          ) : (
+            <LetterReveal {...revealProps(letter, initial)} />
+          ))}
 
-        {state === "opened" && <OpenedLetter id={letter.id} />}
+        {state === "opened" && (
+          <OpenedLetter id={letter.id} encrypted={letter.encrypted} userId={user.id} bundle={bundle} />
+        )}
       </div>
     </div>
   );
 }
 
-async function OpenedLetter({ id }: { id: string }) {
+function revealProps(letter: LetterMeta, initial: string) {
+  return {
+    id: letter.id,
+    title: letter.title,
+    recipient: letter.recipient,
+    occasion: letter.occasion,
+    initial,
+    createdAt: letter.created_at,
+    unlockAt: letter.unlock_at,
+  };
+}
+
+async function OpenedLetter({ id, encrypted, userId, bundle }: {
+  id: string;
+  encrypted: boolean;
+  userId: string;
+  bundle: KeyBundle | null;
+}) {
   const { supabase, calendar } = await requireUser();
   const letter = await openLetter(supabase, id);
+  const paper = {
+    title: letter.title,
+    recipient: letter.recipient,
+    body: letter.body,
+    createdAt: letter.created_at,
+    unlockAt: letter.unlock_at,
+    calendar,
+  };
   return (
     <div className="space-y-6">
-      <LetterPaper
-        title={letter.title}
-        recipient={letter.recipient}
-        body={letter.body}
-        createdAt={letter.created_at}
-        unlockAt={letter.unlock_at}
-        calendar={calendar}
-      />
+      {encrypted ? (
+        <LetterKeyGate userId={userId} bundle={bundle}>
+          <DecryptedLetter {...paper} />
+        </LetterKeyGate>
+      ) : (
+        <LetterPaper {...paper} />
+      )}
       <p className="text-center text-sm text-muted">First opened {formatDay(letter.opened_at!, calendar)}</p>
       <div className="text-center"><DeleteLetterButton id={id} /></div>
     </div>

@@ -2,14 +2,17 @@ import type { Metadata } from "next";
 import { signOut } from "@/actions/auth";
 import { CalendarChoice } from "@/components/account/calendar-choice";
 import { DeleteAccountButton } from "@/components/account/delete-account-button";
+import { LetterEncryption } from "@/components/account/letter-encryption";
 import { PageHeader } from "@/components/page-header";
+import { getKeyBundle } from "@/lib/data/letter-keys";
 import { requireUser } from "@/lib/supabase/server";
 import { requestNow } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Account" };
 
 export default async function AccountPage() {
-  const { user, calendar } = await requireUser();
+  const { supabase, user, calendar } = await requireUser();
+  const bundle = await getKeyBundle(supabase);
 
   return (
     <>
@@ -29,6 +32,13 @@ export default async function AccountPage() {
         <h2 className="font-display text-xl font-semibold">Calendar</h2>
         <p className="mt-1 mb-4 text-ink-soft">Which calendar hidl shows your dates in.</p>
         <CalendarChoice current={calendar} now={requestNow()} />
+      </div>
+
+      <div className="card mt-4 p-5 sm:p-6">
+        <p className="eyebrow mb-1">privacy</p>
+        <h2 className="font-display text-xl font-semibold">Private letters</h2>
+        <p className="mt-1 mb-4 text-ink-soft">End-to-end encryption for what you write in your letters.</p>
+        <LetterEncryption bundle={bundle} />
       </div>
 
       <div className="card mt-4 border-wax/30 p-5 sm:p-6">

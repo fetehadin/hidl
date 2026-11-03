@@ -35,7 +35,7 @@ export async function createLetter(_prev: FormState, formData: FormData): Promis
   const { title, recipient, occasion, body } = parsed.data;
   const { error } = await supabase
     .from("letters")
-    .insert({ title, recipient, occasion, body, unlock_at: unlockAt.toISOString() })
+    .insert({ title, recipient, occasion, body, encrypted: true, unlock_at: unlockAt.toISOString() })
     .select("id")
     .single();
 

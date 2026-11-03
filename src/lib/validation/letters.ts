@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { encryptedBody } from "./encryption";
 
 const optionalText = (max: number) =>
   z
@@ -19,7 +20,8 @@ export const newLetterSchema = z.object({
   title: z.string().trim().min(1, "Give it a title.").max(120),
   recipient: z.string().trim().min(1, "Who is it for?").max(60),
   occasion: optionalText(80),
-  body: z.string().trim().min(1, "Write something first.").max(50000),
+  /** Encrypted in the browser before it is sent; the server never sees the text. */
+  body: encryptedBody,
   unlock_local: localDateTime,
 });
 

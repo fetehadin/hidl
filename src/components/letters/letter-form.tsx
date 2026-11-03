@@ -2,13 +2,15 @@
 
 import { addMonths, addYears } from "date-fns";
 import { TZDate } from "@date-fns/tz";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { createLetter, type FormState } from "@/actions/letters";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Markdown } from "@/components/markdown";
 import { useCalendarPref } from "@/components/calendar-pref";
+import { encryptBody } from "@/lib/e2ee";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { APP_TZ, formatInAppTz, localToUtc } from "@/lib/time";
+import { useLetterKey } from "./letter-key";
 
 export const DRAFT_KEY = "hidl:letter-draft";
 const RECIPIENTS = ["Future me", "Me in five years", "Me in ten years", "Me on my next birthday", "Me, after the big day"];
@@ -37,9 +39,11 @@ export function LetterForm() {
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [tab, setTab] = useState<"write" | "preview">("write");
   const [confirming, setConfirming] = useState(false);
+  const [encrypting, setEncrypting] = useState(false);
+  const [encryptError, setEncryptError] = useState<string | null>(null);
+  const letterKey = useLetterKey();
   const formRef = useRef<HTMLFormElement>(null);
   const loaded = useRef(false);
-  const confirmed = useRef(false);
 
   useEffect(() => {
     // Restore an unsent draft (per device only).
@@ -69,29 +73,43 @@ export function LetterForm() {
     if (formRef.current?.reportValidity()) setConfirming(true);
   }
 
-  function seal() {
+  /**
+   * Encrypts the letter text on this device, then sends the form with the ciphertext as
+   * `body`. The textarea has no `name`, so the plain text is never part of a submission.
+   */
+  async function seal() {
     setConfirming(false);
-    confirmed.current = true;
-    formRef.current?.requestSubmit();
+    const form = formRef.current;
+    if (!form) return;
+    setEncryptError(null);
+    setEncrypting(true);
+    try {
+      const fd = new FormData(form);
+      fd.set("body", await encryptBody(letterKey, draft.body.trim()));
+      startTransition(() => action(fd));
+    } catch {
+      setEncryptError("Couldn't encrypt the letter on this device. Try again.");
+    } finally {
+      setEncrypting(false);
+    }
   }
+
+  const busy = pending || encrypting;
+  const message = encryptError ?? state.message;
 
   return (
     <form
       ref={formRef}
-      action={action}
       className="space-y-5"
       onSubmit={(e) => {
-        // Enter in a field must go through the confirm step too.
-        if (!confirmed.current) {
-          e.preventDefault();
-          askToSeal();
-        }
-        confirmed.current = false;
+        // Enter in a field goes through the confirm step; sealing itself is done by seal().
+        e.preventDefault();
+        askToSeal();
       }}
     >
-      {state.message && (
+      {message && (
         <p role="alert" className="rounded-control bg-accent-soft px-4 py-3 text-ink">
-          {state.message}
+          {message}
         </p>
       )}
 
@@ -126,7 +144,7 @@ export function LetterForm() {
             ))}
           </div>
         </div>
-        <textarea id="body" name="body" required maxLength={50000} rows={12}
+        <textarea id="body" required maxLength={50000} rows={12}
           className={`field letter-paper prose-letter min-h-72 resize-y px-4 py-[1.4rem] ${tab === "preview" ? "sr-only" : ""}`}
           placeholder={"Dear me,\n\nBy the time you read this…"} value={draft.body} onChange={set("body")}
           aria-invalid={Boolean(err("body"))} />
@@ -136,7 +154,8 @@ export function LetterForm() {
           </div>
         )}
         <p className="mt-1.5 text-sm text-muted">
-          Markdown works: **bold**, *italic*, lists, &gt; quotes. Your draft is kept on this device until you seal it.
+          Markdown works: **bold**, *italic*, lists, &gt; quotes. Your draft is kept on this device until you seal it,
+          then it&apos;s encrypted here before it&apos;s sent: only you can read it.
         </p>
         {err("body") && <p className="mt-1 text-sm text-wax">{err("body")}</p>}
       </div>
@@ -157,8 +176,8 @@ export function LetterForm() {
 
       <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted">Once sealed, it can&apos;t be edited or opened early.</p>
-        <button type="button" className="btn btn-primary" onClick={askToSeal} disabled={pending}>
-          {pending ? "Sealing…" : "Seal letter"}
+        <button type="button" className="btn btn-primary" onClick={askToSeal} disabled={busy}>
+          {encrypting ? "Encrypting…" : pending ? "Sealing…" : "Seal letter"}
         </button>
       </div>
 

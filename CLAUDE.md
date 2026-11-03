@@ -70,6 +70,16 @@ layer physically cannot violate it, even with a bug:
   except `unlock_at`, which can only move later. `src/lib/data/letters.ts` mirrors this: `LETTER_META_COLUMNS`
   never includes `body`; reading it goes through `openLetter()` → the RPC, with `LetterSealedError` thrown on the
   `hint: "sealed"` error code.
+- *Letter encryption* (`..._letter_encryption.sql`, `src/lib/e2ee.ts`): new letter bodies are end-to-end
+  encrypted in the browser (`e2e1.<iv>.<ct>`, AES-256-GCM) with a per-user letter key. `letter_keys` holds that
+  key only wrapped twice: by PBKDF2(passphrase) and by a recovery key shown once. The server never sees the
+  passphrase, recovery key, raw key, or text: `createLetter` only accepts the ciphertext shape and sets
+  `encrypted = true`. Anything that writes or reads an encrypted body sits inside `<LetterKeyGate>`
+  (`src/components/letters/letter-key.tsx`: setup → recovery key → unlock), which provides `useLetterKey()`.
+  The unlocked key is remembered per device as a non-extractable CryptoKey in IndexedDB (`src/lib/key-store.ts`),
+  wiped on `/login` with the photo cache. Changing the passphrase re-wraps the *same* key (needs the current
+  passphrase or the recovery key), so old letters still open. `open_letter` predates `encrypted`; read the flag
+  from the letter's meta. Older letters (`encrypted = false`) stay plain text: they're immutable once sealed.
 - *Photos*: a day can hold any number of photos (no per-day limit); `photos_before_write` rejects future dates
   using `app_today()` (Africa/Addis_Ababa) as the server-side source of truth. Actions are keyed by photo `id`,
   not date, since a day's photos aren't unique (`src/actions/photos.ts`: `addPhoto`/`replacePhoto`/`deletePhoto`).
@@ -172,7 +182,7 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   chosen one), drops leading zeros, and falls back to a smaller unit rather than show all zeros. The form sends one
   `units` value per ticked box, so `saveCountdown` passes `formData.getAll("units")` to `parseCountdown`.
 - Unsent letter drafts are kept in `localStorage` on the client until the letter is sealed (never hit the server
-  unsealed).
+  unsealed, and never unencrypted: the letter form's textarea has no `name`; `seal()` posts the ciphertext).
 - "Continue with Google" (`signInWithGoogle` in `src/actions/auth.ts`) is server-side PKCE: the action stores
   the verifier cookie and redirects to Google; Google returns to `/auth/confirm?code=…`, the same code path as
   default-template magic links. The button only renders when `googleSignInEnabled()`
