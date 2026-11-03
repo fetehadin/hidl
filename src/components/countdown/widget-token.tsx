@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { generateWidgetToken, revokeWidgetToken } from "@/actions/countdowns";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { publicEnv } from "@/lib/public-env";
-import { formatInAppTz } from "@/lib/time";
+import { useTimeZone } from "@/components/calendar-pref";
+import { formatInTz } from "@/lib/time";
 
 /**
  * Creates, regenerates or removes a widget feed token. Without `countdown` it's the
@@ -20,6 +21,7 @@ export function WidgetToken({
   /** Leave off the card chrome and intro (when shown inside a dialog). */
   bare?: boolean;
 }) {
+  const timeZone = useTimeZone();
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +95,7 @@ export function WidgetToken({
       ) : createdAt ? (
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <p className="text-sm text-ink-soft">
-            A widget token was created on {formatInAppTz(createdAt, "MMM d, yyyy")}. The URL itself was only shown
+            A widget token was created on {formatInTz(createdAt, "MMM d, yyyy", timeZone)}. The URL itself was only shown
             once; if you&apos;ve lost it, regenerate.
           </p>
         </div>

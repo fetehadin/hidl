@@ -35,9 +35,9 @@ function revalidate() {
 export async function prepareUpload(date: string, fullExt: MediaExt, thumbExt: ImageExt): Promise<UploadTicket | Fail> {
   const parsed = prepareUploadSchema.safeParse({ date, fullExt, thumbExt });
   if (!parsed.success) return { ok: false, message: "Invalid upload." };
-  if (parsed.data.date > todayISO()) return { ok: false, message: "That day hasn't happened yet." };
+  const { supabase, user, timeZone } = await requireUser();
+  if (parsed.data.date > todayISO(timeZone)) return { ok: false, message: "That day hasn't happened yet." };
 
-  const { supabase, user } = await requireUser();
   const base = `${user.id}/${parsed.data.date}-${randomBytes(8).toString("hex")}`;
   const bucket = supabase.storage.from(PHOTO_BUCKET);
   const [image, thumb] = await Promise.all([
@@ -71,9 +71,9 @@ export async function addPhoto(input: {
   const parsed = addPhotoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid photo." };
   const { date, mediaType, imagePath, thumbPath, caption } = parsed.data;
-  if (date > todayISO()) return { ok: false, message: "That day hasn't happened yet." };
+  const { supabase, user, timeZone } = await requireUser();
+  if (date > todayISO(timeZone)) return { ok: false, message: "That day hasn't happened yet." };
 
-  const { supabase, user } = await requireUser();
   if (!uploadPathsOk(user.id, date, mediaType, imagePath, thumbPath)) {
     return { ok: false, message: "Invalid upload." };
   }

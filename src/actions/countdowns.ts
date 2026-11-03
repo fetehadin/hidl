@@ -42,8 +42,8 @@ export async function saveCountdown(_prev: CountdownFormState, formData: FormDat
     };
   }
 
-  const { supabase } = await requireUser();
-  const target_at = localToUtc(parsed.data.target_local).toISOString();
+  const { supabase, timeZone } = await requireUser();
+  const target_at = localToUtc(parsed.data.target_local, timeZone).toISOString();
   const id = typeof raw.id === "string" && raw.id ? raw.id : null;
 
   if (id) {

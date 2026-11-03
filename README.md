@@ -41,7 +41,7 @@ photo storage run on the Supabase free plan, and the optional unlock emails use 
 | Sealed letters can't be edited; the date only moves later | `letters_before_update` trigger plus column grants (only `unlock_at` is updatable) |
 | `opened_at` is recorded on first open and can't be faked | Set inside `open_letter`; the client has no `UPDATE` grant on it |
 | Any number of photos per day, each owned by one user | No per-day limit — `photos.user_id`/`date` are just columns, RLS and the folder-path check constraint still scope every row to its owner |
-| No photos for future days | `photos_before_write` trigger, using `app_today()` (Africa/Addis_Ababa) |
+| No photos for future days | `photos_before_write` trigger, using the database clock in the owner's own time zone (`user_settings.time_zone`) |
 | Short videos are allowed, up to 5 MB, and a row's file matches its type | The `photos` bucket's `file_size_limit` (5 MB, every file) and `allowed_mime_types` (JPEG, WebP, MP4, WebM, MOV), enforced by Storage on upload; the `photos_media_matches_path` check ties `media_type` to the file extension (video rows → `.mp4/.webm/.mov`, thumbnails always an image) |
 | Users only see their own data | RLS on every table and on the `photos` storage bucket (per-user folder) |
 | An exam countdown always has scores; no other kind ever does | A check constraint on `countdowns`: `kind = 'exam'` requires `target_score`/`max_score`, every other kind forbids them. `kind` has no `UPDATE` grant, so it can't be changed after creation either. |
@@ -53,7 +53,7 @@ photo storage run on the Supabase free plan, and the optional unlock emails use 
 | Only allowed emails can sign in (unless opened to everyone) | `ALLOWED_EMAIL` is checked in the login action, the magic-link callback and `requireUser()` on every server entry point. Set it to `*` to allow anyone to sign up — each person gets their own isolated letters/countdown/calendar, scoped by RLS. |
 | Deleting your account removes everything, not just the login | `deleteAccount()` (`src/actions/auth.ts`) removes the user's storage files first, then deletes the `auth.users` row, which cascades to `letters`, `photos`, and `countdowns` via `on delete cascade`. Covered by `tests/integration/account-deletion.test.ts`. |
 
-All timestamps are `timestamptz` (UTC). Calendar days are `date` values meaning the local day in Africa/Addis_Ababa. Everything is displayed in Addis time.
+All timestamps are `timestamptz` (UTC). Each user sees everything in their device's own time zone, picked up automatically (and updated when they travel); calendar days are `date` values meaning the user's local day. Users whose device hasn't reported a zone yet default to Africa/Addis_Ababa.
 
 ---
 
@@ -210,7 +210,7 @@ src/lib/supabase/         Server and browser clients; requireUser() re-checks au
                           admin.ts is the service-role client used only for account deletion
 src/lib/data/             Typed queries (letters never select `body`)
 src/lib/validation/       zod schemas used by every server action and route handler
-src/lib/time.ts           Africa/Addis_Ababa helpers
+src/lib/time.ts           Per-user time zone helpers
 src/lib/image.ts          Client-side resize (1600px) and thumbnail (480px), WebP or JPEG
 src/actions/              Server actions, including account deletion (src/actions/auth.ts)
 src/app/(auth)/login      Sign-in

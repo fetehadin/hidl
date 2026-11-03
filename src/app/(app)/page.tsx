@@ -17,12 +17,12 @@ import { letterSummary } from "@/lib/data/letters";
 import { addDays, photoStreak } from "@/lib/calendar";
 import { listPhotoDates, listPhotosForDate, signPhotos } from "@/lib/data/photos";
 import { requireUser } from "@/lib/supabase/server";
-import { daysUntil, formatInAppTz, greeting, nowInAppTz, requestNow, todayISO } from "@/lib/time";
+import { daysUntil, formatInTz, greeting, nowInTz, requestNow, todayISO } from "@/lib/time";
 
 export default async function DashboardPage() {
-  const { supabase, calendar } = await requireUser();
+  const { supabase, calendar, timeZone } = await requireUser();
   const now = requestNow();
-  const today = todayISO(new Date(now));
+  const today = todayISO(timeZone, new Date(now));
 
   const [countdowns, letters, todaysPhotos, recentDates] = await Promise.all([
     listCountdowns(supabase),
@@ -37,13 +37,13 @@ export default async function DashboardPage() {
   // hero lists the next few after the primary one.
   const upcoming = countdowns
     .filter((c) => new Date(c.target_at).getTime() > now)
-    .map((c) => ({ ...c, days: daysUntil(c.target_at, new Date(now)) }));
+    .map((c) => ({ ...c, days: daysUntil(c.target_at, timeZone, new Date(now)) }));
   const comingUp = upcoming.filter((c) => c.id !== countdown?.id);
   const latestPhotoRow = todaysPhotos.find((p) => p.is_cover) ?? todaysPhotos.at(-1);
   const [photo] = latestPhotoRow ? await signPhotos(supabase, [latestPhotoRow]) : [];
   const countdownDone = countdown ? new Date(countdown.target_at).getTime() <= now : false;
   const hidi = companionLine({
-    hour: nowInAppTz(new Date(now)).getHours(),
+    hour: nowInTz(timeZone, new Date(now)).getHours(),
     streak: streak.count,
     todayDone: streak.todayDone,
     lettersReady: letters.readyCount,
@@ -54,11 +54,11 @@ export default async function DashboardPage() {
       <div className="flex flex-col gap-5 pt-4 pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="eyebrow mb-1">
-            {calendar === "ethiopian" ? formatEthiopian(new Date(now)) : formatInAppTz(new Date(now), "EEEE")}
+            {calendar === "ethiopian" ? formatEthiopian(new Date(now), timeZone) : formatInTz(new Date(now), "EEEE", timeZone)}
           </p>
-          <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">{greeting(new Date(now))}!</h1>
+          <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">{greeting(timeZone, new Date(now))}!</h1>
           <p className="mt-1 text-sm font-semibold text-muted">
-            {formatInAppTz(new Date(now), calendar === "ethiopian" ? "EEEE, MMMM d" : "MMMM d, yyyy")}
+            {formatInTz(new Date(now), calendar === "ethiopian" ? "EEEE, MMMM d" : "MMMM d, yyyy", timeZone)}
           </p>
         </div>
         <div className="animate-fade-up flex items-center gap-3 sm:max-w-sm">
@@ -97,9 +97,9 @@ export default async function DashboardPage() {
               <div className="min-w-0">
                 <p className="eyebrow mb-1">{countdownDone ? "it's over" : (KIND_INFO[countdown.kind] ?? KIND_INFO.deadline).eyebrow}</p>
                 <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{countdown.title}</h2>
-                {calendar === "ethiopian" && <p className="mt-1 text-ink-soft">{formatEthiopian(countdown.target_at)}</p>}
+                {calendar === "ethiopian" && <p className="mt-1 text-ink-soft">{formatEthiopian(countdown.target_at, timeZone)}</p>}
                 <p className={calendar === "ethiopian" ? "text-sm text-muted" : "mt-1 text-ink-soft"}>
-                  {formatInAppTz(countdown.target_at, "EEEE, MMMM d, yyyy")}
+                  {formatInTz(countdown.target_at, "EEEE, MMMM d, yyyy", timeZone)}
                 </p>
 
                 {countdown.kind === "exam" && (
@@ -148,7 +148,7 @@ export default async function DashboardPage() {
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-bold text-ink">{c.title}</span>
                           <span className="block text-xs font-semibold text-muted">
-                            {formatInAppTz(c.target_at, "MMM d, yyyy")}
+                            {formatInTz(c.target_at, "MMM d, yyyy", timeZone)}
                           </span>
                         </span>
                         <span className="shrink-0 text-right">

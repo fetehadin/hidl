@@ -63,9 +63,9 @@ describe("multiple photos per day", () => {
     expect(error).toBeNull();
   });
 
-  it("rejects future days (database clock, Addis timezone)", async () => {
+  it("rejects future days (database clock, default Addis timezone when none is saved)", async () => {
     const tomorrow = new Date(Date.now() + 36 * 3600 * 1000).toISOString().slice(0, 10);
-    const future = tomorrow > todayISO() ? tomorrow : "2999-01-01";
+    const future = tomorrow > todayISO("Africa/Addis_Ababa") ? tomorrow : "2999-01-01";
     const { error } = await me.client.from("photos").insert({ date: future, ...paths(me, future, 1) });
     expect(error?.message).toMatch(/future day/);
   });

@@ -14,6 +14,7 @@ export function DecryptedLetter(props: {
   createdAt: string;
   unlockAt: string;
   calendar: CalendarPref;
+  timeZone: string;
 }) {
   const key = useLetterKey();
   const [text, setText] = useState<string | null>(null);

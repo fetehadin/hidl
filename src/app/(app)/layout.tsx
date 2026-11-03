@@ -12,13 +12,13 @@ import { NAV_COOKIE } from "@/lib/nav-cookie";
 import { requireUser } from "@/lib/supabase/server";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const [{ supabase, calendar }, cookieStore] = await Promise.all([requireUser(), cookies()]);
+  const [{ supabase, calendar, timeZone }, cookieStore] = await Promise.all([requireUser(), cookies()]);
   // Read fresh on every request (not from the login token), so a new buddy shows up at once.
   const buddy = await getAvatar(supabase);
   const navCollapsed = cookieStore.get(NAV_COOKIE)?.value === "collapsed";
 
   return (
-    <CalendarPrefProvider value={calendar}>
+    <CalendarPrefProvider value={calendar} timeZone={timeZone}>
       <BuddyProvider value={buddy}>
       <AppShell initialCollapsed={navCollapsed} avatar={buddy ?? DEFAULT_AVATAR}>
         {/* Positioned so it floats above full-screen pages like the memories board. */}

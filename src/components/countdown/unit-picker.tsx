@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTimeZone } from "@/components/calendar-pref";
 import {
   COUNTDOWN_UNITS,
   type CountdownUnit,
@@ -27,6 +28,7 @@ export function UnitPicker({
 }) {
   const [units, setUnits] = useState<CountdownUnit[]>(() => normalizeUnits(initial));
   const [now] = useState(() => Date.now());
+  const timeZone = useTimeZone();
 
   function toggle(unit: CountdownUnit) {
     setUnits((current) => {
@@ -35,7 +37,7 @@ export function UnitPicker({
     });
   }
 
-  const preview = target && target.getTime() > now ? timeLeft(target, now, units) : null;
+  const preview = target && target.getTime() > now ? timeLeft(target, now, units, timeZone) : null;
 
   return (
     <fieldset>

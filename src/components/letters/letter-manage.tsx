@@ -3,7 +3,7 @@
 import { useActionState, useRef, useState } from "react";
 import { deleteLetter, type FormState, postponeLetter } from "@/actions/letters";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { useCalendarPref } from "@/components/calendar-pref";
+import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { localToUtc } from "@/lib/time";
 
@@ -11,6 +11,7 @@ export function PostponeForm({ id, currentLocal }: { id: string; currentLocal: s
   const [state, action, pending] = useActionState<FormState, FormData>(postponeLetter, { status: "idle" });
   const [value, setValue] = useState(state.values?.unlock_local ?? currentLocal);
   const calendar = useCalendarPref();
+  const timeZone = useTimeZone();
 
   return (
     <details className="group rounded-control border border-line px-4 py-3">
@@ -26,7 +27,7 @@ export function PostponeForm({ id, currentLocal }: { id: string; currentLocal: s
           {pending ? "Saving…" : "Push it back"}
         </button>
       </form>
-      {value && calendar === "ethiopian" && <p className="mt-1.5 text-sm text-muted">Ethiopian calendar: {formatEthiopian(localToUtc(value))}</p>}
+      {value && calendar === "ethiopian" && <p className="mt-1.5 text-sm text-muted">Ethiopian calendar: {formatEthiopian(localToUtc(value, timeZone), timeZone)}</p>}
       {state.message && (
         <p role={state.status === "error" ? "alert" : "status"}
           className={`mt-2 text-sm ${state.status === "error" ? "text-wax" : "text-sage"}`}>

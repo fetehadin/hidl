@@ -98,8 +98,9 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `letter_keys` | `user_id` (PK), `kdf_salt`, `kdf_iterations`, `passphrase_wrapped_key`, `recovery_wrapped_key` | One per user. The letter key wrapped twice; no `DELETE`, the recovery copy can't change. |
 | `countdowns` | `kind`, `title`, `target_at`, `target_score`/`max_score`/`actual_score`, `details` jsonb, `units` text[], `is_widget` | `kind` can't be updated; scores only for `exam`; `details` checked by `countdown_details_ok`; one `is_widget` per user. |
 | `widget_tokens` | `id`, `user_id`, `countdown_id` (null = follow the starred one), `token_hash` | `(countdown_id, user_id)` FK → `countdowns(id, user_id)`; `token_hash` is never selectable. |
-| `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover` | Many per day; no future dates (`app_today()`); paths must be in the user's folder; one cover per `(user_id, date)`. |
+| `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover` | Many per day; no future dates (in the owner's zone, from `user_settings`); paths must be in the user's folder; one cover per `(user_id, date)`. |
 | `profiles` | `user_id` (PK), `avatar` jsonb | Checked by `avatar_ok()`, which mirrors `AVATAR_PARTS` in `src/lib/avatar.ts`. |
+| `user_settings` | `user_id` (PK), `time_zone` | The device's IANA zone, checked by `time_zone_ok()`. No row = Africa/Addis_Ababa. Written only by `setTimeZone`. |
 
 Storage: one private `photos` bucket, `<user_id>/...` folders, 5 MB per file, JPEG/WebP/MP4/WebM/MOV only.
 User preference `calendar` (Gregorian/Ethiopian) lives in `auth.users.user_metadata`, not a table.
@@ -154,10 +155,13 @@ Production env vars are listed in the README.
   `avatar_ok` ↔ `src/lib/avatar.ts`, bucket limits ↔ `src/lib/media.ts`.
 - **Client components must not import zod** or anything that does (`src/lib/validation/*`, `src/lib/env.ts`). Use
   `src/lib/public-env.ts` in the browser.
-- **Time:** store `timestamptz` (UTC); a calendar day is a `date` in Africa/Addis_Ababa. Use the helpers in
-  `src/lib/time.ts` (`todayISO`, `nowInAppTz`, `localToUtc`, `utcToLocalInput`) instead of building `Date`s for
-  anything shown to or typed by the user. Show dates through the user's calendar preference (`requireUser().calendar`
-  on the server, `useCalendarPref`/`useFormatDay` on the client).
+- **Time is per user.** Store `timestamptz` (UTC); a calendar day (`photos.date`) is a `date` in the user's own
+  zone. Every helper in `src/lib/time.ts` takes the zone explicitly (`todayISO(tz)`, `formatInTz(d, p, tz)`,
+  `localToUtc(local, tz)`, …), so a missed call site is a type error. Get the zone from `requireUser().timeZone` on
+  the server and `useTimeZone()` on the client; never use `DEFAULT_TZ` for a signed-in user. Show dates through the
+  calendar preference too (`requireUser().calendar`, `useCalendarPref`/`useFormatDay`). A "YYYY-MM-DD" day string
+  needs no zone: use `src/lib/calendar.ts` or `formatEthiopianDay`, never `formatInTz`. Details:
+  [docs/architecture.md](docs/architecture.md#time-zones).
 - **Migrations:** never edit one that has been pushed; add a new timestamped file. New tables get RLS, explicit
   column grants (`revoke all` then grant per column), `on delete cascade` to `auth.users`, and
   `set search_path = ''` on functions. Functions aren't executable by `anon` by default; grant execute explicitly.
@@ -202,9 +206,6 @@ Production env vars are listed in the README.
 
 ## 8. Open questions
 
-- **Time zone (decided, not built yet):** "today" and every displayed time should follow each user's own location
-  and time zone, like other global apps. Until that ships, both the database (`app_today()`) and the app are fixed to
-  Africa/Addis_Ababa.
 - **Supabase region:** the README's setup example says `eu-central-1`, but `vercel.json` and these docs assume the
   project is in `eu-west-3` (Paris). Which is production?
 - **Orphaned uploads:** should there be a cleanup job for files no `photos` row points at?

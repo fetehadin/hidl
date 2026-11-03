@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTimeZone } from "@/components/calendar-pref";
 import { relativeUntil } from "@/lib/time";
 
 /** "Opens in 41 days" that keeps itself current and refreshes the page when the moment arrives. */
 export function LiveRelative({ target, prefix = "Opens" }: { target: string; prefix?: string }) {
   const router = useRouter();
+  const timeZone = useTimeZone();
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -20,7 +22,7 @@ export function LiveRelative({ target, prefix = "Opens" }: { target: string; pre
     };
   }, [target, router]);
 
-  const phrase = relativeUntil(target, now);
+  const phrase = relativeUntil(target, timeZone, now);
   return (
     <span suppressHydrationWarning>
       {prefix} {phrase}

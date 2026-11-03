@@ -13,7 +13,7 @@ import { requestNow } from "@/lib/time";
 export const metadata: Metadata = { title: "Letters" };
 
 export default async function LettersPage({ searchParams }: PageProps<"/letters">) {
-  const { supabase, calendar } = await requireUser();
+  const { supabase, calendar, timeZone } = await requireUser();
   const [letters, { sealed: justSealed }] = await Promise.all([listLetters(supabase), searchParams]);
   const now = requestNow();
 
@@ -52,9 +52,9 @@ export default async function LettersPage({ searchParams }: PageProps<"/letters"
         </div>
       ) : (
         <div className="space-y-8">
-          <LetterSection title="Ready to open" letters={ready} now={now} calendar={calendar} />
-          <LetterSection title="Still sealed" letters={sealed} now={now} calendar={calendar} />
-          <LetterSection title="Opened" letters={opened} now={now} calendar={calendar} emptyHint="Nothing opened yet." />
+          <LetterSection title="Ready to open" letters={ready} now={now} calendar={calendar} timeZone={timeZone} />
+          <LetterSection title="Still sealed" letters={sealed} now={now} calendar={calendar} timeZone={timeZone} />
+          <LetterSection title="Opened" letters={opened} now={now} calendar={calendar} timeZone={timeZone} emptyHint="Nothing opened yet." />
         </div>
       )}
     </>
@@ -66,12 +66,14 @@ function LetterSection({
   letters,
   now,
   calendar,
+  timeZone,
   emptyHint,
 }: {
   title: string;
   letters: Awaited<ReturnType<typeof listLetters>>;
   now: number;
   calendar: CalendarPref;
+  timeZone: string;
   /** Shown instead of hiding the section entirely, for sections worth always seeing. */
   emptyHint?: string;
 }) {
@@ -102,7 +104,7 @@ function LetterSection({
       <ul className={`grid gap-4 ${gridClass}`}>
         {letters.map((l) => (
           <li key={l.id}>
-            <LetterCard letter={l} now={now} calendar={calendar} />
+            <LetterCard letter={l} now={now} calendar={calendar} timeZone={timeZone} />
           </li>
         ))}
       </ul>

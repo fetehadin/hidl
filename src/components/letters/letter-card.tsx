@@ -13,7 +13,7 @@ export function sealInitial(recipient: string) {
   return recipient.trim().charAt(0).toUpperCase() || "✶";
 }
 
-export function LetterCard({ letter, now, calendar }: { letter: LetterMeta; now: number; calendar: CalendarPref }) {
+export function LetterCard({ letter, now, calendar, timeZone }: { letter: LetterMeta; now: number; calendar: CalendarPref; timeZone: string }) {
   const state = letterState(letter, now);
 
   return (
@@ -35,12 +35,12 @@ export function LetterCard({ letter, now, calendar }: { letter: LetterMeta; now:
               <span className="font-semibold text-ink-soft">
                 <LiveRelative target={letter.unlock_at} />
               </span>
-              <span className="text-muted">{formatDay(letter.unlock_at, calendar)}</span>
+              <span className="text-muted">{formatDay(letter.unlock_at, calendar, timeZone)}</span>
             </>
           )}
           {state === "ready" && <span className="btn btn-primary min-h-9 px-4 text-[15px]">Open</span>}
           {state === "opened" && (
-            <span className="text-muted">Opened {formatDay(letter.opened_at!, calendar)}</span>
+            <span className="text-muted">Opened {formatDay(letter.opened_at!, calendar, timeZone)}</span>
           )}
         </div>
       </Envelope>

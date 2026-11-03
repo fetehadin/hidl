@@ -4,7 +4,7 @@
  * them across devices. Display only: nothing about how dates are stored changes.
  */
 import { formatEthiopian } from "./ethiopian";
-import { formatInAppTz } from "./time";
+import { formatInTz } from "./time";
 
 export type CalendarPref = "gregorian" | "ethiopian";
 
@@ -13,6 +13,6 @@ export function calendarPref(value: unknown): CalendarPref {
 }
 
 /** A day in the chosen calendar: "October 31, 2026" or "Tikimt 21, 2019". */
-export function formatDay(date: Date | string, pref: CalendarPref) {
-  return pref === "ethiopian" ? formatEthiopian(date) : formatInAppTz(date, "MMMM d, yyyy");
+export function formatDay(date: Date | string, pref: CalendarPref, tz: string) {
+  return pref === "ethiopian" ? formatEthiopian(date, tz) : formatInTz(date, "MMMM d, yyyy", tz);
 }

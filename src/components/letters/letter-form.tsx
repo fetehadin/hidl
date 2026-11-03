@@ -6,20 +6,20 @@ import { startTransition, useActionState, useEffect, useRef, useState } from "re
 import { createLetter, type FormState } from "@/actions/letters";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Markdown } from "@/components/markdown";
-import { useCalendarPref } from "@/components/calendar-pref";
+import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
 import { encryptBody } from "@/lib/e2ee";
 import { formatEthiopian } from "@/lib/ethiopian";
-import { APP_TZ, formatInAppTz, localToUtc } from "@/lib/time";
+import { formatInTz, localToUtc, timeZoneCity } from "@/lib/time";
 import { useLetterKey } from "./letter-key";
 
 export const DRAFT_KEY = "hidl:letter-draft";
 const RECIPIENTS = ["Future me", "Me in five years", "Me in ten years", "Me on my next birthday", "Me, after the big day"];
 
-function quickPick(kind: "1m" | "6m" | "1y") {
-  const base = new TZDate(Date.now(), APP_TZ);
+function quickPick(kind: "1m" | "6m" | "1y", tz: string) {
+  const base = new TZDate(Date.now(), tz);
   const d = kind === "1m" ? addMonths(base, 1) : kind === "6m" ? addMonths(base, 6) : addYears(base, 1);
   d.setHours(9, 0, 0, 0);
-  return formatInAppTz(d, "yyyy-MM-dd'T'HH:mm");
+  return formatInTz(d, "yyyy-MM-dd'T'HH:mm", tz);
 }
 
 type Draft = { title: string; recipient: string; occasion: string; body: string; unlock_local: string };
@@ -63,11 +63,12 @@ export function LetterForm() {
     setDraft((d) => ({ ...d, [k]: e.target.value }));
   const err = (k: string) => state.fieldErrors?.[k]?.[0];
 
-  const [minLocal] = useState(() => formatInAppTz(new Date(Date.now() + 5 * 60_000), "yyyy-MM-dd'T'HH:mm"));
-  const unlockUtc = draft.unlock_local ? localToUtc(draft.unlock_local) : null;
-  const unlockLabel = unlockUtc ? formatInAppTz(unlockUtc, "EEEE, MMMM d, yyyy 'at' h:mm a") : "";
+  const timeZone = useTimeZone();
+  const [minLocal] = useState(() => formatInTz(new Date(Date.now() + 5 * 60_000), "yyyy-MM-dd'T'HH:mm", timeZone));
+  const unlockUtc = draft.unlock_local ? localToUtc(draft.unlock_local, timeZone) : null;
+  const unlockLabel = unlockUtc ? formatInTz(unlockUtc, "EEEE, MMMM d, yyyy 'at' h:mm a", timeZone) : "";
   const calendar = useCalendarPref();
-  const unlockEthiopian = unlockUtc && calendar === "ethiopian" ? formatEthiopian(unlockUtc) : "";
+  const unlockEthiopian = unlockUtc && calendar === "ethiopian" ? formatEthiopian(unlockUtc, timeZone) : "";
 
   function askToSeal() {
     if (formRef.current?.reportValidity()) setConfirming(true);
@@ -160,11 +161,11 @@ export function LetterForm() {
         {err("body") && <p className="mt-1 text-sm text-wax">{err("body")}</p>}
       </div>
 
-      <Field label="Opens on" hint="Addis Ababa time" id="unlock_local" error={err("unlock_local")}>
+      <Field label="Opens on" hint={`${timeZoneCity(timeZone)} time`} id="unlock_local" error={err("unlock_local")}>
         <div className="mb-2 flex flex-wrap gap-2">
           {([["1m", "In a month"], ["6m", "In 6 months"], ["1y", "In a year"]] as const).map(([k, label]) => (
             <button key={k} type="button" className="rounded-full border border-line px-3 py-1 text-sm hover:bg-paper-deep"
-              onClick={() => setDraft((d) => ({ ...d, unlock_local: quickPick(k) }))}>
+              onClick={() => setDraft((d) => ({ ...d, unlock_local: quickPick(k, timeZone) }))}>
               {label}
             </button>
           ))}

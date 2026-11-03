@@ -9,12 +9,12 @@ import { DEFAULT_AVATAR } from "@/lib/avatar";
 import { getKeyBundle } from "@/lib/data/letter-keys";
 import { getAvatar } from "@/lib/data/profile";
 import { requireUser } from "@/lib/supabase/server";
-import { requestNow } from "@/lib/time";
+import { requestNow, timeZoneCity } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Account" };
 
 export default async function AccountPage() {
-  const { supabase, user, calendar } = await requireUser();
+  const { supabase, user, calendar, timeZone } = await requireUser();
   const [bundle, buddy] = await Promise.all([getKeyBundle(supabase), getAvatar(supabase)]);
 
   return (
@@ -42,6 +42,11 @@ export default async function AccountPage() {
         <h2 className="font-display text-xl font-semibold">Calendar</h2>
         <p className="mt-1 mb-4 text-ink-soft">Which calendar hidl shows your dates in.</p>
         <CalendarChoice current={calendar} now={requestNow()} />
+        <p className="mt-4 text-sm text-muted">
+          Times and &ldquo;today&rdquo; follow your device&rsquo;s time zone, now{" "}
+          <span className="font-semibold text-ink-soft">{timeZoneCity(timeZone)}</span> ({timeZone}). It updates by itself when you
+          travel.
+        </p>
       </div>
 
       <div className="card mt-4 p-5 sm:p-6">

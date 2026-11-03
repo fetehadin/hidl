@@ -12,6 +12,8 @@ export type CountdownFeed = {
   daysLeft: number;
   units: Unit[];
   remaining: Partial<Record<Unit, number>>;
+  /** The owner's IANA time zone the numbers were computed in (added with per-user time zones). */
+  timeZone?: string;
 };
 
 export type Unit = 'years' | 'months' | 'days' | 'hours';
