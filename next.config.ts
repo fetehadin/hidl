@@ -11,6 +11,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // A self-contained server build for the Docker image (Dockerfile). Vercel ignores it.
+  output: "standalone",
   // Hidi's quick menu owns the bottom-right corner and the side nav the left edge; keep the
   // dev-only badge out of both.
   devIndicators: { position: "top-right" },
