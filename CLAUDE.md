@@ -83,7 +83,8 @@ supabase/migrations/         The schema, in order; supabase/config.toml is the l
 supabase/templates/          Branded magic-link and confirm-signup emails (need custom SMTP in prod)
 tests/unit/                  Pure logic, no services
 tests/integration/           Against a real local Supabase
-.github/workflows/           ci.yml (typecheck, lint, unit tests), deploy.yml (Vercel prod deploy after CI on main)
+mobile/                      Expo app (own npm toolchain): Android countdown widget; see mobile/README.md
+.github/workflows/           ci.yml (web: typecheck, lint, unit tests; mobile: typecheck), deploy.yml (Vercel prod deploy after CI on main)
 ```
 
 ## 4. Data model
@@ -128,6 +129,10 @@ pnpm db:stop
 ```
 
 Before pushing: `pnpm typecheck && pnpm lint && pnpm test:all`.
+
+Mobile app (`mobile/`, npm, not pnpm): `cd mobile && npm install && npm run typecheck && npm run doctor`. Build an
+installable APK in the cloud with `npm run build:apk` (EAS). The root `tsconfig.json` and ESLint config exclude
+`mobile/`; CI type-checks it in its own job (`mobile` in `ci.yml`).
 
 Deploy: pushing to `main` runs CI, then `deploy.yml` runs `vercel deploy --prod`, which needs the `VERCEL_TOKEN`
 repo secret. Production schema changes go out with `pnpm exec supabase db push` against the linked project.
@@ -190,6 +195,9 @@ Production env vars are listed in the README.
 - **Orphaned uploads:** if a tab closes mid-upload, files can be left in Storage. Nothing cleans those up yet.
 - **CI doesn't run integration tests** (there's no Docker/Supabase in CI). Run `pnpm test:all` locally for any
   database change.
+- **The widget feed is a public contract.** `mobile/` reads the JSON from `/api/widget/countdown` (type
+  `CountdownFeed` in `mobile/src/feed.ts`). Add fields freely, but renaming or removing one breaks widgets already on
+  people's phones.
 - `next dev` may rewrite `AGENTS.md`. Commit that block as it is instead of fighting it.
 
 ## 8. Open questions
