@@ -176,3 +176,61 @@ describe("pinned wallpaper photo", () => {
     expect(await pinned()).toEqual([]);
   });
 });
+
+describe("videos", () => {
+  const VID_DAY = "2026-09-22";
+  const vid = (user: TestUser, n: number, ext = "mp4") => ({
+    image_path: `${user.id}/${VID_DAY}-vvvvvvvvvv${n}.${ext}`,
+    thumb_path: `${user.id}/${VID_DAY}-vvvvvvvvvv${n}-thumb.webp`,
+  });
+
+  it("saves a video row that points at a video file with an image thumbnail", async () => {
+    const { error } = await me.client.from("photos").insert({ date: VID_DAY, media_type: "video", ...vid(me, 1) });
+    expect(error).toBeNull();
+    const { data } = await me.client.from("photos").select("media_type").eq("image_path", vid(me, 1).image_path).single();
+    expect(data?.media_type).toBe("video");
+  });
+
+  it("defaults to an image, and refuses a video file on an image row", async () => {
+    const { error } = await me.client.from("photos").insert({ date: VID_DAY, ...vid(me, 2) });
+    expect(error).not.toBeNull();
+  });
+
+  it("refuses an image file on a video row, and a video as the thumbnail", async () => {
+    const asImage = await me.client.from("photos").insert({ date: VID_DAY, media_type: "video", ...paths(me, VID_DAY, 7) });
+    expect(asImage.error).not.toBeNull();
+    const videoThumb = await me.client.from("photos").insert({
+      date: VID_DAY,
+      media_type: "video",
+      image_path: vid(me, 3).image_path,
+      thumb_path: `${me.id}/${VID_DAY}-vvvvvvvvvv3-thumb.mp4`,
+    });
+    expect(videoThumb.error).not.toBeNull();
+  });
+
+  it("refuses an unknown media type", async () => {
+    const { error } = await me.client.from("photos").insert({ date: VID_DAY, media_type: "audio", ...vid(me, 4) });
+    expect(error).not.toBeNull();
+  });
+
+  it("the bucket accepts small mp4, webm and mov files", async () => {
+    for (const [ext, type] of [["mp4", "video/mp4"], ["webm", "video/webm"], ["mov", "video/quicktime"]]) {
+      const up = await me.client.storage
+        .from("photos")
+        .upload(`${me.id}/${VID_DAY}-uuuuuuuuuu1.${ext}`, Buffer.alloc(1024), { contentType: type });
+      expect(up.error, ext).toBeNull();
+    }
+  });
+
+  it("the bucket refuses anything over 5 MB", async () => {
+    const tooBig = Buffer.alloc(5 * 1024 * 1024 + 1);
+    const up = await me.client.storage
+      .from("photos")
+      .upload(`${me.id}/${VID_DAY}-uuuuuuuuuu2.mp4`, tooBig, { contentType: "video/mp4" });
+    expect(up.error).not.toBeNull();
+    const atLimit = await me.client.storage
+      .from("photos")
+      .upload(`${me.id}/${VID_DAY}-uuuuuuuuuu3.mp4`, Buffer.alloc(5 * 1024 * 1024), { contentType: "video/mp4" });
+    expect(atLimit.error).toBeNull();
+  });
+});

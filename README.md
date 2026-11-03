@@ -36,6 +36,7 @@ photo storage run on the Supabase free plan, and the optional unlock emails use 
 | `opened_at` is recorded on first open and can't be faked | Set inside `open_letter`; the client has no `UPDATE` grant on it |
 | Any number of photos per day, each owned by one user | No per-day limit — `photos.user_id`/`date` are just columns, RLS and the folder-path check constraint still scope every row to its owner |
 | No photos for future days | `photos_before_write` trigger, using `app_today()` (Africa/Addis_Ababa) |
+| Short videos are allowed, up to 5 MB, and a row's file matches its type | The `photos` bucket's `file_size_limit` (5 MB, every file) and `allowed_mime_types` (JPEG, WebP, MP4, WebM, MOV), enforced by Storage on upload; the `photos_media_matches_path` check ties `media_type` to the file extension (video rows → `.mp4/.webm/.mov`, thumbnails always an image) |
 | Users only see their own data | RLS on every table and on the `photos` storage bucket (per-user folder) |
 | An exam countdown always has scores; no other kind ever does | A check constraint on `countdowns`: `kind = 'exam'` requires `target_score`/`max_score`, every other kind forbids them. `kind` has no `UPDATE` grant, so it can't be changed after creation either. |
 | A countdown only stores the details its kind allows | `countdown_details_ok(kind, details)` in a check constraint on the `details` jsonb column: allowed keys per kind, string lengths, `birth_year` a whole number, and a birthday must say whose. The same list lives in `src/lib/countdown-kinds.ts` for the form. |

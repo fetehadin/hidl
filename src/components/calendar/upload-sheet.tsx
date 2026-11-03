@@ -4,12 +4,22 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { addPhoto, prepareUpload, replacePhoto } from "@/actions/photos";
 import { dayLabel } from "@/lib/calendar";
-import { type ProcessedImage, processImage } from "@/lib/image";
+import { type ProcessedMedia, processMedia } from "@/lib/image";
+import { MAX_UPLOAD_BYTES, formatMB } from "@/lib/media";
 import { createClient } from "@/lib/supabase/client";
+import { VideoBadge } from "./video-badge";
 
 type Mode = { kind: "add"; date: string } | { kind: "replace"; date: string; photoId: string };
 
-type PendingItem = { key: string; image: ProcessedImage; preview: string; error?: string };
+type PendingItem = { key: string; media: ProcessedMedia; preview: string; error?: string };
+
+/** "photo", "video", "3 photos", "2 photos and a video"... for the save button. */
+function itemsLabel(items: PendingItem[]) {
+  const videos = items.filter((i) => i.media.mediaType === "video").length;
+  const photos = items.length - videos;
+  const part = (n: number, word: string) => (n === 0 ? "" : n === 1 ? (items.length === 1 ? word : `a ${word}`) : `${n} ${word}s`);
+  return [part(photos, "photo"), part(videos, "video")].filter(Boolean).join(" and ");
+}
 
 let nextKey = 0;
 
@@ -48,10 +58,12 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
     setProcessing(true);
     for (const file of list) {
       try {
-        const image = await processImage(file);
-        setItems((prev) => [...prev, { key: String(nextKey++), image, preview: URL.createObjectURL(image.full) }]);
+        const media = await processMedia(file);
+        // Videos preview as their still frame (the same picture the calendar will show).
+        const preview = URL.createObjectURL(media.mediaType === "video" ? media.thumb : media.full);
+        setItems((prev) => [...prev, { key: String(nextKey++), media, preview }]);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Couldn't read that image.");
+        setError(e instanceof Error ? e.message : "Couldn't read that file.");
       }
     }
     setProcessing(false);
@@ -71,21 +83,27 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
     setUploading(true);
     try {
       for (const item of items) {
-        const ticket = await prepareUpload(mode.date, item.image.ext);
+        const { media } = item;
+        const ticket = await prepareUpload(mode.date, media.fullExt, media.thumbExt);
         if (!ticket.ok) throw new Error(ticket.message);
 
         const bucket = createClient().storage.from("photos");
         const [full, thumb] = await Promise.all([
-          bucket.uploadToSignedUrl(ticket.image.path, ticket.image.token, item.image.full, { contentType: item.image.type, cacheControl: "31536000" }),
-          bucket.uploadToSignedUrl(ticket.thumb.path, ticket.thumb.token, item.image.thumb, { contentType: item.image.type, cacheControl: "31536000" }),
+          bucket.uploadToSignedUrl(ticket.image.path, ticket.image.token, media.full, { contentType: media.fullType, cacheControl: "31536000" }),
+          bucket.uploadToSignedUrl(ticket.thumb.path, ticket.thumb.token, media.thumb, { contentType: media.thumbType, cacheControl: "31536000" }),
         ]);
-        if (full.error || thumb.error) throw new Error("Upload failed. Check your connection and try again.");
+        if (full.error || thumb.error) {
+          // Storage enforces the 5 MB cap itself; say so if that's what stopped it.
+          if (media.full.size > MAX_UPLOAD_BYTES) throw new Error(`That file is over ${formatMB(MAX_UPLOAD_BYTES)}.`);
+          throw new Error("Upload failed. Check your connection and try again.");
+        }
 
         const result =
           mode.kind === "replace"
-            ? await replacePhoto({ id: mode.photoId, imagePath: ticket.image.path, thumbPath: ticket.thumb.path })
+            ? await replacePhoto({ id: mode.photoId, mediaType: media.mediaType, imagePath: ticket.image.path, thumbPath: ticket.thumb.path })
             : await addPhoto({
                 date: mode.date,
+                mediaType: media.mediaType,
                 imagePath: ticket.image.path,
                 thumbPath: ticket.thumb.path,
                 caption: items.length === 1 ? caption : null,
@@ -148,10 +166,11 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
           >
             <span className="px-6 text-ink-soft">
               <span className="block font-hand text-2xl text-accent">
-                {processing ? "developing…" : "tap, or drop photos here"}
+                {processing ? "developing…" : "tap, or drop photos or videos here"}
               </span>
               <span className="text-sm">
-                {isReplace ? "It's resized on your phone before upload." : "Pick or drop as many as you like."}
+                {isReplace ? "Photos are resized on your phone before upload." : "Pick or drop as many as you like."}
+                <span className="block">Videos up to {formatMB(MAX_UPLOAD_BYTES)} each.</span>
               </span>
             </span>
           </label>
@@ -159,7 +178,7 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
         <input
           id={inputId}
           type="file"
-          accept="image/*"
+          accept="image/*,video/mp4,video/webm,video/quicktime"
           multiple={!isReplace}
           className="sr-only"
           disabled={busy || items.length >= maxFiles}
@@ -175,11 +194,12 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
               <div key={item.key} className="group relative aspect-square overflow-hidden rounded-control bg-paper-deep">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={item.preview} alt="" className="h-full w-full object-cover" />
+                {item.media.mediaType === "video" && <VideoBadge />}
                 <button
                   type="button"
                   onClick={() => removeItem(item.key)}
                   disabled={busy}
-                  aria-label="Remove this photo"
+                  aria-label={item.media.mediaType === "video" ? "Remove this video" : "Remove this photo"}
                   className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-ocean/85 text-xs text-white hover:bg-ocean"
                 >
                   ✕
@@ -220,13 +240,14 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
             {uploading
               ? "Saving…"
               : isReplace
-                ? "Replace photo"
-                : items.length > 1
-                  ? `Save ${items.length} photos`
-                  : "Save photo"}
+                ? items[0]?.media.mediaType === "video"
+                  ? "Replace with video"
+                  : "Replace photo"
+                : `Save ${itemsLabel(items) || "photo"}`}
           </button>
         </div>
       </div>
     </dialog>
   );
 }
+

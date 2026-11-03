@@ -3,15 +3,16 @@
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { PHOTO_BUCKET, getPhotoById } from "@/lib/data/photos";
+import type { ImageExt, MediaExt, MediaType } from "@/lib/media";
 import { requireUser } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/time";
 import {
   addPhotoSchema,
   captionSchema,
-  isoDate,
   photoIdSchema,
-  photoPathPattern,
+  prepareUploadSchema,
   replacePhotoSchema,
+  uploadPathsOk,
 } from "@/lib/validation/photos";
 
 type Fail = { ok: false; message: string };
@@ -27,18 +28,21 @@ function revalidate() {
   revalidatePath("/");
 }
 
-/** Step 1: hand out one-time signed upload URLs for the day's image and thumbnail. */
-export async function prepareUpload(date: string, ext: "webp" | "jpg"): Promise<UploadTicket | Fail> {
-  const parsed = isoDate.safeParse(date);
-  if (!parsed.success || (ext !== "webp" && ext !== "jpg")) return { ok: false, message: "Invalid date." };
-  if (parsed.data > todayISO()) return { ok: false, message: "That day hasn't happened yet." };
+/**
+ * Step 1: hand out one-time signed upload URLs for the day's file (an image, or a video) and
+ * its thumbnail (always an image). Storage itself refuses anything over 5 MB.
+ */
+export async function prepareUpload(date: string, fullExt: MediaExt, thumbExt: ImageExt): Promise<UploadTicket | Fail> {
+  const parsed = prepareUploadSchema.safeParse({ date, fullExt, thumbExt });
+  if (!parsed.success) return { ok: false, message: "Invalid upload." };
+  if (parsed.data.date > todayISO()) return { ok: false, message: "That day hasn't happened yet." };
 
   const { supabase, user } = await requireUser();
-  const base = `${user.id}/${parsed.data}-${randomBytes(8).toString("hex")}`;
+  const base = `${user.id}/${parsed.data.date}-${randomBytes(8).toString("hex")}`;
   const bucket = supabase.storage.from(PHOTO_BUCKET);
   const [image, thumb] = await Promise.all([
-    bucket.createSignedUploadUrl(`${base}.${ext}`),
-    bucket.createSignedUploadUrl(`${base}-thumb.${ext}`),
+    bucket.createSignedUploadUrl(`${base}.${parsed.data.fullExt}`),
+    bucket.createSignedUploadUrl(`${base}-thumb.${parsed.data.thumbExt}`),
   ]);
   if (image.error || thumb.error) {
     console.error("prepareUpload", image.error ?? thumb.error);
@@ -56,21 +60,21 @@ async function checkFilesUploaded(supabase: Awaited<ReturnType<typeof requireUse
   return !check.error && !check.data.some((d) => d.error);
 }
 
-/** Step 2a: record a new photo for a day. A day can have any number of photos. */
+/** Step 2a: record a new photo (or video) for a day. A day can have any number of them. */
 export async function addPhoto(input: {
   date: string;
+  mediaType?: MediaType;
   imagePath: string;
   thumbPath: string;
   caption?: string | null;
 }): Promise<{ ok: true } | Fail> {
   const parsed = addPhotoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid photo." };
-  const { date, imagePath, thumbPath, caption } = parsed.data;
+  const { date, mediaType, imagePath, thumbPath, caption } = parsed.data;
   if (date > todayISO()) return { ok: false, message: "That day hasn't happened yet." };
 
   const { supabase, user } = await requireUser();
-  const pattern = photoPathPattern(user.id, date);
-  if (!pattern.test(imagePath) || !pattern.test(thumbPath) || imagePath === thumbPath) {
+  if (!uploadPathsOk(user.id, date, mediaType, imagePath, thumbPath)) {
     return { ok: false, message: "Invalid upload." };
   }
 
@@ -78,7 +82,7 @@ export async function addPhoto(input: {
     return { ok: false, message: "The upload didn't finish. Try again." };
   }
 
-  const { error } = await supabase.from("photos").insert({ date, image_path: imagePath, thumb_path: thumbPath, caption });
+  const { error } = await supabase.from("photos").insert({ date, media_type: mediaType, image_path: imagePath, thumb_path: thumbPath, caption });
   if (error) {
     console.error("addPhoto", error);
     await supabase.storage.from(PHOTO_BUCKET).remove([imagePath, thumbPath]);
@@ -89,25 +93,32 @@ export async function addPhoto(input: {
   return { ok: true };
 }
 
-/** Step 2b: swap a specific photo's image, keeping its date and caption. */
-export async function replacePhoto(input: { id: string; imagePath: string; thumbPath: string }): Promise<{ ok: true } | Fail> {
+/** Step 2b: swap a specific photo's file (for a photo or a video), keeping its date and caption. */
+export async function replacePhoto(input: {
+  id: string;
+  mediaType?: MediaType;
+  imagePath: string;
+  thumbPath: string;
+}): Promise<{ ok: true } | Fail> {
   const parsed = replacePhotoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid photo." };
-  const { id, imagePath, thumbPath } = parsed.data;
+  const { id, mediaType, imagePath, thumbPath } = parsed.data;
 
   const { supabase, user } = await requireUser();
   const existing = await getPhotoById(supabase, id);
   if (!existing) return { ok: false, message: "That photo no longer exists." };
 
-  const pattern = photoPathPattern(user.id, existing.date);
-  if (!pattern.test(imagePath) || !pattern.test(thumbPath) || imagePath === thumbPath) {
+  if (!uploadPathsOk(user.id, existing.date, mediaType, imagePath, thumbPath)) {
     return { ok: false, message: "Invalid upload." };
   }
   if (!(await checkFilesUploaded(supabase, [imagePath, thumbPath]))) {
     return { ok: false, message: "The upload didn't finish. Try again." };
   }
 
-  const { error } = await supabase.from("photos").update({ image_path: imagePath, thumb_path: thumbPath }).eq("id", id);
+  const { error } = await supabase
+    .from("photos")
+    .update({ media_type: mediaType, image_path: imagePath, thumb_path: thumbPath })
+    .eq("id", id);
   if (error) {
     console.error("replacePhoto", error);
     await supabase.storage.from(PHOTO_BUCKET).remove([imagePath, thumbPath]);

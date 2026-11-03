@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addMonths, daysInMonth, leadingBlanks, monthDays } from "@/lib/calendar";
-import { isoDate, photoPathPattern } from "@/lib/validation/photos";
+import { isoDate, photoPathPattern, uploadPathsOk } from "@/lib/validation/photos";
 
 describe("calendar helpers", () => {
   it("knows month lengths and leap years", () => {
@@ -33,5 +33,18 @@ describe("photo validation", () => {
     expect(re.test("u2/2026-10-19-0123456789abcdef.webp")).toBe(false);
     expect(re.test("u1/2026-10-18-0123456789abcdef.webp")).toBe(false);
     expect(re.test("u1/../u2/2026-10-19-0123456789abcdef.webp")).toBe(false);
+  });
+
+  it("matches a video's file to its media type, with an image thumbnail", () => {
+    const d = "2026-10-19";
+    const p = (name: string) => `u1/${d}-0123456789abcdef${name}`;
+    expect(uploadPathsOk("u1", d, "video", p(".mp4"), p("-thumb.webp"))).toBe(true);
+    expect(uploadPathsOk("u1", d, "video", p(".mov"), p("-thumb.jpg"))).toBe(true);
+    expect(uploadPathsOk("u1", d, "image", p(".webp"), p("-thumb.webp"))).toBe(true);
+    expect(uploadPathsOk("u1", d, "image", p(".mp4"), p("-thumb.webp"))).toBe(false);
+    expect(uploadPathsOk("u1", d, "video", p(".webp"), p("-thumb.webp"))).toBe(false);
+    expect(uploadPathsOk("u1", d, "video", p(".mp4"), p("-thumb.mp4"))).toBe(false);
+    expect(uploadPathsOk("u1", d, "video", p("-thumb.mp4"), p("-thumb.webp"))).toBe(false);
+    expect(uploadPathsOk("u2", d, "video", p(".mp4"), p("-thumb.webp"))).toBe(false);
   });
 });

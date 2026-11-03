@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { MediaType } from "@/lib/media";
 
 export const PHOTO_BUCKET = "photos";
 const SIGNED_URL_TTL = 60 * 60; // 1 hour
@@ -6,6 +7,8 @@ const SIGNED_URL_TTL = 60 * 60; // 1 hour
 export type PhotoRow = {
   id: string;
   date: string;
+  /** "video" rows keep the video in image_path and a still frame in thumb_path. */
+  media_type: MediaType;
   image_path: string;
   thumb_path: string;
   caption: string | null;
@@ -19,11 +22,14 @@ export type PhotoView = {
   date: string;
   caption: string | null;
   isCover: boolean;
+  isVideo: boolean;
+  /** Always an image (a still frame, for videos). */
   thumbUrl: string;
+  /** The full image, or the video file. */
   fullUrl: string;
 };
 
-const COLUMNS = "id, date, image_path, thumb_path, caption, is_cover, created_at";
+const COLUMNS = "id, date, media_type, image_path, thumb_path, caption, is_cover, created_at";
 
 /** Multiple rows can share a date; ordered by date, then upload order within the day. */
 export async function listPhotos(supabase: SupabaseClient, from: string, to: string) {
@@ -68,6 +74,7 @@ export async function signPhotos(supabase: SupabaseClient, rows: PhotoRow[]): Pr
     date: r.date,
     caption: r.caption,
     isCover: r.is_cover,
+    isVideo: r.media_type === "video",
     thumbUrl: byPath.get(r.thumb_path) ?? "",
     fullUrl: byPath.get(r.image_path) ?? "",
   }));

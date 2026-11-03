@@ -156,13 +156,26 @@ export function Lightbox({
             if (dx < -50 && hasNext) go(index + 1);
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            key={photo.fullUrl}
-            src={photo.fullUrl}
-            alt={photo.caption ?? `Photo from ${dayLabel(photo.date)}`}
-            className="animate-fade-up max-h-full max-w-full rounded-control object-contain shadow-[0_16px_40px_-20px_rgb(var(--shadow)/0.45)]"
-          />
+          {photo.isVideo ? (
+            <video
+              key={photo.fullUrl}
+              src={photo.fullUrl}
+              poster={photo.thumbUrl}
+              controls
+              playsInline
+              preload="metadata"
+              aria-label={photo.caption ?? `Video from ${dayLabel(photo.date)}`}
+              className="animate-fade-up max-h-full max-w-full rounded-control bg-white object-contain shadow-[0_16px_40px_-20px_rgb(var(--shadow)/0.45)]"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={photo.fullUrl}
+              src={photo.fullUrl}
+              alt={photo.caption ?? `Photo from ${dayLabel(photo.date)}`}
+              className="animate-fade-up max-h-full max-w-full rounded-control object-contain shadow-[0_16px_40px_-20px_rgb(var(--shadow)/0.45)]"
+            />
+          )}
           <button type="button" onClick={() => go(index - 1)} disabled={!hasPrev} aria-label="Previous photo"
             className="absolute top-1/2 left-2 hidden -translate-y-1/2 rounded-full bg-mint px-4 py-3 text-2xl text-ocean hover:bg-aqua disabled:opacity-0 sm:block">
             ‹
@@ -216,7 +229,7 @@ export function Lightbox({
         </div>
       </div>
 
-      <ConfirmDialog open={confirmDelete} tone="danger" title="Delete this photo?" confirmLabel="Delete"
+      <ConfirmDialog open={confirmDelete} tone="danger" title={photo.isVideo ? "Delete this video?" : "Delete this photo?"} confirmLabel="Delete"
         pending={pending} onConfirm={remove} onCancel={() => setConfirmDelete(false)}>
         The picture for {dayLabel(photo.date)} will be removed for good.
       </ConfirmDialog>

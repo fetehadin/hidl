@@ -73,6 +73,13 @@ layer physically cannot violate it, even with a bug:
 - *Photos*: a day can hold any number of photos (no per-day limit); `photos_before_write` rejects future dates
   using `app_today()` (Africa/Addis_Ababa) as the server-side source of truth. Actions are keyed by photo `id`,
   not date, since a day's photos aren't unique (`src/actions/photos.ts`: `addPhoto`/`replacePhoto`/`deletePhoto`).
+- *Videos* (`..._photo_videos.sql`): a calendar entry can be a short video, stored as a `photos` row with
+  `media_type = 'video'`: `image_path` is the video (uploaded as-is, not re-encoded) and `thumb_path` a still
+  frame grabbed in the browser, so every thumbnail view works unchanged. The 5 MB cap is the bucket's
+  `file_size_limit` (enforced by Storage); `photos_media_matches_path` ties the type to the file extensions.
+  `src/lib/media.ts` mirrors the limit/types (no zod, so client code can use it); `PhotoView.isVideo` drives the
+  `<video>` in the lightbox and the `VideoBadge` on thumbnails. The service worker never caches videos (players
+  use Range requests, which a cached whole-file response can't answer).
 - *Countdowns* (`supabase/migrations/..._countdowns.sql`, `..._countdown_kinds.sql`): eight kinds (`exam`,
   `graduation`, `birthday`, `wedding`, `work`, `trip`, `life`, and `deadline`, shown as "Other"). A check
   constraint ties scores to kind (`exam` requires `target_score`/`max_score`, every other kind forbids them), and
@@ -102,7 +109,8 @@ still applies, uses the user's own session), then deletes the `auth.users` row v
 `on delete cascade`. Covered end-to-end in `tests/integration/account-deletion.test.ts`.
 
 **Photo upload is two-step and bypasses Vercel's body-size limit on purpose.** Images are resized client-side
-(`src/lib/image.ts`: 1600px full image + 480px thumbnail, WebP or JPEG) and uploaded directly to Supabase Storage
+(`src/lib/image.ts` `processMedia`: 1600px full image + 480px thumbnail, WebP or JPEG; videos ≤ 5 MB go up as-is
+with a frame-grab thumbnail) and uploaded directly to Supabase Storage
 via one-time signed URLs, never through a Vercel function. The flow (`src/actions/photos.ts`):
 1. `prepareUpload()` — issues a `createSignedUploadUrl` for both the image and the thumbnail.
 2. (client uploads both files directly to Supabase Storage)

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { UploadSheet, usePreloadPhotoTools } from "@/components/calendar/lazy";
+import { VideoBadge } from "@/components/calendar/video-badge";
 import type { PhotoView } from "@/lib/data/photos";
 
 export function DashboardTodayPhoto({ photo, today }: { photo: PhotoView | null; today: string }) {
@@ -13,8 +14,17 @@ export function DashboardTodayPhoto({ photo, today }: { photo: PhotoView | null;
     return (
       <Link href="/calendar" className="block overflow-hidden rounded-control">
         <div className="aspect-[4/3] overflow-hidden rounded-control ring-1 ring-inset ring-line">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo.fullUrl} alt={photo.caption ?? "Today's photo"} className="h-full w-full object-cover" />
+          {photo.isVideo ? (
+            // The still frame, not the video itself: no download or motion on every dashboard visit.
+            <span className="relative block h-full w-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photo.thumbUrl} alt={photo.caption ?? "Today's video"} className="h-full w-full object-cover" />
+              <VideoBadge className="absolute bottom-2 left-2" />
+            </span>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photo.fullUrl} alt={photo.caption ?? "Today's photo"} className="h-full w-full object-cover" />
+          )}
         </div>
         {photo.caption && <p className="mt-2 text-ink-soft">{photo.caption}</p>}
       </Link>

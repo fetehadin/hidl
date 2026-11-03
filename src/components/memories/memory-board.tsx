@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { VideoBadge } from "@/components/calendar/video-badge";
 import { Lightbox, UploadSheet, usePreloadPhotoTools } from "@/components/calendar/lazy";
 import type { PhotoView } from "@/lib/data/photos";
 import { useCalendarPref } from "@/components/calendar-pref";
@@ -548,6 +549,7 @@ function Island({
           ) : (
             <span className="block aspect-[4/5] w-full rounded-[0.7rem] bg-paper-deep" />
           )}
+          {photo.isVideo && loaded && <VideoBadge className="absolute top-2 left-2" />}
           {photo.caption && (
             <span className="mt-1.5 block truncate px-0.5 text-left font-hand text-[17px] leading-tight text-ink-soft">
               {photo.caption}

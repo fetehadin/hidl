@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { WEEKDAYS, leadingBlanks, monthDays } from "@/lib/calendar";
 import type { PhotoView } from "@/lib/data/photos";
 import { Lightbox, UploadSheet, usePreloadPhotoTools } from "./lazy";
+import { VideoBadge } from "./video-badge";
 
 type UploadMode = { kind: "add"; date: string } | { kind: "replace"; date: string; photoId: string };
 
@@ -141,11 +142,12 @@ export function MonthGrid({
                   onKeyDown={(e) => onGridKeyDown(e, i)}
                   onClick={(e) => openLightbox(photos.indexOf(cover), e.currentTarget)}
                   className={`group relative min-h-0 overflow-hidden rounded-control bg-paper-deep ${ring}`}
-                  aria-label={`${date}${cover.caption ? `: ${cover.caption}` : ""}. ${dayPhotos.length > 1 ? `${dayPhotos.length} photos. ` : ""}Open photo`}
+                  aria-label={`${date}${cover.caption ? `: ${cover.caption}` : ""}. ${dayPhotos.length > 1 ? `${dayPhotos.length} photos and videos. ` : ""}Open ${cover.isVideo ? "video" : "photo"}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={cover.thumbUrl} alt="" loading="lazy" decoding="async"
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  {cover.isVideo && <VideoBadge className="absolute bottom-1 left-1 scale-75 sm:scale-100" />}
                   <span className="absolute top-0.5 left-1 text-[11px] font-bold text-white [text-shadow:0_1px_2px_rgb(0_0_0/0.7)] sm:text-xs">
                     {day}
                   </span>

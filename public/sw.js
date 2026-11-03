@@ -3,8 +3,8 @@
 // 1. Exist, so browsers offer a real home-screen install (one of the installability checks).
 //    Pages themselves are never cached: every page is per-user and rendered fresh.
 //
-// 2. Keep photos on the device. Photo files are immutable (a replaced photo gets a brand new
-//    random path), but the app shows them through signed URLs whose token changes on every
+// 2. Keep photos on the device (not videos, see VIDEO_FILE). Photo files are immutable (a
+//    replaced photo gets a brand new random path), but the app shows them through signed URLs whose token changes on every
 //    page load, so the browser's normal HTTP cache never gets a hit and every visit re-downloaded
 //    every photo. Here they're cached by path, ignoring the token: each photo is downloaded once.
 //    The cache is wiped on the sign-in page (after sign-out or account deletion), see
@@ -42,10 +42,14 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Videos (calendar entries can be short videos) are left to the network: players fetch them
+// with Range requests, which a cached whole-file response can't answer (Safari won't play it).
+const VIDEO_FILE = /\.(mp4|webm|mov)$/i;
+
 function isPhoto(request) {
   if (request.method !== "GET") return false;
   const url = new URL(request.url);
-  return url.pathname.includes("/storage/v1/object/sign/photos/");
+  return url.pathname.includes("/storage/v1/object/sign/photos/") && !VIDEO_FILE.test(url.pathname);
 }
 
 async function trim(cache) {

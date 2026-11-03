@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { IMAGE_EXTS, VIDEO_EXTS } from "@/lib/media";
 
 export const isoDate = z
   .string()
@@ -27,8 +28,11 @@ export const caption = z
 
 export const photoIdSchema = z.uuid();
 
+export const mediaTypeSchema = z.enum(["image", "video"]).default("image");
+
 export const addPhotoSchema = z.object({
   date: isoDate,
+  mediaType: mediaTypeSchema,
   imagePath: z.string().min(1).max(200),
   thumbPath: z.string().min(1).max(200),
   caption,
@@ -36,13 +40,34 @@ export const addPhotoSchema = z.object({
 
 export const replacePhotoSchema = z.object({
   id: photoIdSchema,
+  mediaType: mediaTypeSchema,
   imagePath: z.string().min(1).max(200),
   thumbPath: z.string().min(1).max(200),
 });
 
+export const prepareUploadSchema = z.object({
+  date: isoDate,
+  fullExt: z.enum([...IMAGE_EXTS, ...VIDEO_EXTS]),
+  thumbExt: z.enum(IMAGE_EXTS),
+});
+
 export const captionSchema = z.object({ id: photoIdSchema, caption });
+
+const ALL_EXTS = [...IMAGE_EXTS, ...VIDEO_EXTS].join("|");
 
 /** Storage paths must be <uid>/<date>-<random>[-thumb].<ext> inside the user's folder. */
 export function photoPathPattern(userId: string, date: string) {
-  return new RegExp(`^${userId}/${date}-[a-z0-9]{10,}(-thumb)?\\.(webp|jpg)$`);
+  return new RegExp(`^${userId}/${date}-[a-z0-9]{10,}(-thumb)?\\.(${ALL_EXTS})$`);
+}
+
+/**
+ * Both paths are in the user's folder for that day, the thumbnail is an image named -thumb,
+ * and the main file is the kind the row says it is (mirrors photos_media_matches_path).
+ */
+export function uploadPathsOk(userId: string, date: string, mediaType: "image" | "video", imagePath: string, thumbPath: string) {
+  const pattern = photoPathPattern(userId, date);
+  if (!pattern.test(imagePath) || !pattern.test(thumbPath) || imagePath === thumbPath) return false;
+  if (imagePath.includes("-thumb.") || !new RegExp(`-thumb\\.(${IMAGE_EXTS.join("|")})$`).test(thumbPath)) return false;
+  const exts = mediaType === "video" ? VIDEO_EXTS : IMAGE_EXTS;
+  return new RegExp(`\\.(${exts.join("|")})$`).test(imagePath);
 }
