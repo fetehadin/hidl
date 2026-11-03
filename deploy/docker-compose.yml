@@ -1,0 +1,35 @@
+# hidl on the Contabo VPS. Lives in /opt/hidl next to a .env file (see deploy/env.example).
+# `docker compose up -d` starts the app; add `--profile edge` only if no other reverse proxy
+# already owns ports 80/443 on the server.
+services:
+  web:
+    image: ghcr.io/fetehadin/hidl:${HIDL_TAG:-latest}
+    env_file: .env
+    restart: unless-stopped
+    expose: ["3000"]
+
+  # Replaces Vercel Cron: the daily unlock-email job at 05:00 UTC.
+  cron:
+    image: alpine:3.20
+    env_file: .env
+    restart: unless-stopped
+    depends_on: [web]
+    command: >
+      sh -c "apk add --no-cache curl >/dev/null &&
+      echo '0 5 * * * curl -fsS -H \"Authorization: Bearer $$CRON_SECRET\" http://web:3000/api/cron/unlock-emails' | crontab - &&
+      crond -f"
+
+  caddy:
+    profiles: ["edge"]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      HIDL_DOMAIN: ${HIDL_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [web]
+
+volumes:
+  caddy_data:

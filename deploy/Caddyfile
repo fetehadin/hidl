@@ -1,0 +1,5 @@
+# Automatic HTTPS for the app. Without a domain yet, HIDL_DOMAIN=169-58-96-52.sslip.io works.
+{$HIDL_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}

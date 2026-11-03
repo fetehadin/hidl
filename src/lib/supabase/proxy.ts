@@ -46,8 +46,9 @@ export async function updateSession(request: NextRequest) {
 
   // Optimistic redirect only. Pages and actions re-check with requireUser().
   // /api/cron and /api/widget authorize themselves (a secret header, a per-user token) —
-  // they have no session to redirect from in the first place.
-  if (!signedIn && !isPublic && !pathname.startsWith("/api/cron") && !pathname.startsWith("/api/widget")) {
+  // they have no session to redirect from in the first place. /api/health has no data at all.
+  const selfAuthorized = ["/api/cron", "/api/widget", "/api/health"].some((p) => pathname.startsWith(p));
+  if (!signedIn && !isPublic && !selfAuthorized) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
