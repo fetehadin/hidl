@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "hidl",
+    "slug": "hidl",
+    "scheme": "hidl",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.hidl.mobile"
+    },
+    "android": {
+      "package": "app.hidl.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#c8e6e2",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "Countdown",
+              "label": "hidl countdown",
+              "description": "Time left on one of your hidl countdowns",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 3,
+              "targetCellHeight": 2,
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ]
+    ]
+  }
+}
