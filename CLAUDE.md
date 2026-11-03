@@ -1,271 +1,205 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Shared project context for Claude Code (and humans) working in this repo. Keep it current: when a change adds a
+module, changes the architecture, adds a command, or sets a new convention, update this file (and
+[`docs/architecture.md`](docs/architecture.md) if the detail lives there) **in the same commit**.
 
-## What this is
+Deeper reading: [`docs/architecture.md`](docs/architecture.md) (how each feature works, file by file) and the
+README's "How the important rules are enforced" table (every hard rule and the Postgres object that enforces it).
 
-A personal journal app (for anyone, not only students): time-locked letters to your future self, countdowns to any number of deadlines
-(exams with a target score, or plain deadlines), and a photo calendar with any number of photos per day.
-Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 + Supabase (Auth, Postgres, Storage), designed to run
-entirely on free tiers (Vercel Hobby + Supabase free + optional Resend/Gmail SMTP). Access is restricted to
-`ALLOWED_EMAIL` — a comma-separated allowlist, or `*` to let anyone sign up (the data model is already correctly
-multi-tenant via RLS, so this is a real supported mode, not just a loophole). Anyone can permanently delete their
-own account and everything in it from `/account`.
+## 1. Product
 
-Everything meaningful about *why* a rule exists and *where* it's enforced is in the README's "How the important
-rules are enforced" table — read that before touching letters, photos, or auth. The short version: correctness for
-the sealing/locking rules lives in Postgres (RLS, column grants, triggers, `SECURITY DEFINER` functions), not in
-application code, so the app can never accidentally bypass them.
+**hidl** is a personal journal web app, installable as a PWA (there is no native app):
 
-## Commands
+- **Time-locked letters** to your future self, sealed until an opening date, end-to-end encrypted in the browser.
+- **Countdowns**: any number, eight kinds (exam with target/actual score, graduation, birthday, wedding, work, trip,
+  life, other), shown in the units the user picks; one can be starred, and any can feed an Android home-screen
+  widget through a token-authenticated JSON feed.
+- **Photo calendar**: any number of photos or short videos (≤ 5 MB) per day, a pinned "wallpaper" per day, a
+  year view, and `/memories`, a pannable board of past days.
+- Gregorian or Ethiopian date display, a buildable avatar ("buddy") based on the mascot Hidi, account self-deletion,
+  a landing page and install guide for signed-out visitors.
+
+Who it's for: one person or a short allowlist (`ALLOWED_EMAIL=a@x.com,b@y.com`), or anyone (`ALLOWED_EMAIL=*`).
+Every account's data is isolated by Postgres RLS either way. It is built to run entirely on free tiers (Vercel
+Hobby, Supabase free, optional Resend).
+
+## 2. Tech stack
+
+| Area | What | Version (package.json) |
+| --- | --- | --- |
+| Framework | Next.js App Router, Turbopack, React | `next` 16.4.2, `react` 19.3.0 |
+| Language | TypeScript (strict), path alias `@/*` → `src/*` | `typescript` ^5 |
+| Styling | Tailwind CSS 4 (`@tailwindcss/turbopack`), tokens in `src/app/globals.css` | `tailwindcss` ^4 |
+| Backend | Supabase: Auth (magic link, optional Google), Postgres 17, Storage | `@supabase/ssr` ^0.12.7, `@supabase/supabase-js` ^2.118 |
+| Validation | zod (server only) | `zod` ^4.6.7 |
+| Dates | date-fns + `@date-fns/tz`; hand-rolled Ethiopian calendar | `date-fns` ^4.4 |
+| Tests | Vitest, two projects: `unit` and `integration` | `vitest` ^5.0.5 |
+| Lint | ESLint 9 flat config, `eslint-config-next` core-web-vitals + typescript | |
+| Tooling | pnpm (pinned via `packageManager`), Node 22 in CI, Supabase CLI (dev dep) | `pnpm` 10.34.6 |
+| Hosting | Vercel (functions pinned to `cdg1`), Supabase, Resend for optional emails | |
+
+## 3. Architecture
+
+**Next.js 16 is not the Next.js in most training data.** Middleware is called "proxy" (`src/proxy.ts` exports
+`proxy()`). Before writing Next-specific code, read the relevant guide in `node_modules/next/dist/docs/` (see
+`AGENTS.md`). Cache Components/PPR are off on purpose: every page is per-user and rendered at request time.
+
+**Request flow.** `src/proxy.ts` → `updateSession` (`src/lib/supabase/proxy.ts`) refreshes the session cookie,
+rewrites `/` to `/welcome` for signed-out desktop visitors, and redirects other signed-out requests to `/login`.
+That redirect is only a UX shortcut. **The security boundary is `requireUser()`** (`src/lib/supabase/server.ts`),
+which re-checks the session and the `ALLOWED_EMAIL` allowlist. Every server component, server action and route
+handler that touches data calls it, then queries Supabase **as the user**, so RLS applies.
+
+**Rules live in Postgres, not app code.** Sealing letters, immutability, no future-dated photos, one starred
+countdown, unreadable token hashes, and so on are enforced by column grants, triggers, check constraints, partial
+unique indexes and `SECURITY DEFINER` functions. The TypeScript side mirrors those rules for UX but never replaces
+them. Details per feature: [`docs/architecture.md`](docs/architecture.md#core-architecture).
+
+**Mutations** happen only in server actions (`src/actions/*.ts`) plus two route handlers: the unlock-email cron
+and `/auth/confirm`. The widget feed is read-only. Photo files never pass through Vercel: the browser resizes
+them (`src/lib/image.ts`) and uploads them straight to Storage with one-time signed URLs (`prepareUpload` →
+direct upload → `addPhoto`/`replacePhoto`).
+
+**Key directories**
+
+```
+src/proxy.ts                 Next 16 proxy: session refresh + optimistic redirect
+src/app/(app)/               Signed-in pages: dashboard, letters, countdown, calendar (+year), memories, account
+src/app/(auth)/login/        Sign-in (magic link, optional Google, optional Turnstile)
+src/app/(marketing)/         Public /welcome and /install (the only indexable pages)
+src/app/auth/confirm/        Magic-link / OAuth callback
+src/app/api/cron/            Daily unlock-email job (Bearer CRON_SECRET, off unless ENABLE_UNLOCK_EMAILS=true)
+src/app/api/widget/          Public countdown JSON feed, authenticated by a per-feed token
+src/actions/                 Server actions: auth, letters, encryption, countdowns, photos, preferences
+src/lib/supabase/            server.ts (createClient, requireUser), client.ts (browser), proxy.ts, admin.ts
+src/lib/data/                Typed read queries per table
+src/lib/validation/          zod schemas used by every action and route handler (server only)
+src/lib/                     Pure helpers: time, dates, ethiopian, calendar, countdown-kinds/units, e2ee,
+                             key-store, image, media, memories, avatar, env, public-env
+src/components/              UI, grouped by feature (letters/, countdown/, calendar/, account/, ...)
+public/sw.js                 Service worker: caches photo files, offline page; never caches pages
+supabase/migrations/         The schema, in order; supabase/config.toml is the local stack config
+supabase/templates/          Branded magic-link and confirm-signup emails (need custom SMTP in prod)
+tests/unit/                  Pure logic, no services
+tests/integration/           Against a real local Supabase
+.github/workflows/           ci.yml (typecheck, lint, unit tests), deploy.yml (Vercel prod deploy after CI on main)
+```
+
+## 4. Data model
+
+All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_id` references `auth.users(id)`
+**on delete cascade**, which is how account deletion removes everything.
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| `letters` | `title`, `recipient`, `occasion`, `body`, `encrypted`, `unlock_at`, `opened_at`, `unlock_email_sent_at` | No `SELECT` on `body`: read only through `open_letter(id)` once `now() >= unlock_at`. Only `unlock_at` is updatable, and only later. |
+| `letter_keys` | `user_id` (PK), `kdf_salt`, `kdf_iterations`, `passphrase_wrapped_key`, `recovery_wrapped_key` | One per user. The letter key wrapped twice; no `DELETE`, the recovery copy can't change. |
+| `countdowns` | `kind`, `title`, `target_at`, `target_score`/`max_score`/`actual_score`, `details` jsonb, `units` text[], `is_widget` | `kind` can't be updated; scores only for `exam`; `details` checked by `countdown_details_ok`; one `is_widget` per user. |
+| `widget_tokens` | `id`, `user_id`, `countdown_id` (null = follow the starred one), `token_hash` | `(countdown_id, user_id)` FK → `countdowns(id, user_id)`; `token_hash` is never selectable. |
+| `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover` | Many per day; no future dates (`app_today()`); paths must be in the user's folder; one cover per `(user_id, date)`. |
+| `profiles` | `user_id` (PK), `avatar` jsonb | Checked by `avatar_ok()`, which mirrors `AVATAR_PARTS` in `src/lib/avatar.ts`. |
+
+Storage: one private `photos` bucket, `<user_id>/...` folders, 5 MB per file, JPEG/WebP/MP4/WebM/MOV only.
+User preference `calendar` (Gregorian/Ethiopian) lives in `auth.users.user_metadata`, not a table.
+`exam_settings` from the first migrations was migrated into `countdowns` and dropped.
+
+## 5. Commands
 
 ```bash
+corepack enable                 # once, to get the pinned pnpm
 pnpm install
-pnpm db:start              # local Supabase in Docker (Postgres, Auth, Storage, Studio, Mailpit); applies migrations
-pnpm db:status              # prints local URLs/keys for .env.local
-pnpm dev                    # dev server (Turbopack)
+pnpm db:start                   # local Supabase in Docker (needs Docker); applies migrations
+pnpm db:status                  # local URLs/keys to copy into .env.local (template: .env.example)
+pnpm dev                        # http://localhost:3000; magic links arrive in Mailpit at http://127.0.0.1:54324
 
-pnpm typecheck               # next typegen && tsc --noEmit
-pnpm lint                    # eslint
-pnpm test                    # unit tests (vitest project "unit")
-pnpm test:integration        # integration tests against local Supabase (vitest project "integration"); needs db:start
-pnpm test:all                # both
+pnpm typecheck                  # next typegen && tsc --noEmit
+pnpm lint                       # eslint
+pnpm test                       # unit tests only (what CI runs)
+pnpm test:integration           # needs db:start; refuses non-local Supabase URLs; runs files serially
+pnpm test:all                   # both
+pnpm vitest run tests/unit/time.test.ts   # one file
 
-pnpm db:reset                # recreate local DB from supabase/migrations
-pnpm exec supabase migration new <name>   # new migration file
+pnpm build && pnpm start        # production build locally
+
+pnpm exec supabase migration new <name>   # new migration (always a NEW file)
+pnpm db:reset                   # rebuild the local DB from supabase/migrations
+pnpm db:stop
 ```
 
-Single test file: `pnpm vitest run tests/unit/time.test.ts` (or any path under `tests/unit` / `tests/integration`).
-Integration tests refuse to run against a non-local Supabase URL (checked in `tests/integration/setup.ts`) and run
-with `fileParallelism: false` (see `vitest.config.mts`) since they share one local database.
+Before pushing: `pnpm typecheck && pnpm lint && pnpm test:all`.
 
-Before pushing: `pnpm typecheck && pnpm lint && pnpm test:all`. CI (`.github/workflows/ci.yml`) runs typecheck,
-lint, and unit tests only (not integration, since it has no Docker/Supabase).
+Deploy: pushing to `main` runs CI, then `deploy.yml` runs `vercel deploy --prod`, which needs the `VERCEL_TOKEN`
+repo secret. Production schema changes go out with `pnpm exec supabase db push` against the linked project.
+Production env vars are listed in the README.
 
-Database changes always go in a **new** migration file — never edit one that has already been pushed. Apply
-locally with `pnpm db:reset`.
+## 6. Conventions
 
-## Architecture
+- **Server actions** (`"use server"`): parse input with the zod schema from `src/lib/validation/` first, then call
+  `requireUser()`, query with the returned `supabase` (never the admin client unless there's no other way), and
+  call `revalidatePath` for every page the change affects. Form actions take `(prevState, formData)` and return a
+  `FormState` (`{ status, message?, fieldErrors?, values? }`); other actions return `{ ok: true } | { ok: false,
+  message }`. Log failures with `console.error("<actionName>", error)` and show the user a short, friendly message.
+- **Every mutating action must call `revalidatePath`.** `experimental.staleTimes` keeps pages in the client cache,
+  and only revalidation clears it.
+- **Reads** go through `src/lib/data/*` (throw on error, return typed rows). Letter queries use
+  `LETTER_META_COLUMNS`, which never includes `body`.
+- **Mirrored rules:** when a Postgres rule has a TypeScript mirror, change both in the same commit:
+  `countdown_details_ok` ↔ `src/lib/countdown-kinds.ts`, `countdown_units_ok` ↔ `src/lib/countdown-units.ts`,
+  `avatar_ok` ↔ `src/lib/avatar.ts`, bucket limits ↔ `src/lib/media.ts`.
+- **Client components must not import zod** or anything that does (`src/lib/validation/*`, `src/lib/env.ts`). Use
+  `src/lib/public-env.ts` in the browser.
+- **Time:** store `timestamptz` (UTC); a calendar day is a `date` in Africa/Addis_Ababa. Use the helpers in
+  `src/lib/time.ts` (`todayISO`, `nowInAppTz`, `localToUtc`, `utcToLocalInput`) instead of building `Date`s for
+  anything shown to or typed by the user. Show dates through the user's calendar preference (`requireUser().calendar`
+  on the server, `useCalendarPref`/`useFormatDay` on the client).
+- **Migrations:** never edit one that has been pushed; add a new timestamped file. New tables get RLS, explicit
+  column grants (`revoke all` then grant per column), `on delete cascade` to `auth.users`, and
+  `set search_path = ''` on functions. Functions aren't executable by `anon` by default; grant execute explicitly.
+- **Lazy-load the heavy calendar pieces** through `src/components/calendar/lazy.tsx`, not by direct import.
+- **Style:** light-only teal theme; follow the color rules in `docs/architecture.md` (Visual language).
+  kebab-case file names, named exports, comments that explain *why*.
+- **Tests:** pure logic gets a unit test in `tests/unit/`; database rules get an integration test in
+  `tests/integration/`.
+- **Branches and PRs:** never commit to `main` directly. Work on a branch (`feat/…`, `fix/…`, `docs/…`), push, and
+  open a PR. If CI passes and there are no conflicts, merge it (merging to `main` deploys to production).
+- **Commits:** a short, sentence-case summary of the user-visible change, no type prefix, no trailing period
+  (e.g. "Faster tab switching and photo uploads on phones"). One feature per commit. No AI attribution lines.
+- **Env:** never commit `.env*` (only `.env.example`). A new variable gets a placeholder in `.env.example` and a row
+  in the README.
 
-**This is Next.js 16, not the Next.js in most training data** — middleware is renamed to "proxy": the file is
-`src/proxy.ts` (not `middleware.ts`), and it exports `proxy()` instead of `middleware()`. Before writing
-Next.js-specific code, check `node_modules/next/dist/docs/` for breaking changes rather than assuming prior Next.js
-knowledge. Cache Components/PPR are intentionally left off in `next.config.ts` — every page is per-user and
-rendered at request time.
+## 7. Gotchas
 
-**Auth has two layers, both required:**
-- `src/proxy.ts` → `src/lib/supabase/proxy.ts` (`updateSession`): runs on every matched request, refreshes the
-  session cookie, and does an *optimistic* redirect to `/login` for unauthenticated users on non-public paths.
-  This is a UX optimization only — it is not the security boundary.
-- `src/lib/supabase/server.ts` (`requireUser()`): the actual security boundary. Re-checks the session server-side
-  and checks `ALLOWED_EMAIL` via `isAllowedEmail()` in `src/lib/env.ts`. Every server component, server action,
-  and route handler that touches data must call this. A session that's valid but not on the allowlist gets signed
-  out and redirected with `?error=not-allowed`.
+- **Public routes are allowlisted by name in two places.** Static files are skipped in the `src/proxy.ts` matcher;
+  public paths (`PUBLIC_PATHS`, `/api/cron`, `/api/widget`) are skipped in `updateSession`. Anything new and public
+  that isn't added gets a 307 to `/login`. This has happened twice.
+- **Don't use `.upsert()` on column-restricted tables** (`widget_tokens`, `letters`). `ON CONFLICT` needs table-wide
+  `SELECT`. Update first, then insert.
+- **Swap flags in one function call.** The one-per-user indexes (`is_widget`, `is_cover`) are flipped atomically by
+  `set_widget_countdown` / `set_cover_photo`. Don't do two separate updates.
+- **Encrypted letters:** anything that reads or writes a letter body must sit inside `<LetterKeyGate>`. Older letters
+  (`encrypted = false`) are plain text and stay that way.
+- **`ALLOWED_EMAIL` is checked in three places:** the login action, `/auth/confirm` (which also deletes a
+  just-created Google account that isn't allowed), and `requireUser()`.
+- **Vercel region:** `vercel.json` pins `cdg1` to sit next to the Supabase project. Move them together.
+- **Service worker:** bump the cache names in `public/sw.js` if the cached format changes. Videos are never cached.
+- **Stale `.next`:** mixing `pnpm build` and `pnpm dev` can break `next/font/google` in dev (a 500 on first load).
+  `rm -rf .next` fixes it.
+- **`/calendar` layout:** the month grid fits the viewport using `--chrome`. Anything added above or below it needs
+  `--chrome` adjusted.
+- **Orphaned uploads:** if a tab closes mid-upload, files can be left in Storage. Nothing cleans those up yet.
+- **CI doesn't run integration tests** (there's no Docker/Supabase in CI). Run `pnpm test:all` locally for any
+  database change.
+- `next dev` may rewrite `AGENTS.md`. Commit that block as it is instead of fighting it.
 
-**Database-enforced invariants, not app-enforced.** Each feature pushes its hard rule into Postgres so the app
-layer physically cannot violate it, even with a bug:
-- *Letters* (`supabase/migrations/..._letters.sql`): `authenticated` has no `SELECT` grant on the `body` column at
-  all — only `public.open_letter(id)`, a `SECURITY DEFINER` function, can return it, and only after checking
-  `now() >= unlock_at` with the **database's** clock. Triggers (`letters_before_update`) make a letter immutable
-  except `unlock_at`, which can only move later. `src/lib/data/letters.ts` mirrors this: `LETTER_META_COLUMNS`
-  never includes `body`; reading it goes through `openLetter()` → the RPC, with `LetterSealedError` thrown on the
-  `hint: "sealed"` error code.
-- *Letter encryption* (`..._letter_encryption.sql`, `src/lib/e2ee.ts`): new letter bodies are end-to-end
-  encrypted in the browser (`e2e1.<iv>.<ct>`, AES-256-GCM) with a per-user letter key. `letter_keys` holds that
-  key only wrapped twice: by PBKDF2(passphrase) and by a recovery key shown once. The server never sees the
-  passphrase, recovery key, raw key, or text: `createLetter` only accepts the ciphertext shape and sets
-  `encrypted = true`. Anything that writes or reads an encrypted body sits inside `<LetterKeyGate>`
-  (`src/components/letters/letter-key.tsx`: setup → recovery key → unlock), which provides `useLetterKey()`.
-  The unlocked key is remembered per device as a non-extractable CryptoKey in IndexedDB (`src/lib/key-store.ts`),
-  wiped on `/login` with the photo cache. Changing the passphrase re-wraps the *same* key (needs the current
-  passphrase or the recovery key), so old letters still open. `open_letter` predates `encrypted`; read the flag
-  from the letter's meta. Older letters (`encrypted = false`) stay plain text: they're immutable once sealed.
-- *Photos*: a day can hold any number of photos (no per-day limit); `photos_before_write` rejects future dates
-  using `app_today()` (Africa/Addis_Ababa) as the server-side source of truth. Actions are keyed by photo `id`,
-  not date, since a day's photos aren't unique (`src/actions/photos.ts`: `addPhoto`/`replacePhoto`/`deletePhoto`).
-- *Videos* (`..._photo_videos.sql`): a calendar entry can be a short video, stored as a `photos` row with
-  `media_type = 'video'`: `image_path` is the video (uploaded as-is, not re-encoded) and `thumb_path` a still
-  frame grabbed in the browser, so every thumbnail view works unchanged. The 5 MB cap is the bucket's
-  `file_size_limit` (enforced by Storage); `photos_media_matches_path` ties the type to the file extensions.
-  `src/lib/media.ts` mirrors the limit/types (no zod, so client code can use it); `PhotoView.isVideo` drives the
-  `<video>` in the lightbox and the `VideoBadge` on thumbnails. The service worker never caches videos (players
-  use Range requests, which a cached whole-file response can't answer).
-- *Countdowns* (`supabase/migrations/..._countdowns.sql`, `..._countdown_kinds.sql`): eight kinds (`exam`,
-  `graduation`, `birthday`, `wedding`, `work`, `trip`, `life`, and `deadline`, shown as "Other"). A check
-  constraint ties scores to kind (`exam` requires `target_score`/`max_score`, every other kind forbids them), and
-  per-kind details live in a `details` jsonb column checked by `countdown_details_ok(kind, details)` (allowed keys,
-  types, lengths). Its key list is mirrored in `src/lib/countdown-kinds.ts` (labels, form fields, card text), which
-  the zod schema (`parseCountdown`) is built from; change both together. `kind` has no `UPDATE` grant,
-  so it can't be changed after creation. A partial unique index, `countdowns (user_id) where is_widget`, allows
-  at most one starred countdown per user; `set_widget_countdown(id)` flips it atomically (clear-then-set in one
-  function call) so that index is never transiently violated.
-- *Cover photos*: `photos.is_cover` marks a day's pinned "wallpaper"; a partial unique index allows one per
-  `(user_id, date)`, and `set_cover_photo(id, pinned)` moves it (clear-then-set, like `set_widget_countdown`).
-  The calendar, dashboard and month grid show the pinned photo, falling back to the first one.
-- *Widget tokens*: one row per feed. `countdown_id` null is the "starred countdown" feed; otherwise the token
-  serves only that countdown (composite FK `(countdown_id, user_id)` → `countdowns (id, user_id)`, so it can't
-  point at another user's countdown, and deleting the countdown deletes the token; `unique nulls not distinct
-  (user_id, countdown_id)`). `widget_tokens.token_hash` has no `SELECT` grant to anyone, including its owner — same
-  column-restriction pattern as `letters.body`. The public feed (`src/app/api/widget/countdown`) looks it up by
-  `=` via the service-role client; nothing else can read it back. Generating one must use plain
-  update-then-insert, not `.upsert()` — Postgres's `ON CONFLICT DO UPDATE` needs full-table `SELECT` to detect the
-  conflict, which a column-restricted table can't satisfy (`src/actions/countdowns.ts` `generateWidgetToken`).
-- Every table has RLS scoped to `user_id = auth.uid()`, and the `photos` storage bucket is split into per-user
-  folders with matching storage policies.
+## 8. Open questions
 
-**Account deletion** (`deleteAccount()` in `src/actions/auth.ts`) removes the user's storage files first (RLS
-still applies, uses the user's own session), then deletes the `auth.users` row via `createAdminClient()`
-(service-role, `src/lib/supabase/admin.ts`) — which cascades to `letters`, `photos`, and `countdowns` via
-`on delete cascade`. Covered end-to-end in `tests/integration/account-deletion.test.ts`.
-
-**Photo upload is two-step and bypasses Vercel's body-size limit on purpose.** Images are resized client-side
-(`src/lib/image.ts` `processMedia`: 1600px full image + 480px thumbnail, WebP or JPEG; videos ≤ 5 MB go up as-is
-with a frame-grab thumbnail) and uploaded directly to Supabase Storage
-via one-time signed URLs, never through a Vercel function. The flow (`src/actions/photos.ts`):
-1. `prepareUpload()` — issues a `createSignedUploadUrl` for both the image and the thumbnail.
-2. (client uploads both files directly to Supabase Storage) — the upload sheet does steps 1–2 **in the
-   background as soon as a photo is picked**, so Save usually only runs step 3. Files for a photo that's removed
-   from the sheet, or never saved (the sheet closes), are deleted via `discardUpload()`, which only touches the
-   user's own files and never ones a `photos` row points at. (A tab closed mid-way can still leave orphans.)
-3. `savePhoto()` — verifies both paths match the user's folder pattern and that the files actually exist
-   (`createSignedUrls` as an existence check) before writing the DB row; deletes orphaned files on any failure and
-   deletes the previous day's files on replace.
-
-**Time zone handling is centralized in `src/lib/time.ts`.** All timestamps are stored as `timestamptz` (UTC); all
-display and "today" logic happens in `Africa/Addis_Ababa` via `@date-fns/tz`. Use `todayISO()` /
-`nowInAppTz()` / `localToUtc()` / `utcToLocalInput()` rather than constructing `Date`s directly when a value will
-be shown to or entered by the user — the countdown, calendar, and letter-unlock logic all depend on this being
-consistent between client display and server validation.
-
-**Validation (`src/lib/validation/*.ts`, zod) is the single schema every server action and route handler parses
-input through** — there's no separate client-side-only validation path to keep in sync.
-
-**Layout:**
-```
-supabase/migrations/   SQL schema: letters (lock), countdowns, widget_tokens, photos + storage bucket
-supabase/templates/    Magic-link email template (only needed if using custom SMTP)
-src/proxy.ts           Optimistic auth redirect (Next 16 "proxy", not middleware)
-src/lib/supabase/      Server/browser Supabase clients; requireUser() is the real auth check;
-                       admin.ts is the service-role client, used only for account deletion and the widget feed
-src/lib/data/          Typed queries (letters never select `body`)
-src/lib/validation/    zod schemas shared by actions and route handlers
-src/lib/time.ts        Africa/Addis_Ababa helpers; all timestamps elsewhere should go through this
-src/lib/image.ts       Client-side resize/thumbnail before upload
-src/actions/           Server actions (the only place that mutates data, alongside the cron and widget routes)
-src/app/(auth)/login   Sign-in
-src/app/(app)/         Dashboard, /letters, /countdown (+ /new, /[id]/edit, /settings for the widget token),
-                       /calendar, /memories, /account — all require auth
-src/app/api/cron/      Unlock-email job, behind ENABLE_UNLOCK_EMAILS
-src/app/api/widget/    Public, token-authenticated countdown feed for a phone's home-screen widget app
-tests/unit/            Pure logic (time zones, calendar math, memories layout) — no external services
-tests/integration/     Real local Supabase: letter lock, multi-photo calendar, storage isolation, countdown
-                       rules, widget token, account deletion, unlock emails
-```
-
-## Notes
-
-- **Dates are Gregorian by default**; Ethiopian is a per-user option on `/account`, stored in
-  `user_metadata.calendar` and read from the JWT claims by `requireUser()` (returned as `calendar`;
-  `setCalendarPref` refreshes the session so the new claim applies at once). Server components get it from
-  `requireUser()`; client components use `useCalendarPref()` / `useFormatDay()` from
-  `src/components/calendar-pref.tsx` (the provider is in the `(app)` layout). Don't call `formatEthiopian`
-  unconditionally for display; check the preference.
-- **Landing page and install help:** signed-out visitors on a computer get the landing page at `/`:
-  `updateSession` (`src/lib/supabase/proxy.ts`) *rewrites* `/` to `/welcome` (the address stays `/`) unless
-  `userAgent().device.type` is `mobile`; phones go straight to `/login` as before. `/welcome` and `/install` (the
-  "get the app" steps per device, plus a one-tap install button where `beforeinstallprompt` fires) live in
-  `src/app/(marketing)/` and are in `PUBLIC_PATHS`. These two are the only indexable pages (`robots` in their
-  metadata; the root layout stays `noindex`). The QR codes are rendered server-side by `qrcode`
-  (`src/components/marketing/qr-code.tsx`), so the library never ships to the browser. There is no native app:
-  "the app" is the installable PWA.
-- **Avatars:** each user can build a Hidi-style buddy on `/account` (`src/components/account/avatar-builder.tsx`):
-  theme, eyes, mouth, top, accessory, background (option lists in `src/lib/avatar.ts`, drawn by
-  `src/components/avatar.tsx`). Stored in `profiles.avatar` (`..._profiles_avatar.sql`, checked by `avatar_ok()`,
-  which mirrors `AVATAR_PARTS`: change both together), **not** in user_metadata: the token's claims only update on
-  a session refresh, so a save looked lost. The `(app)` layout reads it per request (`getAvatar`) and provides it
-  via `BuddyProvider`; once a user has one, `<Mascot>` draws their buddy (in the same mood/pose) everywhere in the
-  app except where it's passed `brand` (the header logo). No row = Hidi. Public pages have no provider, so they
-  always show Hidi. The nav's Account icon shows the buddy (the default look until they make one).
-- **Navigation:** on sm+ the nav is a left-side panel (`AppShell`/`SideNav` in `src/components/nav.tsx`) that
-  collapses to icons only; its state is the `hidl-nav` cookie (`src/lib/nav-cookie.ts`) so the server renders the
-  right width. `AppShell` sets `--nav-w`; full-screen fixed overlays (the memories board) use
-  `sm:left-[var(--nav-w)]` to stay clear of it. Phones keep the bottom tab bar.
-- **Hidi's quick menu** (`src/components/hidi-menu.tsx`) is fixed in the bottom-right corner of every app page
-  (above the tab bar on phones). Tapping it makes Hidi hop into the `hi` mood (big open smile, arms
-  relaxed: no raised hand, on purpose) and fans out four shortcuts up and to the left. The camera one goes to `/calendar?add=today`, which opens today's upload sheet. `main` has extra
-  bottom padding so pages can scroll clear of it; the dev-only Next.js badge is moved to top-right in
-  `next.config.ts` for the same reason.
-- **Countdown units:** each countdown stores `units` (any non-empty mix of years, months, days, hours; checked by
-  `countdown_units_ok` in Postgres, mirrored in `src/lib/countdown-units.ts`). `timeLeft()` splits the time left
-  into exactly those units (calendar years/months in Addis Ababa time, folding larger units into the largest
-  chosen one), drops leading zeros, and falls back to a smaller unit rather than show all zeros. The form sends one
-  `units` value per ticked box, so `saveCountdown` passes `formData.getAll("units")` to `parseCountdown`.
-- Unsent letter drafts are kept in `localStorage` on the client until the letter is sealed (never hit the server
-  unsealed, and never unencrypted: the letter form's textarea has no `name`; `seal()` posts the ciphertext).
-- "Continue with Google" (`signInWithGoogle` in `src/actions/auth.ts`) is server-side PKCE: the action stores
-  the verifier cookie and redirects to Google; Google returns to `/auth/confirm?code=…`, the same code path as
-  default-template magic links. The button only renders when `googleSignInEnabled()`
-  (`src/lib/auth-providers.ts`) sees Google enabled in Auth's public `/auth/v1/settings`. Because OAuth creates the
-  `auth.users` row before the allowlist check, `/auth/confirm` deletes a just-created (< 2 min old) account that
-  fails `ALLOWED_EMAIL`. Local Google is off in `supabase/config.toml`; see the comment there to enable it.
-- The login page accepts two magic-link formats from Supabase (PKCE `?code=` from the default template, or a
-  cross-device-safe link from the custom template in `supabase/templates/magic_link.html`) — see `/auth/confirm`.
-- Mixing `pnpm build` and `pnpm dev` against the same `.next` directory can leave a stale cache that breaks
-  `next/font/google` resolution under Turbopack dev (manifests as a 500 on first page load). Usually `rm -rf
-  .next` fixes it; occasionally `node_modules/.cache` needs clearing too. This is a cache artifact, not an app bug.
-- `src/proxy.ts`'s matcher excludes known static files/paths by name (`icon.svg`, `manifest.webmanifest`,
-  `sw.js`, `.../api/cron`, `.../api/widget`, …) rather than by a general rule. Any new unauthenticated static
-  asset or public API route needs adding here explicitly, or it 307s to `/login` instead of serving — this has
-  already happened twice (the widget API, then `sw.js`). `offline.html` is in it too.
-- The PWA manifest/service worker (`src/app/manifest.ts`, `public/sw.js`, `RegisterServiceWorker` in
-  `src/app/layout.tsx`) make the app installable ("Add to Home Screen"). The service worker never caches pages
-  (every page is per-user and dynamic). It does two other things: caches **photo files** by storage path,
-  ignoring the signed-URL token (photo paths are immutable, but the token changes on every render, so without
-  this every visit re-downloaded every photo), wiped by `ClearPhotoCache` on `/login` (where sign-out and account
-  deletion land); and serves `public/offline.html` when a navigation fails offline (with navigation preload, so
-  online navigations aren't slowed). Bump the cache names in `sw.js` if the cached format changes. Installing
-  doesn't create a separate session; it's the same origin and cookie jar as the browser.
-- Performance rules this app relies on:
-  - `vercel.json` pins functions to `cdg1` (Paris), next to the Supabase project (`eu-west-3`). Vercel's
-    default region is Washington DC, which put an ocean between every query and the database. If the Supabase
-    project ever moves, move this too.
-  - Client components must not import zod or anything that does (`src/lib/validation/*`, `src/lib/env.ts`).
-    Browser code reads settings from `src/lib/public-env.ts`; shared constants used by forms live outside
-    `validation/` (e.g. `detailField` in `countdown-kinds.ts`).
-  - The upload sheet (Supabase browser client, ~70 KB) and photo viewer are loaded through
-    `src/components/calendar/lazy.tsx` (`next/dynamic` + idle preload); import them from there, not directly.
-  - Only Fredoka and Nunito are preloaded; Newsreader and Caveat load on the pages that use them.
-  - Tab switching: the five nav tabs are `prefetch` (full: data + code) and `next.config.ts` sets
-    `experimental.staleTimes` (dynamic 30s, static 120s), so a tab you tap or revisit renders from the client
-    cache instead of waiting on the server. This is safe only because **every mutating server action calls
-    `revalidatePath`**, which clears that cache; keep it that way for new actions. `LiveCountdown` therefore only
-    applies the server-clock correction for skews over 5 minutes (a cached page isn't a wrong clock).
-  - Photo prep (`src/lib/image.ts`): WebP encoding is feature-detected once; Safari can't encode WebP and would
-    otherwise make (and discard) a large PNG per size. The thumbnail is drawn from the 1600px copy, not the
-    original.
-  - `/icon.svg` gets a real `Cache-Control` in `next.config.ts`; it's re-requested on every client navigation.
-- CAPTCHA on the login form (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `src/app/(auth)/login/login-form.tsx`) is optional
-  and entirely client-token-passthrough: the app never holds the Turnstile secret, only Supabase does
-  (Authentication → Attack Protection). The token flows straight into `signInWithOtp`'s `captchaToken` option.
-- `/memories` (`src/components/memories/memory-board.tsx`) is a full-screen pannable/zoomable board: one "island"
-  per day, laid out by the pure, deterministic `layoutMemories()` in `src/lib/memories.ts` (newest day at the
-  origin, islands spiral-packed so they never overlap; output is rounded so SSR and client markup match). Camera
-  moves write straight to the DOM; React only re-renders when an island first nears the viewport (that's when its
-  thumbnails load).
-- The month calendar (`src/components/calendar/month-grid.tsx`) is sized to fit the viewport without scrolling:
-  its height is `min(100dvh - --chrome, square-cell height)` using container query units (the page wrapper is an
-  `@container`), so cells widen on laptops and stay square on phones. If you add anything above or below the grid
-  on `/calendar`, adjust `--chrome` or it will start scrolling again. On sm+ `--chrome` also reserves room under
-  the grid for Hidi's corner menu, and the page's negative bottom margin cancels `main`'s bottom padding.
-- "New" on `/countdown` opens a kind picker dialog (`new-countdown-button.tsx`, `kind-picker.tsx`) that links to
-  `/countdown/new?kind=…`; without `?kind` that page shows the same picker inline.
-- Visual language: a bright, **light-only** teal theme in `globals.css` (no dark mode on purpose: it renders light
-  even when the OS prefers dark; `color-scheme: light` + `viewport.colorScheme`). Page is `--mint` with a white
-  glow, cards/nav/fields are white with `--aqua` borders, a few feature cards and memory islands are aqua,
-  `--fresh` is for highlights/progress, `--teal` for buttons/icons/active, `--ocean` for headings and small
-  important text. Never put large surfaces in teal/ocean or black (the photo viewer and dialog backdrops are light
-  too). White on `--teal` is only 3.7:1, so primary button labels are large+bold (AA large text) and small teal
-  text (`text-accent`, focus rings) uses `--ocean`. `.btn` is a chunky "arcade" button whose bottom edge collapses
-  on press. The mascot, Hidi, is `src/components/mascot.tsx`
-  (moods: happy, wave, cheer, sleepy, curious); `src/app/icon.svg`, `public/icon-*.png` and `apple-touch-icon.png` are the full character on a mint tile (the
-  PNGs are full-bleed with Hidi inside the maskable safe zone).
+- **Time zone (decided, not built yet):** "today" and every displayed time should follow each user's own location
+  and time zone, like other global apps. Until that ships, both the database (`app_today()`) and the app are fixed to
+  Africa/Addis_Ababa.
+- **Supabase region:** the README's setup example says `eu-central-1`, but `vercel.json` and these docs assume the
+  project is in `eu-west-3` (Paris). Which is production?
+- **Orphaned uploads:** should there be a cleanup job for files no `photos` row points at?
+- **Integration tests in CI:** should CI start Supabase (for example with `supabase start` in a Docker-capable job)?
+- **Test-only env:** `tests/integration/setup.ts` loads `.env.test.local` before `.env.local`, but that file isn't
+  documented. What is meant to go in it?
