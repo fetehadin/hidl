@@ -12,18 +12,15 @@ import { Mascot } from "./mascot";
  * photo, write a letter, start a countdown, open memories.
  */
 const ACTIONS = [
-  { href: "/calendar?add=today", label: "Photo", hint: "Add today's photo", Icon: CameraIcon },
-  { href: "/letters/new", label: "Letter", hint: "Write a letter", Icon: EnvelopeIcon },
-  { href: "/countdown/new", label: "Countdown", hint: "Start a countdown", Icon: HourglassIcon },
-  { href: "/memories", label: "Memories", hint: "Open your memories", Icon: MemoriesIcon },
+  { href: "/calendar?add=today", hint: "Add today's photo", Icon: CameraIcon },
+  { href: "/letters/new", hint: "Write a letter", Icon: EnvelopeIcon },
+  { href: "/countdown/new", hint: "Start a countdown", Icon: HourglassIcon },
+  { href: "/memories", hint: "Open your memories", Icon: MemoriesIcon },
 ] as const;
 
 /** Fan radius (px) and each shortcut's angle, from straight up (90°) round to the left (180°). */
 const RADIUS = 122;
 const ANGLES = [90, 120, 150, 180];
-/** Rough half-size of a label pill, used to sit each label just outside its button. */
-const LABEL = { halfW: 40, halfH: 11 };
-const BUTTON_R = 26;
 
 function polar(angle: number, r: number) {
   const rad = (angle * Math.PI) / 180;
@@ -73,10 +70,11 @@ export function HidiMenu() {
       ref={rootRef}
       className="fixed bottom-[calc(4.6rem+env(safe-area-inset-bottom))] right-3 z-40 size-16 sm:right-5 sm:bottom-4"
     >
-      {/* soft mint glow behind the fan */}
+      {/* Soft mint glow behind the fan. On phones it's cut off at Hidi's bottom edge (7.5rem =
+          half the 19rem glow minus half of Hidi's 4rem) so it never washes over the tab bar. */}
       <div
         aria-hidden
-        className={`pointer-events-none absolute top-1/2 left-1/2 size-[27rem] rounded-full transition-[opacity,scale] duration-300 ${
+        className={`pointer-events-none absolute top-1/2 left-1/2 size-[19rem] rounded-full [clip-path:inset(0_0_7.5rem_0)] transition-[opacity,scale] duration-300 sm:[clip-path:none] ${
           open ? "scale-100 opacity-100" : "scale-50 opacity-0"
         }`}
         style={{
@@ -87,13 +85,9 @@ export function HidiMenu() {
       />
 
       <ul id="hidi-menu" aria-label="Shortcuts" className={open ? "" : "pointer-events-none"}>
-        {ACTIONS.map(({ href, label, hint, Icon }, i) => {
+        {ACTIONS.map(({ href, hint, Icon }, i) => {
           const angle = ANGLES[i];
           const pos = polar(angle, RADIUS);
-          const rad = (angle * Math.PI) / 180;
-          const labelDist =
-            RADIUS + BUTTON_R + 6 + Math.abs(Math.cos(rad)) * LABEL.halfW + Math.abs(Math.sin(rad)) * LABEL.halfH;
-          const lab = polar(angle, labelDist);
           // Opening staggers outward from the top; closing tucks them back in reverse.
           const delay = open ? i * 45 : (ACTIONS.length - 1 - i) * 30;
           return (
@@ -118,17 +112,6 @@ export function HidiMenu() {
                 }
               >
                 <Icon width={24} height={24} strokeWidth={2.2} />
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute rounded-full bg-white px-2.5 py-0.5 text-xs font-extrabold whitespace-nowrap text-ocean shadow-[0_2px_8px_-2px_rgb(16_95_104/0.3)]"
-                  style={{
-                    left: "50%",
-                    top: "50%",
-                    translate: `calc(-50% + ${lab.x - pos.x}px) calc(-50% + ${lab.y - pos.y}px)`,
-                  }}
-                >
-                  {label}
-                </span>
               </Link>
             </li>
           );

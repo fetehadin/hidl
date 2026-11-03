@@ -84,7 +84,7 @@ export default async function DashboardPage() {
         <CountdownStat items={upcoming.map((c) => ({ id: c.id, title: c.title, days: c.days }))} />
       </ul>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* Primary countdown: a real hero, not a stacked card */}
         {!countdown ? (
           <DashboardCard eyebrow="deadlines" href="/countdown/new" linkLabel="Add a countdown" className="sm:col-span-2">
@@ -137,7 +137,7 @@ export default async function DashboardPage() {
             {comingUp.length > 0 && (
               <div className="mt-6 border-t-2 border-mint pt-4">
                 <h3 className="eyebrow mb-2">also coming up</h3>
-                <ul className="grid gap-2 sm:grid-cols-3">
+                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   {comingUp.slice(0, 3).map((c) => (
                     <li key={c.id}>
                       <Link
