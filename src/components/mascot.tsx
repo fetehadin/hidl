@@ -1,6 +1,8 @@
 "use client";
 
 import { useId, type ReactNode } from "react";
+import { BuddyDefs, BuddyFigure } from "./avatar";
+import { useBuddy } from "./buddy-context";
 
 /**
  * Hidi, the app's companion: a squishy aqua puff with a sprout on top
@@ -8,6 +10,9 @@ import { useId, type ReactNode } from "react";
  * "clay" shapes: soft radial shading, no outlines, so it matches the UI.
  *
  * Purely decorative unless `label` is passed, in which case it gets role="img".
+ *
+ * Inside the app, once the user has made their own buddy (src/components/buddy-context.tsx),
+ * this draws their buddy instead, in the same pose. `brand` keeps it Hidi: the logo always is.
  */
 /** "hi" is a big open smile, arms relaxed (used when Hidi opens its quick menu). */
 export type MascotMood = "happy" | "wave" | "cheer" | "sleepy" | "curious" | "hi";
@@ -19,20 +24,38 @@ export function Mascot({
   size = 96,
   float = true,
   label,
+  brand = false,
   className = "",
 }: {
   mood?: MascotMood;
   size?: number;
   float?: boolean;
   label?: string;
+  /** The hidl logo: always Hidi, whatever buddy the user has made. */
+  brand?: boolean;
   className?: string;
 }) {
   const id = useId().replace(/:/g, "");
+  const buddy = useBuddy();
   const body = `${id}-body`;
   const shine = `${id}-shine`;
   const leaf = `${id}-leaf`;
 
   const a11y = label ? { role: "img", "aria-label": label } : { "aria-hidden": true };
+
+  if (buddy && !brand) {
+    return (
+      <svg viewBox="0 0 120 124" width={size} height={(size * 124) / 120} className={`mascot shrink-0 ${className}`} {...a11y}>
+        <defs>
+          <BuddyDefs id={id} config={buddy} />
+        </defs>
+        <ellipse className={float ? "mascot-shadow" : undefined} cx="60" cy="116" rx="30" ry="5" fill="#63c1bb" opacity="0.35" />
+        <g className={float ? "mascot-float" : undefined}>
+          <BuddyFigure config={buddy} mood={mood} bodyFill={`url(#${id}-b)`} shineFill={`url(#${id}-s)`} />
+        </g>
+      </svg>
+    );
+  }
 
   return (
     <svg

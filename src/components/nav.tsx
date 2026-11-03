@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { signOut } from "@/actions/auth";
+import type { AvatarConfig } from "@/lib/avatar";
 import { NAV_COOKIE } from "@/lib/nav-cookie";
+import { Avatar } from "./avatar";
 import {
   CalendarIcon,
   ChevronIcon,
@@ -13,7 +15,6 @@ import {
   HourglassIcon,
   MemoriesIcon,
   SignOutIcon,
-  UserIcon,
 } from "./icons";
 
 const LINKS = [
@@ -38,7 +39,15 @@ function isActive(pathname: string, href: string) {
  * overlays clear of it. The collapsed/expanded choice is kept in a cookie so the server
  * renders the right width on the first paint.
  */
-export function AppShell({ initialCollapsed, children }: { initialCollapsed: boolean; children: ReactNode }) {
+export function AppShell({
+  initialCollapsed,
+  avatar,
+  children,
+}: {
+  initialCollapsed: boolean;
+  avatar: AvatarConfig;
+  children: ReactNode;
+}) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
 
   function toggle() {
@@ -53,7 +62,7 @@ export function AppShell({ initialCollapsed, children }: { initialCollapsed: boo
       style={{ "--nav-w": collapsed ? NAV_WIDTH.closed : NAV_WIDTH.open } as React.CSSProperties}
     >
       {children}
-      <SideNav collapsed={collapsed} onToggle={toggle} />
+      <SideNav collapsed={collapsed} onToggle={toggle} avatar={avatar} />
     </div>
   );
 }
@@ -63,7 +72,7 @@ export function AppShell({ initialCollapsed, children }: { initialCollapsed: boo
  * leaves only the icons; expanding slides them back. The active page sits in a pill that
  * glides between items.
  */
-function SideNav({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+function SideNav({ collapsed, onToggle, avatar }: { collapsed: boolean; onToggle: () => void; avatar: AvatarConfig }) {
   const pathname = usePathname();
   const activeIndex = LINKS.findIndex((l) => isActive(pathname, l.href));
 
@@ -132,7 +141,8 @@ function SideNav({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
               pathname === "/account" ? "bg-mint text-ocean" : "text-muted hover:text-ocean"
             }`}
           >
-            <UserIcon width={20} height={20} className="shrink-0" />
+            {/* 28px buddy in the 20px icon column, so the label stays aligned with the others. */}
+            <Avatar config={avatar} size={28} className="-mx-1 rounded-full ring-2 ring-aqua" />
             <Label collapsed={collapsed}>Account</Label>
           </Link>
           <form action={signOut}>

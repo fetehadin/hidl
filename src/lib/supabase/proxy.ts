@@ -1,8 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, userAgent, type NextRequest } from "next/server";
 import { publicEnv } from "@/lib/env";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
+// /welcome is the landing page, /install the "get the app" help: both for signed-out visitors.
+const PUBLIC_PATHS = ["/login", "/auth", "/welcome", "/install"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -31,6 +32,17 @@ export async function updateSession(request: NextRequest) {
   const signedIn = Boolean(data?.claims?.sub);
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+
+  // Signed-out visitors on a computer get the landing page at "/" (the address stays "/").
+  // Phones skip it and go straight to sign-in below: there, hidl is used as an installed app.
+  if (!signedIn && pathname === "/" && userAgent(request).device.type !== "mobile") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/welcome";
+    const rewrite = NextResponse.rewrite(url, { request });
+    response.cookies.getAll().forEach((c) => rewrite.cookies.set(c));
+    rewrite.headers.set("Vary", "User-Agent, Cookie");
+    return rewrite;
+  }
 
   // Optimistic redirect only. Pages and actions re-check with requireUser().
   // /api/cron and /api/widget authorize themselves (a secret header, a per-user token) —

@@ -167,6 +167,22 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   `requireUser()`; client components use `useCalendarPref()` / `useFormatDay()` from
   `src/components/calendar-pref.tsx` (the provider is in the `(app)` layout). Don't call `formatEthiopian`
   unconditionally for display; check the preference.
+- **Landing page and install help:** signed-out visitors on a computer get the landing page at `/`:
+  `updateSession` (`src/lib/supabase/proxy.ts`) *rewrites* `/` to `/welcome` (the address stays `/`) unless
+  `userAgent().device.type` is `mobile`; phones go straight to `/login` as before. `/welcome` and `/install` (the
+  "get the app" steps per device, plus a one-tap install button where `beforeinstallprompt` fires) live in
+  `src/app/(marketing)/` and are in `PUBLIC_PATHS`. These two are the only indexable pages (`robots` in their
+  metadata; the root layout stays `noindex`). The QR codes are rendered server-side by `qrcode`
+  (`src/components/marketing/qr-code.tsx`), so the library never ships to the browser. There is no native app:
+  "the app" is the installable PWA.
+- **Avatars:** each user can build a Hidi-style buddy on `/account` (`src/components/account/avatar-builder.tsx`):
+  theme, eyes, mouth, top, accessory, background (option lists in `src/lib/avatar.ts`, drawn by
+  `src/components/avatar.tsx`). Stored in `profiles.avatar` (`..._profiles_avatar.sql`, checked by `avatar_ok()`,
+  which mirrors `AVATAR_PARTS`: change both together), **not** in user_metadata: the token's claims only update on
+  a session refresh, so a save looked lost. The `(app)` layout reads it per request (`getAvatar`) and provides it
+  via `BuddyProvider`; once a user has one, `<Mascot>` draws their buddy (in the same mood/pose) everywhere in the
+  app except where it's passed `brand` (the header logo). No row = Hidi. Public pages have no provider, so they
+  always show Hidi. The nav's Account icon shows the buddy (the default look until they make one).
 - **Navigation:** on sm+ the nav is a left-side panel (`AppShell`/`SideNav` in `src/components/nav.tsx`) that
   collapses to icons only; its state is the `hidl-nav` cookie (`src/lib/nav-cookie.ts`) so the server renders the
   right width. `AppShell` sets `--nav-w`; full-screen fixed overlays (the memories board) use

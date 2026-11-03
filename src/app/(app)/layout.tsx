@@ -2,27 +2,33 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { CalendarPrefProvider } from "@/components/calendar-pref";
 import { HidiMenu } from "@/components/hidi-menu";
-import { UserIcon } from "@/components/icons";
+import { Avatar } from "@/components/avatar";
+import { BuddyProvider } from "@/components/buddy-context";
 import { Mascot } from "@/components/mascot";
 import { AppShell, MobileTabBar } from "@/components/nav";
+import { DEFAULT_AVATAR } from "@/lib/avatar";
+import { getAvatar } from "@/lib/data/profile";
 import { NAV_COOKIE } from "@/lib/nav-cookie";
 import { requireUser } from "@/lib/supabase/server";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const [{ calendar }, cookieStore] = await Promise.all([requireUser(), cookies()]);
+  const [{ supabase, calendar }, cookieStore] = await Promise.all([requireUser(), cookies()]);
+  // Read fresh on every request (not from the login token), so a new buddy shows up at once.
+  const buddy = await getAvatar(supabase);
   const navCollapsed = cookieStore.get(NAV_COOKIE)?.value === "collapsed";
 
   return (
     <CalendarPrefProvider value={calendar}>
-      <AppShell initialCollapsed={navCollapsed}>
+      <BuddyProvider value={buddy}>
+      <AppShell initialCollapsed={navCollapsed} avatar={buddy ?? DEFAULT_AVATAR}>
         {/* Positioned so it floats above full-screen pages like the memories board. */}
         <header className="relative z-20 mx-auto flex max-w-[70rem] items-center justify-between gap-3 px-5 pt-4 pb-2 sm:pt-6">
           <Link href="/" className="group flex items-center gap-2 font-display text-[1.9rem] leading-none font-semibold tracking-tight">
-            <Mascot size={46} float={false} className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
+            <Mascot brand size={46} float={false} className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
             hidl
           </Link>
-          <Link href="/account" aria-label="Account" className="clay grid size-11 place-items-center rounded-full text-ink-soft sm:hidden">
-            <UserIcon width={22} height={22} />
+          <Link href="/account" aria-label="Account" className="clay grid size-11 place-items-center overflow-hidden rounded-full sm:hidden">
+            <Avatar config={buddy ?? DEFAULT_AVATAR} size={44} />
           </Link>
         </header>
 
@@ -31,6 +37,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       </AppShell>
       <MobileTabBar />
       <HidiMenu />
+      </BuddyProvider>
     </CalendarPrefProvider>
   );
 }

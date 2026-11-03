@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Mascot } from "@/components/mascot";
 import { ClearPhotoCache } from "@/components/clear-photo-cache";
 import { googleSignInEnabled } from "@/lib/auth-providers";
@@ -45,6 +46,11 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         )}
         <LoginForm turnstileSiteKey={publicEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY} google={google} />
       </div>
+      <p className="mt-6 text-center text-sm">
+        <Link href="/install" className="font-semibold text-accent underline-offset-4 hover:underline">
+          Put hidl on your home screen →
+        </Link>
+      </p>
     </main>
   );
 }

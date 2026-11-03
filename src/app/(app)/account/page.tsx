@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { signOut } from "@/actions/auth";
+import { AvatarBuilder } from "@/components/account/avatar-builder";
 import { CalendarChoice } from "@/components/account/calendar-choice";
 import { DeleteAccountButton } from "@/components/account/delete-account-button";
 import { LetterEncryption } from "@/components/account/letter-encryption";
 import { PageHeader } from "@/components/page-header";
+import { DEFAULT_AVATAR } from "@/lib/avatar";
 import { getKeyBundle } from "@/lib/data/letter-keys";
+import { getAvatar } from "@/lib/data/profile";
 import { requireUser } from "@/lib/supabase/server";
 import { requestNow } from "@/lib/time";
 
@@ -12,7 +15,7 @@ export const metadata: Metadata = { title: "Account" };
 
 export default async function AccountPage() {
   const { supabase, user, calendar } = await requireUser();
-  const bundle = await getKeyBundle(supabase);
+  const [bundle, buddy] = await Promise.all([getKeyBundle(supabase), getAvatar(supabase)]);
 
   return (
     <>
@@ -25,6 +28,13 @@ export default async function AccountPage() {
             Sign out
           </button>
         </form>
+      </div>
+
+      <div className="card mt-4 p-5 sm:p-6">
+        <p className="eyebrow mb-1">you</p>
+        <h2 className="font-display text-xl font-semibold">Your buddy</h2>
+        <p className="mt-1 mb-5 text-ink-soft">Make a little character that&apos;s yours. It takes Hidi&apos;s place around the app (Hidi keeps the logo).</p>
+        <AvatarBuilder initial={buddy ?? DEFAULT_AVATAR} hasBuddy={buddy !== null} />
       </div>
 
       <div className="card mt-4 p-5 sm:p-6">

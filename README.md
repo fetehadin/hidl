@@ -17,6 +17,11 @@ Features:
 - **Hidi, your shortcut buddy.** The mascot sits in the bottom-right corner of every page. Tap it and it hops, smiles, and fans out shortcuts: add today's photo, write a letter, start a countdown, open memories.
 - **Gregorian or Ethiopian dates.** Gregorian by default; switch to the Ethiopian calendar on `/account`.
 - **Account deletion.** Anyone can permanently delete their own account and everything in it from `/account` — no owner intervention needed.
+- **Landing page and install help.** Signed-out visitors on a computer see a landing page at `/` (phones go
+  straight to sign-in); `/install` walks through putting hidl on an iPhone, Android phone or computer.
+- **Your own buddy.** Build a Hidi-style avatar on the Account page (color, eyes, mouth, ears/horns, an
+  accessory, a background). It becomes your icon in the menu and takes Hidi's place around the app; Hidi
+  keeps the logo.
 - **Installable as an app.** It's a Progressive Web App — "Add to Home Screen" (Android Chrome or iOS Safari) gives
   a real app icon and a full-screen launch with no browser UI, using the exact same sign-in session as the site.
 
