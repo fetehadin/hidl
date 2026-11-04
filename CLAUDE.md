@@ -141,6 +141,8 @@ Deploy: pushing to `main` runs CI. Then `deploy.yml` runs `vercel deploy --prod`
 secret), and `deploy-contabo.yml` builds the Docker image (`Dockerfile`, Next `output: "standalone"`) and restarts it
 on the Contabo VPS. The Contabo workflow is off until the `CONTABO_HOST` variable is set; see `deploy/README.md`. Production schema changes go out with `pnpm exec supabase db push` against the linked project.
 Production env vars are listed in the README.
+Production Supabase auth settings (URLs, code length, templates, Google, SMTP) live in
+`deploy/supabase-prod/config.toml` and are applied with `deploy/supabase-prod/push.sh` (shows a diff, asks first).
 
 ## 6. Conventions
 
