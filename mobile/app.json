@@ -4,7 +4,7 @@
     "slug": "hidl",
     "owner": "fetebuild",
     "scheme": "hidl",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,7 +18,10 @@
         "backgroundColor": "#c8e6e2",
         "foregroundImage": "./assets/icon.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "plugins": [
       [
@@ -38,12 +41,14 @@
             }
           ]
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
         "projectId": "98fba00e-9373-4564-b086-b41a8842f2aa"
-      }
+      },
+      "siteUrl": "https://hidl-sigma.vercel.app"
     }
   }
 }

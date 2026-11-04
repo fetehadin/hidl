@@ -1,9 +1,9 @@
 "use server";
 
-import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCountdown } from "@/lib/data/countdowns";
+import { issueWidgetToken } from "@/lib/data/widget-token";
 import { requireUser } from "@/lib/supabase/server";
 import { localToUtc } from "@/lib/time";
 import { actualScoreSchema, countdownIdSchema, parseCountdown } from "@/lib/validation/countdown";
@@ -174,28 +174,14 @@ export async function generateWidgetToken(countdownId?: string | null): Promise<
   if (!target.ok) return target;
   const { supabase, user } = await requireUser();
   if (target.id && !(await getCountdown(supabase, target.id))) return { ok: false, message: "That countdown is gone." };
-  const token = randomBytes(24).toString("base64url");
-  const token_hash = createHash("sha256").update(token).digest("hex");
-
-  // Not .upsert(): Postgres's ON CONFLICT DO UPDATE needs full-table SELECT to detect the
-  // conflict, which a column-restricted table like this one (no grant on token_hash) can't
-  // satisfy. Plain update-then-insert only needs the grants we actually have.
-  const match = supabase.from("widget_tokens").update({ token_hash }, { count: "exact" }).eq("user_id", user.id);
-  const { error: updateError, count } = await (target.id ? match.eq("countdown_id", target.id) : match.is("countdown_id", null));
-  if (updateError) {
-    console.error("generateWidgetToken", updateError);
+  const issued = await issueWidgetToken(supabase, user.id, target.id ?? null);
+  if (!issued.ok) {
+    console.error("generateWidgetToken", issued.error);
     return { ok: false, message: "Couldn't create a token. Try again." };
-  }
-  if (count === 0) {
-    const { error: insertError } = await supabase.from("widget_tokens").insert({ token_hash, countdown_id: target.id });
-    if (insertError) {
-      console.error("generateWidgetToken", insertError);
-      return { ok: false, message: "Couldn't create a token. Try again." };
-    }
   }
 
   revalidate();
-  return { ok: true, token };
+  return { ok: true, token: issued.token };
 }
 
 export async function revokeWidgetToken(countdownId?: string | null): Promise<{ ok: true } | Fail> {
