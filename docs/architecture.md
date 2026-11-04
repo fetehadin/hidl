@@ -236,10 +236,11 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   per day, laid out by the pure, deterministic `layoutMemories()` in `src/lib/memories.ts` (newest day at the
   origin, islands spiral-packed so they never overlap; output is rounded so SSR and client markup match). Camera
   moves write straight to the DOM; React only re-renders when an island first nears the viewport (that's when its
-  thumbnails load). Each day floats on a cloud: pictures in `public/clouds/cumulus-N.webp` (made by
-  `scripts/generate-clouds.mjs`; served `immutable`, so rename the files if you regenerate them), all drawn in one
-  layer under every island's photos so neighbouring clouds merge but never cover a photo. The sky is a fixed
-  gradient on the board; only the world layer moves (no background repaint per frame). Loading order: the islands
+  thumbnails load). The sky behind is a fixed gradient on the board with a few clouds drifting across it
+  (`SkyClouds`: pictures in `public/clouds/cumulus-N.webp`, made by `scripts/generate-clouds.mjs` and served
+  `immutable`, so rename the files if you regenerate them). The clouds are fixed to the screen, not the world, so
+  panning doesn't move them; the drift is a CSS `translate` animation (`sky-drift`) the compositor runs, and with
+  reduced motion they stand still, spread out. Only the world layer moves (no background repaint per frame). Loading order: the islands
   around the start position (`FIRST_VIEW`, a smaller box when the page says `phone`, from the user agent) are in
   the server HTML with `fetchPriority="high"`, so their photos download while the JS loads; islands just off
   screen are only added after those have loaded.

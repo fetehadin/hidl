@@ -1,34 +1,81 @@
+<div align="center">
+
+<img src="public/icon-192.png" width="88" alt="hidl's mascot, Hidi" />
+
 # hidl
 
-A personal journal: time-locked letters, countdowns to any number of deadlines, and a daily photo calendar. Every account's data is
-fully isolated (enforced by Postgres row-level security, not just app code), so the same deployment works either
-way:
+**Write to future you. Count down to what matters. Keep every day.**
 
-- **Private**, for one person or a short allowlist of trusted emails (`ALLOWED_EMAIL=a@x.com,b@y.com`) — the
-  original intent, and still the default posture if you set it that way.
-- **Open to anyone** (`ALLOWED_EMAIL=*`) — each person who signs up gets their own private letters, countdown, and
+A small, private journal: letters that stay sealed until the day you choose, countdowns to exams, birthdays and
+trips, and a calendar you fill with a photo or a short video a day.
+
+[Live app](https://hidl-sigma.vercel.app) · [hidl in numbers](https://hidl-sigma.vercel.app/stats) ·
+[Architecture](docs/architecture.md) · [Local setup](#local-setup)
+
+</div>
+
+![The hidl landing page](docs/images/welcome.webp)
+
+## What's inside
+
+| | |
+| --- | --- |
+| ![Today: greeting, streaks and the next countdown](docs/images/dashboard.webp) | ![Memories: past days floating in a sky with drifting clouds](docs/images/memories.webp) |
+| **Today.** A greeting, your photo streak, every upcoming countdown, the next letter to open and today's picture. | **Memories.** Every past day as an island of photos on a board you drag and zoom, with clouds drifting by in the sky behind. |
+| ![The photo calendar for a month](docs/images/calendar.webp) | ![Countdowns of different kinds](docs/images/countdown.webp) |
+| **Photo calendar.** Any number of photos or short videos per day, a pinned "wallpaper" per day, and a year at a glance. | **Countdowns.** As many as you like, of eight kinds, in the units you pick. Star one, or put any on an Android home screen. |
+| ![A sealed letter](docs/images/letters.webp) | ![hidl in numbers, the public usage page](docs/images/stats.webp) |
+| **Time-locked letters.** End-to-end encrypted in your browser and sealed by the database until the opening day. | **hidl in numbers.** A public page of usage totals. Nothing on it is about one person. |
+
+<p align="center">
+  <img src="docs/images/phone.webp" alt="hidl on a phone: Today, the calendar, countdowns and Memories" />
+  <br /><sub>On a phone it installs as an app (a PWA), with a bottom tab bar and the same sign-in.</sub>
+</p>
+
+### Features
+
+- **Time-locked letters.** Write to your future self. A letter stays sealed until its opening date, and the database
+  itself refuses to return the body before then. Letters are end-to-end encrypted in the browser: not the server,
+  nor anyone holding the database, can read them. Changed your mind about the date? Move it earlier or later while
+  it's still sealed.
+- **Countdowns.** Any number, of eight kinds picked from a dialog: exam (with a target score), graduation, birthday
+  (whose, and the age they turn), wedding, work, trip, life milestone, or anything else. Each kind has its own few
+  details and shows the time left in the units you pick (years, months, days and/or hours), then "Done!". Exams let
+  you compare your actual score afterward. Star one to show it first on the dashboard.
+- **Android app and widgets.** The companion app in [`mobile/`](mobile/README.md) puts a countdown on your home
+  screen and opens the full journal inside it. Any widget app (like KWGT) can also read a countdown's private feed.
+- **Photo calendar.** Any number of photos or short videos (up to 5 MB) per day. Pick several at once or drag and
+  drop them; photos are resized on your device and kept in private storage. Pin one as the day's "wallpaper",
+  browse them in a lightbox, or see the whole year at once.
+- **Memories.** A pannable, zoomable board of every past day, one island of photos per day, in a soft sky with
+  clouds drifting slowly behind (they stay still if you've asked your device for reduced motion).
+- **Hidi, your shortcut buddy.** The mascot sits in the bottom-right corner of every page. Tap it and it hops and
+  fans out shortcuts: add today's photo, write a letter, start a countdown, open memories.
+- **Your own buddy.** Build a Hidi-style avatar on the Account page (color, eyes, mouth, ears or horns, an extra, a
+  background). It becomes your icon and takes Hidi's place around the app.
+- **Gregorian or Ethiopian dates**, and your own time zone, picked up from your device (and updated when you travel).
+- **hidl in numbers.** A public [`/stats`](https://hidl-sigma.vercel.app/stats) page: how many people use hidl
+  each day and how much they've made, as totals only.
+- **Installable as an app.** "Add to Home Screen" on Android or iOS gives a real app icon and a full-screen launch,
+  using the same sign-in. `/install` walks through it for each kind of device.
+- **Yours to delete.** Anyone can permanently delete their own account and everything in it from `/account`.
+
+### Private by design
+
+Every account's data is isolated by Postgres row-level security, not just app code, so the same deployment works
+either way:
+
+- **Private**, for one person or a short allowlist of trusted emails (`ALLOWED_EMAIL=a@x.com,b@y.com`).
+- **Open to anyone** (`ALLOWED_EMAIL=*`). Each person who signs up gets their own private letters, countdowns and
   calendar; nobody can see anyone else's.
 
-Features:
+### Built with
 
-- **Time-locked letters.** Write to your future self. A letter stays sealed until its opening date, and the database itself refuses to return the body before then.
-- **Countdowns.** Any number of them, of eight kinds picked from a dialog: exam (with a target score), graduation, birthday (whose, and the age they turn), wedding, work, trip, life milestone, or anything else. Each kind has its own few details. Each shows the time left in whatever units you pick (years, months, days and/or hours, in any mix), then "Done!"; exams let you compare your actual score afterward. The dashboard cycles through all your upcoming ones. Star one to show it first, and give any countdown its own Android home-screen widget (via a third-party widget app).
-- **Image calendar.** Any number of photos per day — pick several at once or drag and drop them — resized on your phone, kept in private storage, with a lightbox and a year-at-a-glance view. Pin one photo as a day's "wallpaper" to choose which picture the calendar shows.
-- **Hidi, your shortcut buddy.** The mascot sits in the bottom-right corner of every page. Tap it and it hops, smiles, and fans out shortcuts: add today's photo, write a letter, start a countdown, open memories.
-- **Gregorian or Ethiopian dates.** Gregorian by default; switch to the Ethiopian calendar on `/account`.
-- **Account deletion.** Anyone can permanently delete their own account and everything in it from `/account` — no owner intervention needed.
-- **Landing page and install help.** Signed-out visitors on a computer see a landing page at `/` (phones go
-  straight to sign-in); `/install` walks through putting hidl on an iPhone, Android phone or computer.
-- **Your own buddy.** Build a Hidi-style avatar on the Account page (color, eyes, mouth, ears/horns, an
-  accessory, a background). It becomes your icon in the menu and takes Hidi's place around the app; Hidi
-  keeps the logo.
-- **Installable as an app.** It's a Progressive Web App — "Add to Home Screen" (Android Chrome or iOS Safari) gives
-  a real app icon and a full-screen launch with no browser UI, using the exact same sign-in session as the site.
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Supabase (Auth, Postgres, Storage) · Vercel
 
-Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase (Auth, Postgres, Storage) · Vercel
-
-**Hosting is free.** There is no VPS or server to run. The app runs on the Vercel Hobby plan, the database, auth and
-photo storage run on the Supabase free plan, and the optional unlock emails use Resend's free plan.
+**Hosting is free.** The app runs on the Vercel Hobby plan; the database, auth and photo storage run on the Supabase
+free plan; the optional unlock emails use Resend's free plan. (A Docker image for your own server is optional too:
+see [`deploy/README.md`](deploy/README.md).)
 
 ---
 
@@ -92,7 +139,7 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
 | --- | --- |
 | `pnpm dev` | Dev server |
 | `pnpm test` | Unit tests (time zones, calendar math, validation) |
-| `pnpm test:integration` | Tests against the local Supabase: letter lock, multi-photo calendar, storage isolation, countdown rules, widget token, account deletion, unlock emails. Needs `pnpm db:start`. Refuses to run against a non-local URL. |
+| `pnpm test:integration` | Tests against the local Supabase: letter lock and encryption, multi-photo calendar, storage isolation, countdown rules, widget tokens, avatars, time zones, usage stats, account deletion, unlock emails. Needs `pnpm db:start`. Refuses to run against a non-local URL. |
 | `pnpm test:all` | Both |
 | `pnpm typecheck` / `pnpm lint` | Static checks |
 | `pnpm db:reset` | Recreate the local database from `supabase/migrations` |
@@ -101,7 +148,8 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
 
 ## Supabase (production) setup
 
-1. Create a project at [supabase.com](https://supabase.com) and pick a region close to you (e.g. `eu-central-1`).
+1. Create a project at [supabase.com](https://supabase.com) and pick a region close to your users (and to your
+   Vercel region: `vercel.json` pins functions to `cdg1`, Paris).
 2. Link it and push the schema:
    ```bash
    pnpm exec supabase login
@@ -204,20 +252,24 @@ The email contains the letter's title and a link, never the body. Each letter is
 ## Project layout
 
 ```
-supabase/migrations/      SQL schema: letters (lock), countdowns, widget_tokens, photos + storage bucket
-supabase/templates/       Branded sign-in + confirm-signup email templates
 src/proxy.ts              Session refresh and optimistic redirect to /login
+src/app/(app)/            Signed-in pages: Today, letters, countdown, calendar (+ year), memories, account
+src/app/(auth)/login      Sign-in (magic link or code, optional Google, optional Turnstile)
+src/app/(marketing)/      Public pages: /welcome, /install, /stats
+src/app/api/              Unlock-email cron (behind a flag), widget feed, phone-app sign-in
+src/actions/              Server actions, including account deletion (src/actions/auth.ts)
 src/lib/supabase/         Server and browser clients; requireUser() re-checks auth and the allowlist;
-                          admin.ts is the service-role client used only for account deletion
+                          admin.ts is the service-role client, used only where nothing else works
 src/lib/data/             Typed queries (letters never select `body`)
 src/lib/validation/       zod schemas used by every server action and route handler
-src/lib/time.ts           Per-user time zone helpers
-src/lib/image.ts          Client-side resize (1600px) and thumbnail (480px), WebP or JPEG
-src/actions/              Server actions, including account deletion (src/actions/auth.ts)
-src/app/(auth)/login      Sign-in
-src/app/(app)/            Dashboard, /letters, /countdown, /calendar, /account (all require auth)
-src/app/api/cron/         Unlock-email job (behind a flag)
+src/lib/                  Pure helpers: time zones, Ethiopian calendar, encryption, image resizing, memories layout
+src/components/           UI, grouped by feature
+public/clouds/            The Memories sky's cloud pictures (made by scripts/generate-clouds.mjs)
+supabase/migrations/      SQL schema, in order: tables, RLS, grants, triggers, storage bucket
+supabase/templates/       Branded sign-in and confirm-signup emails
+mobile/                   Expo app for the Android countdown widget (its own npm toolchain)
 tests/unit, tests/integration
+docs/                     Architecture notes and the screenshots in this README
 ```
 
 ## Notes
