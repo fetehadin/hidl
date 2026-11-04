@@ -127,6 +127,8 @@ pnpm build && pnpm start        # production build locally
 pnpm exec supabase migration new <name>   # new migration (always a NEW file)
 pnpm db:reset                   # rebuild the local DB from supabase/migrations
 pnpm db:stop
+
+scripts/move-supabase/move.sh <settings file> [--dry-run]   # copy all data + files to another Supabase project
 ```
 
 Before pushing: `pnpm typecheck && pnpm lint && pnpm test:all`.
