@@ -27,26 +27,6 @@ const CACHE_KEY = 'hidl.feedCache';
 const UNIT_SHORT: Record<Unit, string> = { years: 'y', months: 'mo', days: 'd', hours: 'h' };
 const UNIT_ORDER: Unit[] = ['years', 'months', 'days', 'hours'];
 
-/**
- * Turns what the user pasted (the link from the countdown's Widget button on the website)
- * into the feed URL. Only https links to the widget feed with a token are accepted, so a
- * stray clipboard value can't make the widget call some other site.
- */
-export function parseFeedUrl(input: string): string | null {
-  let url: URL;
-  try {
-    url = new URL(input.trim());
-  } catch {
-    return null;
-  }
-  const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
-  if (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) return null;
-  if (url.pathname !== '/api/widget/countdown') return null;
-  const token = url.searchParams.get('token');
-  if (!token) return null;
-  return `${url.origin}/api/widget/countdown?token=${encodeURIComponent(token)}`;
-}
-
 export class FeedError extends Error {
   /** True when the phone couldn't reach the server at all (as opposed to the server saying no). */
   constructor(message: string, readonly offline = false) {
@@ -62,7 +42,7 @@ export async function fetchFeed(feedUrl: string): Promise<CountdownFeed> {
     throw new FeedError('No connection.', true);
   }
   const body = (await res.json().catch(() => null)) as (CountdownFeed & { error?: string }) | null;
-  if (res.status === 404) throw new FeedError(body?.error === 'invalid token' ? 'This link was revoked.' : 'No countdown is starred.');
+  if (res.status === 404) throw new FeedError(body?.error === 'invalid token' ? 'Open hidl to reconnect.' : 'Add a countdown in hidl.');
   if (!res.ok || !body || body.error) throw new FeedError("Couldn't load the countdown.");
   return body;
 }

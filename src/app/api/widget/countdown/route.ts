@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * Unauthenticated-by-session, authenticated-by-token read-only feed for a home-screen
  * widget (see src/actions/countdowns.ts generateWidgetToken). A token serves exactly one
  * countdown: the one it was made for, or (for the account's starred-feed token) whichever
- * one its owner starred. Never letters or photos, and never any other countdown.
+ * one its owner starred (or, with none starred, the next one coming up). Never letters or photos, and never any other countdown.
  */
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
@@ -37,25 +37,37 @@ export async function GET(request: NextRequest) {
   ]);
   const timeZone = resolveTimeZone(settings?.time_zone);
 
-  if (!data) return NextResponse.json({ error: "no countdown is starred for the widget" }, { status: 404 });
+  // Nothing starred: show the next one coming up, so a fresh widget is never blank.
+  let countdown = data;
+  if (!countdown && !tokenRow.countdown_id) {
+    ({ data: countdown } = await admin
+      .from("countdowns")
+      .select("kind, title, target_at, target_score, max_score, actual_score, details, units")
+      .eq("user_id", tokenRow.user_id)
+      .gt("target_at", new Date().toISOString())
+      .order("target_at", { ascending: true })
+      .limit(1)
+      .maybeSingle());
+  }
+  if (!countdown) return NextResponse.json({ error: "no countdown yet" }, { status: 404 });
 
-  const done = new Date(data.target_at).getTime() <= Date.now();
+  const done = new Date(countdown.target_at).getTime() <= Date.now();
   return NextResponse.json(
     {
-      kind: data.kind,
-      title: data.title,
-      targetAt: data.target_at,
-      targetScore: data.target_score,
-      maxScore: data.max_score,
-      actualScore: data.actual_score,
-      details: data.details,
+      kind: countdown.kind,
+      title: countdown.title,
+      targetAt: countdown.target_at,
+      targetScore: countdown.target_score,
+      maxScore: countdown.max_score,
+      actualScore: countdown.actual_score,
+      details: countdown.details,
       done,
-      daysLeft: done ? 0 : daysUntil(data.target_at, timeZone),
+      daysLeft: done ? 0 : daysUntil(countdown.target_at, timeZone),
       timeZone,
       // The time left in the countdown's chosen units, e.g. { months: 7, days: 13 }.
-      units: normalizeUnits(data.units),
+      units: normalizeUnits(countdown.units),
       remaining: Object.fromEntries(
-        done ? [] : timeLeft(data.target_at, Date.now(), normalizeUnits(data.units), timeZone).map((p) => [p.unit, p.value]),
+        done ? [] : timeLeft(countdown.target_at, Date.now(), normalizeUnits(countdown.units), timeZone).map((p) => [p.unit, p.value]),
       ),
     },
     { headers: { "Cache-Control": "no-store" } },

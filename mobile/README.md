@@ -1,32 +1,36 @@
 # hidl mobile
 
-The companion phone app. For now it has one job: an **Android home-screen widget** that shows one hidl countdown.
-The website stays the main app. This app reads the website's existing token feed (`GET /api/widget/countdown?token=…`),
-so it needs no sign-in and no backend changes.
-
-Expo SDK 58 · React Native 0.88 · [`react-native-android-widget`](https://saleksovski.github.io/react-native-android-widget/)
-· npm (this folder has its own `package-lock.json`; the website uses pnpm).
+The hidl phone app (Expo SDK 58, React Native 0.88). It's a **native shell**: native sign-in, then the full hidl
+website inside the app, plus an **Android home-screen widget**. The account and the content are the same as on the
+website, because they come from the same place. Native screens can replace web ones one at a time later.
 
 ## How it works
 
-1. **Get the link:** on the website, open **Countdown**, tap **Widget** on a countdown, and copy the link (it's shown once).
-2. **Connect:** in the app, tap **Paste link**. The app checks that it really is a hidl widget link (`parseFeedUrl`),
-   loads it once, and saves the link and the answer in AsyncStorage.
-3. **The widget:** Android redraws it in the background every 30 minutes (`updatePeriodMillis`, Android's minimum),
-   when it's added or resized, and whenever the app connects a new link. Each redraw runs `widgetTaskHandler`
-   headless (the app doesn't need to be open), fetches the feed, and renders `CountdownWidget`.
-4. **Offline and revoked links:** when offline, the widget shows the last saved answer, marked "Offline". A revoked link
-   or a server error shows a message instead, never stale data.
+1. **Sign in (native, `src/screens/SignInScreen.tsx`):** "Continue with Google", or an email address and the 6-digit
+   code from the sign-in email. The app never talks to Supabase itself. The website's `/api/app/*` routes do every
+   check (allowlist, codes, Google) and return a session (`src/auth.ts`).
+   - **Google** runs in a secure browser tab. The session comes back through the `hidl://auth` redirect sealed with
+     a one-off secret only this app holds (`sealForApp` in the web app's `src/lib/app-auth.ts`), so another app
+     catching the redirect gets nothing usable.
+2. **The journal (`src/screens/WebShell.tsx`):** the session is handed to the web view once (`/auth/native`, in the
+   URL fragment). From then on the web view keeps and refreshes it itself. The app doesn't keep a copy, so two
+   places never fight over one refresh token.
+   - **Navigation:** Android's back button goes back through pages. Links to other sites open outside the app,
+     and photo uploads can use the camera.
+   - **Offline:** the app shows its own offline screen.
+   - **Signing out:** signing out on the site brings back the native sign-in screen and unhooks the widget.
+3. **Widget (`src/widget/`):** right after sign-in the app asks `/api/app/widget` for the account's countdown feed,
+   so nobody copies links. If a widget link already exists (e.g. KWGT), it asks before replacing it. Android
+   redraws the widget every 30 minutes, headless. When offline it shows the last saved copy.
 
 ```
-index.ts                         Registers the app and the widget task handler
-App.tsx                          The connect screen, widget preview, "Add to home screen"
-src/feed.ts                      Feed URL parsing, fetching, AsyncStorage cache, text formatting
-src/widget/CountdownWidget.tsx   The widget UI (react-native-android-widget primitives only)
-src/widget/task-handler.tsx      Headless render: fetch → cache → draw
-src/theme.ts                     The website's palette
-app.json                         Expo config; the widget is declared in the plugin block
-eas.json                         Cloud build profiles
+App.tsx                          loading → sign-in → journal
+src/auth.ts                      calls to the website's /api/app/* routes
+src/config.ts                    SITE_URL (EXPO_PUBLIC_SITE_URL per build in eas.json)
+src/screens/SignInScreen.tsx     Google + email code sign-in
+src/screens/WebShell.tsx         the journal in a web view
+src/widget/                      widget UI, headless renderer, connect/disconnect
+src/feed.ts                      widget feed fetch + cache
 ```
 
 ## Commands
@@ -51,5 +55,9 @@ never by hand.
   can't change.
 - **Widget layout:** the widget is native Android views, not React Native views. Only the library's primitives
   (`FlexWidget`, `TextWidget`, …) work inside it.
+- **Site address:** the app follows `EXPO_PUBLIC_SITE_URL` in `eas.json`. Change it there (and rebuild) when the
+  site moves, e.g. to the Contabo domain.
+- **Email codes:** these need the sign-in email to include `{{ .Token }}`. `supabase/templates/magic_link.html`
+  does, but the production Supabase project must use that template (Authentication → Email Templates).
 - **iPhone:** not built yet. It needs a SwiftUI WidgetKit extension (e.g. via `@bacons/apple-targets`) and an Apple
   Developer account.
