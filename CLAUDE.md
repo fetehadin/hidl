@@ -135,8 +135,9 @@ Mobile app (`mobile/`, npm, not pnpm): `cd mobile && npm install && npm run type
 installable APK in the cloud with `npm run build:apk` (EAS). The root `tsconfig.json` and ESLint config exclude
 `mobile/`; CI type-checks it in its own job (`mobile` in `ci.yml`).
 
-Deploy: pushing to `main` runs CI, then `deploy.yml` runs `vercel deploy --prod`, which needs the `VERCEL_TOKEN`
-repo secret. Production schema changes go out with `pnpm exec supabase db push` against the linked project.
+Deploy: pushing to `main` runs CI. Then `deploy.yml` runs `vercel deploy --prod` (needs the `VERCEL_TOKEN` repo
+secret), and `deploy-contabo.yml` builds the Docker image (`Dockerfile`, Next `output: "standalone"`) and restarts it
+on the Contabo VPS. The Contabo workflow is off until the `CONTABO_HOST` variable is set; see `deploy/README.md`. Production schema changes go out with `pnpm exec supabase db push` against the linked project.
 Production env vars are listed in the README.
 
 ## 6. Conventions
@@ -180,7 +181,7 @@ Production env vars are listed in the README.
 ## 7. Gotchas
 
 - **Public routes are allowlisted by name in two places.** Static files are skipped in the `src/proxy.ts` matcher;
-  public paths (`PUBLIC_PATHS`, `/api/cron`, `/api/widget`) are skipped in `updateSession`. Anything new and public
+  public paths (`PUBLIC_PATHS`, `/api/cron`, `/api/widget`, `/api/health`) are skipped in `updateSession`. Anything new and public
   that isn't added gets a 307 to `/login`. This has happened twice.
 - **Don't use `.upsert()` on column-restricted tables** (`widget_tokens`, `letters`). `ON CONFLICT` needs table-wide
   `SELECT`. Update first, then insert.
