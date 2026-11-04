@@ -67,7 +67,7 @@ direct upload → `addPhoto`/`replacePhoto`).
 src/proxy.ts                 Next 16 proxy: session refresh + optimistic redirect
 src/app/(app)/               Signed-in pages: dashboard, letters, countdown, calendar (+year), memories, account
 src/app/(auth)/login/        Sign-in (magic link, optional Google, optional Turnstile)
-src/app/(marketing)/         Public /welcome and /install (the only indexable pages)
+src/app/(marketing)/         Public /welcome, /install and /stats (the only indexable pages)
 src/app/auth/confirm/        Magic-link / OAuth callback
 src/app/api/cron/            Daily unlock-email job (Bearer CRON_SECRET, off unless ENABLE_UNLOCK_EMAILS=true)
 src/app/api/widget/          Public countdown JSON feed, authenticated by a per-feed token

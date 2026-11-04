@@ -447,12 +447,8 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
         }}
         onDragStart={(e) => e.preventDefault()}
       >
+        <SkyClouds />
         <div ref={worldRef} className="absolute top-0 left-0 h-0 w-0 origin-top-left will-change-transform">
-          {/* All clouds first, under every island's photos: neighbouring clouds may overlap
-              (they merge like a real cloudscape), but never cover another day's photos. */}
-          {clusters.map((c) => (
-            <Cloud key={c.date} cluster={c} />
-          ))}
           {clusters.map((c) => (
             <Island
               key={c.date}
@@ -539,28 +535,46 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
 }
 
 /**
- * The cloud a day's photos float on. Pictures, not CSS shapes: rendered offline (a heap of
- * lit, self-shadowing puffs, see scripts/generate-clouds.mjs) so they look like real cumulus,
- * and as plain images they cost nothing to pan. Wider than the island's packing circle on
- * purpose; the photos sit in its middle.
+ * Clouds drifting across the sky, behind the photos. Pictures, not CSS shapes: rendered offline
+ * (a heap of lit, self-shadowing puffs, see scripts/generate-clouds.mjs) so they look like real
+ * cumulus. They're fixed to the screen rather than the world, so panning never moves them, and
+ * the drift is a CSS animation of `translate` only, which the compositor runs without touching
+ * the main thread. A negative delay spreads them across the sky from the first frame; with
+ * reduced motion they stay where they start.
  */
-function Cloud({ cluster }: { cluster: MemoryCluster<PhotoView> }) {
-  const { x, y, r, cloud } = cluster;
-  // The picture is 4:3 with the cloud's body in its middle band, so it's drawn well past the
-  // island's circle; neighbouring clouds overlap and merge, like a real sky.
-  const w = Math.round(r * 3.4);
-  const h = Math.round(w * 0.75);
+const SKY_CLOUDS = [
+  { variant: 1, top: "9%", width: "min(52vw, 460px)", seconds: 210, at: 0.15, flip: false, opacity: 0.95 },
+  { variant: 3, top: "34%", width: "min(34vw, 300px)", seconds: 300, at: 0.62, flip: true, opacity: 0.8 },
+  { variant: 2, top: "55%", width: "min(60vw, 540px)", seconds: 240, at: 0.88, flip: false, opacity: 0.9 },
+  { variant: 4, top: "76%", width: "min(40vw, 360px)", seconds: 270, at: 0.4, flip: false, opacity: 0.85 },
+  { variant: 1, top: "22%", width: "min(26vw, 220px)", seconds: 360, at: 0.78, flip: true, opacity: 0.7 },
+] as const;
+
+function SkyClouds() {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/clouds/cumulus-${cloud.variant}.webp`}
-      alt=""
-      aria-hidden
-      draggable={false}
-      decoding="async"
-      className="pointer-events-none absolute max-w-none select-none"
-      style={{ left: x - w / 2, top: y - h * 0.56, width: w, height: h, transform: cloud.flip ? "scaleX(-1)" : undefined }}
-    />
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      {SKY_CLOUDS.map((c, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={i}
+          src={`/clouds/cumulus-${c.variant}.webp`}
+          alt=""
+          draggable={false}
+          decoding="async"
+          fetchPriority="low"
+          className="memory-sky-cloud absolute left-0 max-w-none select-none"
+          style={{
+            top: c.top,
+            width: c.width,
+            opacity: c.opacity,
+            scale: c.flip ? "-1 1" : undefined,
+            animationDuration: `${c.seconds}s`,
+            animationDelay: `${-c.at * c.seconds}s`,
+            ["--at" as string]: c.at,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 

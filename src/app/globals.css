@@ -433,13 +433,24 @@
   .memory-board {
     touch-action: none;
     cursor: grab;
-    /* A soft daytime sky the clouds (islands) float in. It doesn't move with the world: only the
-       world layer is transformed, so panning never repaints this. Kept light so the theme
-       stays airy; the clouds' grey undersides give them their edge against it. */
+    /* A soft daytime sky with clouds drifting behind the photos. It doesn't move with the world:
+       only the world layer is transformed, so panning never repaints this. Kept light so the
+       theme stays airy; the clouds' grey undersides give them their edge against it. */
     background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 55%, var(--mint) 100%);
   }
   .memory-board[data-dragging="true"] {
     cursor: grabbing;
+  }
+  /* Background clouds: drift from off the left edge to off the right, then start again. */
+  .memory-sky-cloud {
+    animation: sky-drift linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    /* Still clouds, spread out where the drift would have had them. */
+    .memory-sky-cloud {
+      animation: none !important;
+      left: calc(var(--at) * 100% - 15%);
+    }
   }
   /* Under the header, so wandering photos don't collide with the nav. */
   .memory-sky-fade {
@@ -475,6 +486,14 @@
 }
 
 /* ---------- Motion ---------- */
+@keyframes sky-drift {
+  from {
+    translate: -100% 0;
+  }
+  to {
+    translate: 100vw 0;
+  }
+}
 @keyframes pop-in {
   0% {
     opacity: 0;

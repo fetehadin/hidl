@@ -5,11 +5,6 @@
  * ids), so the board looks the same on every visit and on the server.
  */
 
-/** Which cloud picture (public/clouds/cumulus-N.webp) an island floats on, and whether it's mirrored. */
-export type MemoryCloud = { variant: number; flip: boolean };
-
-export const CLOUD_VARIANTS = 4;
-
 export type PlacedPhoto<T> = {
   photo: T;
   /** Center of the photo card, relative to its cluster's center. */
@@ -26,7 +21,6 @@ export type MemoryCluster<T> = {
   y: number;
   /** Bounding radius used for packing (clusters never overlap). */
   r: number;
-  cloud: MemoryCloud;
   sticker: { x: number; y: number; rotate: number };
   photos: PlacedPhoto<T>[];
 };
@@ -126,8 +120,6 @@ export function layoutMemories<T extends { id: string; date: string }>(photos: T
 
   for (const date of dates) {
     const { placed, r, sticker } = arrangeCluster(date, byDate.get(date)!);
-    const ch = hash(`${date}#cloud`);
-    const cloud = { variant: (ch % CLOUD_VARIANTS) + 1, flip: ((ch >>> 8) & 1) === 1 };
 
     let x = 0;
     let y = 0;
@@ -154,7 +146,6 @@ export function layoutMemories<T extends { id: string; date: string }>(photos: T
       x: px(x),
       y: px(y),
       r: Math.ceil(r),
-      cloud,
       sticker: { x: px(sticker.x), y: px(sticker.y), rotate: deg(sticker.rotate) },
       photos: placed.map((p) => ({ ...p, x: px(p.x), y: px(p.y), rotate: deg(p.rotate) })),
     });
