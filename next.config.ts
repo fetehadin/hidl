@@ -22,6 +22,8 @@ const nextConfig: NextConfig = {
       // The tab icon is re-requested on every client navigation; without a lifetime it cost a
       // round trip each time (Next serves it with max-age=0, must-revalidate).
       { source: "/icon.svg", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }] },
+      // The memories board's cloud pictures. Change the file names if you regenerate them.
+      { source: "/clouds/:file", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
     ];
   },
   experimental: {

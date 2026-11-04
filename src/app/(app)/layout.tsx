@@ -6,6 +6,7 @@ import { Avatar } from "@/components/avatar";
 import { BuddyProvider } from "@/components/buddy-context";
 import { Mascot } from "@/components/mascot";
 import { AppShell, MobileTabBar } from "@/components/nav";
+import { UsagePing } from "@/components/usage-ping";
 import { DEFAULT_AVATAR } from "@/lib/avatar";
 import { getAvatar } from "@/lib/data/profile";
 import { NAV_COOKIE } from "@/lib/nav-cookie";
@@ -37,6 +38,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       </AppShell>
       <MobileTabBar />
       <HidiMenu />
+      <UsagePing />
       </BuddyProvider>
     </CalendarPrefProvider>
   );

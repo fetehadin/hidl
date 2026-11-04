@@ -39,6 +39,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <p className="flex gap-4 font-semibold">
             <Link href="/install" className="hover:text-ocean">Install the app</Link>
             <Link href="/#privacy" className="hover:text-ocean">Privacy</Link>
+            <Link href="/stats" className="hover:text-ocean">Stats</Link>
             <Link href="/login" className="hover:text-ocean">Sign in</Link>
           </p>
         </div>

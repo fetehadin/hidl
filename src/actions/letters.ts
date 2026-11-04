@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { LetterSealedError, getLetterMeta, openLetter } from "@/lib/data/letters";
 import { requireUser } from "@/lib/supabase/server";
 import { localToUtc } from "@/lib/time";
-import { letterIdSchema, newLetterSchema, postponeSchema } from "@/lib/validation/letters";
+import { letterIdSchema, newLetterSchema, changeDateSchema } from "@/lib/validation/letters";
 
 export type FormState = {
   status: "idle" | "error";
@@ -70,8 +70,9 @@ export async function openLetterAction(id: string): Promise<OpenResult> {
   }
 }
 
-export async function postponeLetter(_prev: FormState, formData: FormData): Promise<FormState> {
-  const parsed = postponeSchema.safeParse(Object.fromEntries(formData));
+/** Changes a sealed letter's opening date, earlier or later (still in the future). */
+export async function changeLetterDate(_prev: FormState, formData: FormData): Promise<FormState> {
+  const parsed = changeDateSchema.safeParse(Object.fromEntries(formData));
   const values = { unlock_local: String(formData.get("unlock_local") ?? "") };
   if (!parsed.success) return { status: "error", message: "Pick a valid date and time.", values };
 
@@ -80,8 +81,14 @@ export async function postponeLetter(_prev: FormState, formData: FormData): Prom
   if (!current) return { status: "error", message: "Letter not found." };
 
   const next = localToUtc(parsed.data.unlock_local, timeZone);
-  if (next.getTime() <= new Date(current.unlock_at).getTime()) {
-    return { status: "error", message: "The new date has to be later than the current one.", values };
+  if (new Date(current.unlock_at).getTime() <= Date.now()) {
+    return { status: "error", message: "This letter has already unlocked." };
+  }
+  if (next.getTime() < Date.now() + MIN_LEAD_MS) {
+    return { status: "error", message: "Pick a time at least a minute from now.", values };
+  }
+  if (next.getTime() === new Date(current.unlock_at).getTime()) {
+    return { status: "idle", message: "That's already the date.", values };
   }
 
   const { error } = await supabase
@@ -91,13 +98,15 @@ export async function postponeLetter(_prev: FormState, formData: FormData): Prom
   if (error) {
     return { status: "error", message: error.message.includes("already unlocked")
       ? "This letter has already unlocked."
-      : "Couldn't change the date. Try again." };
+      : error.message.includes("in the future")
+        ? "Pick a time that's still in the future."
+        : "Couldn't change the date. Try again.", values };
   }
 
   revalidatePath(`/letters/${parsed.data.id}`);
   revalidatePath("/letters");
   revalidatePath("/");
-  return { status: "idle", message: "Moved." };
+  return { status: "idle", message: next.getTime() < new Date(current.unlock_at).getTime() ? "Moved earlier." : "Moved later." };
 }
 
 export async function deleteLetter(formData: FormData) {

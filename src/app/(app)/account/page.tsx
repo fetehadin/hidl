@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { signOut } from "@/actions/auth";
 import { AvatarBuilder } from "@/components/account/avatar-builder";
@@ -66,6 +67,11 @@ export default async function AccountPage() {
           <DeleteAccountButton />
         </div>
       </div>
+
+      <p className="mt-6 text-center text-sm text-muted">
+        <Link href="/stats" className="font-semibold text-accent underline-offset-4 hover:underline">hidl in numbers</Link>
+        {" "}· how many people use hidl
+      </p>
     </>
   );
 }

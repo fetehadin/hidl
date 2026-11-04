@@ -94,12 +94,13 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| `letters` | `title`, `recipient`, `occasion`, `body`, `encrypted`, `unlock_at`, `opened_at`, `unlock_email_sent_at` | No `SELECT` on `body`: read only through `open_letter(id)` once `now() >= unlock_at`. Only `unlock_at` is updatable, and only later. |
+| `letters` | `title`, `recipient`, `occasion`, `body`, `encrypted`, `unlock_at`, `opened_at`, `unlock_email_sent_at` | No `SELECT` on `body`: read only through `open_letter(id)` once `now() >= unlock_at`. Only `unlock_at` is updatable: earlier or later, only while sealed, only to a future time. |
 | `letter_keys` | `user_id` (PK), `kdf_salt`, `kdf_iterations`, `passphrase_wrapped_key`, `recovery_wrapped_key` | One per user. The letter key wrapped twice; no `DELETE`, the recovery copy can't change. |
 | `countdowns` | `kind`, `title`, `target_at`, `target_score`/`max_score`/`actual_score`, `details` jsonb, `units` text[], `is_widget` | `kind` can't be updated; scores only for `exam`; `details` checked by `countdown_details_ok`; one `is_widget` per user. |
 | `widget_tokens` | `id`, `user_id`, `countdown_id` (null = follow the starred one), `token_hash` | `(countdown_id, user_id)` FK → `countdowns(id, user_id)`; `token_hash` is never selectable. |
 | `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover` | Many per day; no future dates (in the owner's zone, from `user_settings`); paths must be in the user's folder; one cover per `(user_id, date)`. |
 | `profiles` | `user_id` (PK), `avatar` jsonb | Checked by `avatar_ok()`, which mirrors `AVATAR_PARTS` in `src/lib/avatar.ts`. |
+| `usage_daily` | `day`, `user_id`, `visits` | No grants at all. Written only by `record_visit()`, read only as totals by `public_stats()` (the public `/stats` page). |
 | `user_settings` | `user_id` (PK), `time_zone` | The device's IANA zone, checked by `time_zone_ok()`. No row = Africa/Addis_Ababa. Written only by `setTimeZone`. |
 
 Storage: one private `photos` bucket, `<user_id>/...` folders, 5 MB per file, JPEG/WebP/MP4/WebM/MOV only.
@@ -152,7 +153,8 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   `FormState` (`{ status, message?, fieldErrors?, values? }`); other actions return `{ ok: true } | { ok: false,
   message }`. Log failures with `console.error("<actionName>", error)` and show the user a short, friendly message.
 - **Every mutating action must call `revalidatePath`.** `experimental.staleTimes` keeps pages in the client cache,
-  and only revalidation clears it.
+  and only revalidation clears it. The one exception is `recordVisit` (`src/actions/usage.ts`): it changes nothing a
+  page shows, and revalidating on every app open would throw that cache away.
 - **Reads** go through `src/lib/data/*` (throw on error, return typed rows). Letter queries use
   `LETTER_META_COLUMNS`, which never includes `body`.
 - **Mirrored rules:** when a Postgres rule has a TypeScript mirror, change both in the same commit:

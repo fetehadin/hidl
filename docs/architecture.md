@@ -25,7 +25,8 @@ layer physically cannot violate it, even with a bug:
 - *Letters* (`supabase/migrations/..._letters.sql`): `authenticated` has no `SELECT` grant on the `body` column at
   all — only `public.open_letter(id)`, a `SECURITY DEFINER` function, can return it, and only after checking
   `now() >= unlock_at` with the **database's** clock. Triggers (`letters_before_update`) make a letter immutable
-  except `unlock_at`, which can only move later. `src/lib/data/letters.ts` mirrors this: `LETTER_META_COLUMNS`
+  except `unlock_at`, which can move earlier or later while the letter is still sealed, but only to a time still in
+  the future (`..._letter_date_any_direction.sql`; `changeLetterDate` / `ChangeDateForm`). `src/lib/data/letters.ts` mirrors this: `LETTER_META_COLUMNS`
   never includes `body`; reading it goes through `openLetter()` → the RPC, with `LetterSealedError` thrown on the
   `hint: "sealed"` error code.
 - *Letter encryption* (`..._letter_encryption.sql`, `src/lib/e2ee.ts`): new letter bodies are end-to-end
@@ -157,6 +158,10 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   metadata; the root layout stays `noindex`). The QR codes are rendered server-side by `qrcode`
   (`src/components/marketing/qr-code.tsx`), so the library never ships to the browser. There is no native app:
   "the app" is the installable PWA.
+- **Usage stats:** `/stats` (`src/app/(marketing)/stats/page.tsx`, in `PUBLIC_PATHS`, linked from the marketing
+  footer and the bottom of `/account`) shows totals from `public_stats()` (`..._usage_stats.sql`). Visits are
+  counted by `<UsagePing>` in the `(app)` layout: once per browser tab per day, on idle, via `recordVisit` →
+  `record_visit()`. `usage_daily` has no grants; don't add any, and keep anything per-person out of `public_stats()`.
 - **Avatars:** each user can build a Hidi-style buddy on `/account` (`src/components/account/avatar-builder.tsx`):
   theme, eyes, mouth, top, accessory, background (option lists in `src/lib/avatar.ts`, drawn by
   `src/components/avatar.tsx`). Stored in `profiles.avatar` (`..._profiles_avatar.sql`, checked by `avatar_ok()`,
@@ -231,7 +236,13 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   per day, laid out by the pure, deterministic `layoutMemories()` in `src/lib/memories.ts` (newest day at the
   origin, islands spiral-packed so they never overlap; output is rounded so SSR and client markup match). Camera
   moves write straight to the DOM; React only re-renders when an island first nears the viewport (that's when its
-  thumbnails load).
+  thumbnails load). Each day floats on a cloud: pictures in `public/clouds/cumulus-N.webp` (made by
+  `scripts/generate-clouds.mjs`; served `immutable`, so rename the files if you regenerate them), all drawn in one
+  layer under every island's photos so neighbouring clouds merge but never cover a photo. The sky is a fixed
+  gradient on the board; only the world layer moves (no background repaint per frame). Loading order: the islands
+  around the start position (`FIRST_VIEW`, a smaller box when the page says `phone`, from the user agent) are in
+  the server HTML with `fetchPriority="high"`, so their photos download while the JS loads; islands just off
+  screen are only added after those have loaded.
 - The month calendar (`src/components/calendar/month-grid.tsx`) is sized to fit the viewport without scrolling:
   its height is `min(100dvh - --chrome, square-cell height)` using container query units (the page wrapper is an
   `@container`), so cells widen on laptops and stay square on phones. If you add anything above or below the grid
@@ -241,7 +252,8 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   `/countdown/new?kind=…`; without `?kind` that page shows the same picker inline.
 - Visual language: a bright, **light-only** teal theme in `globals.css` (no dark mode on purpose: it renders light
   even when the OS prefers dark; `color-scheme: light` + `viewport.colorScheme`). Page is `--mint` with a white
-  glow, cards/nav/fields are white with `--aqua` borders, a few feature cards and memory islands are aqua,
+  glow, cards/nav/fields are white with `--aqua` borders, a few feature cards are aqua (the memories board is the
+  exception: a light sky, `--sky-top`/`--sky-mid`, with clouds),
   `--fresh` is for highlights/progress, `--teal` for buttons/icons/active, `--ocean` for headings and small
   important text. Never put large surfaces in teal/ocean or black (the photo viewer and dialog backdrops are light
   too). White on `--teal` is only 3.7:1, so primary button labels are large+bold (AA large text) and small teal

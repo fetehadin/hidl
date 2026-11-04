@@ -5,7 +5,10 @@
  * ids), so the board looks the same on every visit and on the server.
  */
 
-export type MemoryTint = "white" | "aqua";
+/** Which cloud picture (public/clouds/cumulus-N.webp) an island floats on, and whether it's mirrored. */
+export type MemoryCloud = { variant: number; flip: boolean };
+
+export const CLOUD_VARIANTS = 4;
 
 export type PlacedPhoto<T> = {
   photo: T;
@@ -23,12 +26,10 @@ export type MemoryCluster<T> = {
   y: number;
   /** Bounding radius used for packing (clusters never overlap). */
   r: number;
-  tint: MemoryTint;
+  cloud: MemoryCloud;
   sticker: { x: number; y: number; rotate: number };
   photos: PlacedPhoto<T>[];
 };
-
-const TINTS: MemoryTint[] = ["white", "aqua"];
 
 /** Max visual photo card height (a 3:4 portrait at the widest width, with frame). */
 const MAX_CARD_W = 184;
@@ -125,7 +126,8 @@ export function layoutMemories<T extends { id: string; date: string }>(photos: T
 
   for (const date of dates) {
     const { placed, r, sticker } = arrangeCluster(date, byDate.get(date)!);
-    const tint = TINTS[hash(`${date}#tint`) % TINTS.length];
+    const ch = hash(`${date}#cloud`);
+    const cloud = { variant: (ch % CLOUD_VARIANTS) + 1, flip: ((ch >>> 8) & 1) === 1 };
 
     let x = 0;
     let y = 0;
@@ -152,7 +154,7 @@ export function layoutMemories<T extends { id: string; date: string }>(photos: T
       x: px(x),
       y: px(y),
       r: Math.ceil(r),
-      tint,
+      cloud,
       sticker: { x: px(sticker.x), y: px(sticker.y), rotate: deg(sticker.rotate) },
       photos: placed.map((p) => ({ ...p, x: px(p.x), y: px(p.y), rotate: deg(p.rotate) })),
     });

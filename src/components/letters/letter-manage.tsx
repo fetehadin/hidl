@@ -1,30 +1,40 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
-import { deleteLetter, type FormState, postponeLetter } from "@/actions/letters";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { deleteLetter, type FormState, changeLetterDate } from "@/actions/letters";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
 import { formatEthiopian } from "@/lib/ethiopian";
-import { localToUtc } from "@/lib/time";
+import { localToUtc, utcToLocalInput } from "@/lib/time";
 
-export function PostponeForm({ id, currentLocal }: { id: string; currentLocal: string }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(postponeLetter, { status: "idle" });
+/** Change the opening date of a sealed letter: earlier or later, as long as it's still ahead. */
+export function ChangeDateForm({ id, currentLocal }: { id: string; currentLocal: string }) {
+  const [state, action, pending] = useActionState<FormState, FormData>(changeLetterDate, { status: "idle" });
   const [value, setValue] = useState(state.values?.unlock_local ?? currentLocal);
   const calendar = useCalendarPref();
   const timeZone = useTimeZone();
+  // The earliest allowed is "a minute from now", worked out in the browser after it loads (the
+  // server checks it again). Rendering it on the server could disagree with the client's minute.
+  const [minLocal, setMinLocal] = useState<string>();
+  useEffect(() => {
+    const update = () => setMinLocal(utcToLocalInput(new Date(Date.now() + 60_000), timeZone));
+    update();
+    const t = setInterval(update, 30_000);
+    return () => clearInterval(t);
+  }, [timeZone]);
 
   return (
     <details className="group rounded-control border border-line px-4 py-3">
       <summary className="cursor-pointer list-none font-semibold text-ink-soft marker:hidden">
-        Move the date later <span className="text-muted group-open:hidden">→</span>
+        Change the opening date <span className="text-muted group-open:hidden">→</span>
       </summary>
       <form action={action} className="mt-3 flex flex-col gap-2 sm:flex-row">
         <input type="hidden" name="id" value={id} />
         <label htmlFor="unlock_local" className="sr-only">New opening date</label>
-        <input id="unlock_local" name="unlock_local" type="datetime-local" required min={currentLocal}
+        <input id="unlock_local" name="unlock_local" type="datetime-local" required min={minLocal}
           value={value} onChange={(e) => setValue(e.target.value)} className="field" />
-        <button type="submit" className="btn btn-ghost shrink-0" disabled={pending}>
-          {pending ? "Saving…" : "Push it back"}
+        <button type="submit" className="btn btn-ghost shrink-0" disabled={pending || value === currentLocal}>
+          {pending ? "Saving…" : "Save date"}
         </button>
       </form>
       {value && calendar === "ethiopian" && <p className="mt-1.5 text-sm text-muted">Ethiopian calendar: {formatEthiopian(localToUtc(value, timeZone), timeZone)}</p>}
@@ -34,7 +44,9 @@ export function PostponeForm({ id, currentLocal }: { id: string; currentLocal: s
           {state.message}
         </p>
       )}
-      <p className="mt-2 text-sm text-muted">The date can only move later, never earlier.</p>
+      <p className="mt-2 text-sm text-muted">
+        Earlier or later, any time while it&apos;s still sealed. It stays sealed until the new date.
+      </p>
     </details>
   );
 }

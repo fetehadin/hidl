@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { userAgent } from "next/server";
 import Link from "next/link";
 import { Mascot } from "@/components/mascot";
 import { MemoryBoard } from "@/components/memories/memory-board";
@@ -34,5 +36,7 @@ export default async function MemoriesPage() {
     );
   }
 
-  return <MemoryBoard photos={photos} today={today} />;
+  // Which photos to put straight into the HTML depends on the screen size the camera starts on.
+  const phone = userAgent({ headers: await headers() }).device.type === "mobile";
+  return <MemoryBoard photos={photos} today={today} phone={phone} />;
 }

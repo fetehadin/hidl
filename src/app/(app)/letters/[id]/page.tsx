@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Envelope } from "@/components/envelope";
 import { letterState, sealInitial } from "@/components/letters/letter-card";
-import { DeleteLetterButton, PostponeForm } from "@/components/letters/letter-manage";
+import { DeleteLetterButton, ChangeDateForm } from "@/components/letters/letter-manage";
 import { LetterPaper } from "@/components/letters/letter-paper";
 import { DecryptedLetter } from "@/components/letters/decrypted-letter";
 import { LetterKeyGate } from "@/components/letters/letter-key";
@@ -59,7 +59,7 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
               </div>
             </Envelope>
             <div className="mx-auto max-w-md space-y-4">
-              <PostponeForm id={letter.id} currentLocal={utcToLocalInput(letter.unlock_at, timeZone)} />
+              <ChangeDateForm id={letter.id} currentLocal={utcToLocalInput(letter.unlock_at, timeZone)} />
               <div className="text-center"><DeleteLetterButton id={letter.id} /></div>
             </div>
           </div>

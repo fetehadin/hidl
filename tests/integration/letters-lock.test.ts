@@ -89,17 +89,30 @@ describe("a sealed letter's body is not retrievable before unlock_at", () => {
     expect(error?.code).toBe("42501");
   });
 
-  it("unlock_at can move later but never earlier", async () => {
+  it("unlock_at can move later, or earlier while staying in the future", async () => {
     const meta = await getLetterMeta(me.client, sealedId);
-    const later = new Date(new Date(meta!.unlock_at).getTime() + 86_400_000).toISOString();
-    const earlier = inSeconds(5);
-
-    const moveEarlier = await me.client.from("letters").update({ unlock_at: earlier }).eq("id", sealedId);
-    expect(moveEarlier.error?.message).toMatch(/only move later/);
+    const original = meta!.unlock_at;
+    const later = new Date(new Date(original).getTime() + 86_400_000).toISOString();
+    const earlier = new Date(new Date(original).getTime() - 30 * 60_000).toISOString();
 
     const moveLater = await me.client.from("letters").update({ unlock_at: later }).eq("id", sealedId).select("unlock_at");
     expect(moveLater.error).toBeNull();
     expect(new Date(moveLater.data![0].unlock_at).toISOString()).toBe(later);
+
+    const moveEarlier = await me.client.from("letters").update({ unlock_at: earlier }).eq("id", sealedId).select("unlock_at");
+    expect(moveEarlier.error).toBeNull();
+    expect(new Date(moveEarlier.data![0].unlock_at).toISOString()).toBe(earlier);
+
+    // Still sealed after moving it earlier.
+    await expect(openLetter(me.client, sealedId)).rejects.toBeInstanceOf(LetterSealedError);
+
+    // "Open it now" by the back door is still refused.
+    const toPast = await me.client.from("letters").update({ unlock_at: inSeconds(-5) }).eq("id", sealedId);
+    expect(toPast.error?.message).toMatch(/in the future/);
+    const toNow = await me.client.from("letters").update({ unlock_at: new Date().toISOString() }).eq("id", sealedId);
+    expect(toNow.error?.message).toMatch(/in the future/);
+
+    await me.client.from("letters").update({ unlock_at: original }).eq("id", sealedId);
   });
 
   it("a letter cannot be created already unlocked", async () => {

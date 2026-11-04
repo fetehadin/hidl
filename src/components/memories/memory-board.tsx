@@ -15,7 +15,28 @@ type UploadMode = { kind: "add"; date: string } | { kind: "replace"; date: strin
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 1.8;
 const DRAG_THRESHOLD = 6;
-const DOT = 28;
+/**
+ * How far past the screen edge islands start loading. 0 on first paint, so a phone on a slow
+ * connection spends it on the photos you can actually see; widened once those are in.
+ */
+const PRELOAD_MARGIN = 500;
+/**
+ * The part of the world (around the newest day, where the camera starts) whose photos are in
+ * the server-rendered HTML. Covers a phone (starts at 62% zoom) and a laptop (90%). Those
+ * start downloading while the page's JavaScript is still loading, instead of after it (on a
+ * slow phone that was a second of empty placeholders).
+ */
+const FIRST_VIEW = {
+  // A 390×844 phone at 62%: ±315 × ±680 world px.
+  phone: { halfW: 340, halfH: 700 },
+  // Up to a 1600×1000 window at 90%.
+  wide: { halfW: 900, halfH: 560 },
+};
+
+function inFirstView(c: MemoryCluster<unknown>, phone: boolean) {
+  const box = phone ? FIRST_VIEW.phone : FIRST_VIEW.wide;
+  return Math.abs(c.x) - c.r < box.halfW && Math.abs(c.y) - c.r < box.halfH;
+}
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
@@ -37,7 +58,7 @@ function shortDate(date: string) {
  * only re-renders when a new island first comes near the viewport, which is
  * when its images start loading.
  */
-export function MemoryBoard({ photos, today }: { photos: PhotoView[]; today: string }) {
+export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; today: string; phone: boolean }) {
   usePreloadPhotoTools();
   const clusters = useMemo(() => layoutMemories(photos), [photos]);
   const indexById = useMemo(() => new Map(photos.map((p, i) => [p.id, i])), [photos]);
@@ -61,7 +82,10 @@ export function MemoryBoard({ photos, today }: { photos: PhotoView[]; today: str
   } | null>(null);
   const suppressClick = useRef(false);
 
-  const [seen, setSeen] = useState<Set<string>>(() => new Set());
+  /** Islands near where the camera starts: in the HTML, and fetched first (high priority). */
+  const firstView = useMemo(() => new Set(clusters.filter((c) => inFirstView(c, phone)).map((c) => c.date)), [clusters, phone]);
+  const [seen, setSeen] = useState<Set<string>>(() => new Set(firstView));
+  const margin = useRef(0);
   const [hint, setHint] = useState(true);
   const [zoomPct, setZoomPct] = useState(100);
   const [lightbox, setLightbox] = useState<number | null>(null);
@@ -75,14 +99,15 @@ export function MemoryBoard({ photos, today }: { photos: PhotoView[]; today: str
     const { tx, ty, scale } = cam.current;
     const w = board.clientWidth;
     const h = board.clientHeight;
-    const margin = 500;
+    const m = margin.current;
     const newly: string[] = [];
     for (const c of clusters) {
       const cx = tx + c.x * scale;
       const cy = ty + c.y * scale;
       const r = c.r * scale;
-      if (cx + r > -margin && cx - r < w + margin && cy + r > -margin && cy - r < h + margin) newly.push(c.date);
+      if (cx + r > -m && cx - r < w + m && cy + r > -m && cy - r < h + m) newly.push(c.date);
     }
+
     setSeen((prev) => {
       if (newly.every((d) => prev.has(d))) return prev;
       const next = new Set(prev);
@@ -94,13 +119,9 @@ export function MemoryBoard({ photos, today }: { photos: PhotoView[]; today: str
 
   const apply = useCallback(() => {
     const { tx, ty, scale } = cam.current;
+    // Only the world layer moves (a compositor-only transform); the sky behind it stays put,
+    // so a pan never repaints the whole screen.
     if (worldRef.current) worldRef.current.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
-    if (boardRef.current) {
-      boardRef.current.style.backgroundPosition = `${tx}px ${ty}px`;
-      // Double the dot spacing when far out so the grid doesn't turn into fuzz.
-      const dot = DOT * scale * (scale < 0.5 ? 2 : 1);
-      boardRef.current.style.backgroundSize = `${dot}px ${dot}px`;
-    }
     if (visTick.current === null) visTick.current = requestAnimationFrame(updateVisibility);
   }, [updateVisibility]);
 
@@ -174,6 +195,34 @@ export function MemoryBoard({ photos, today }: { photos: PhotoView[]; today: str
 
   useEffect(() => {
     updateVisibility();
+  }, [updateVisibility]);
+
+  // Once the first screenful of photos has loaded (or after a few seconds on a very slow
+  // connection), start loading the islands just off screen too.
+  useEffect(() => {
+    let cancelled = false;
+    let idle: number | undefined;
+    const widen = () => {
+      if (cancelled) return;
+      margin.current = PRELOAD_MARGIN;
+      updateVisibility();
+    };
+    const pending = [...(boardRef.current?.querySelectorAll<HTMLImageElement>('img[fetchpriority="high"]') ?? [])]
+      .filter((img) => !img.complete)
+      .map((img) => new Promise((done) => {
+        img.addEventListener("load", done, { once: true });
+        img.addEventListener("error", done, { once: true });
+      }));
+    const timeout = new Promise((done) => setTimeout(done, 4000));
+    Promise.race([Promise.all(pending), timeout]).then(() => {
+      if (cancelled) return;
+      if ("requestIdleCallback" in window) idle = requestIdleCallback(widen, { timeout: 1000 });
+      else widen();
+    });
+    return () => {
+      cancelled = true;
+      if (idle !== undefined) cancelIdleCallback(idle);
+    };
   }, [updateVisibility]);
 
   useEffect(() => {
@@ -399,12 +448,18 @@ export function MemoryBoard({ photos, today }: { photos: PhotoView[]; today: str
         onDragStart={(e) => e.preventDefault()}
       >
         <div ref={worldRef} className="absolute top-0 left-0 h-0 w-0 origin-top-left will-change-transform">
+          {/* All clouds first, under every island's photos: neighbouring clouds may overlap
+              (they merge like a real cloudscape), but never cover another day's photos. */}
+          {clusters.map((c) => (
+            <Cloud key={c.date} cluster={c} />
+          ))}
           {clusters.map((c) => (
             <Island
               key={c.date}
               cluster={c}
               today={today}
               loaded={seen.has(c.date)}
+              eager={firstView.has(c.date)}
               onOpen={openPhoto}
               onSticker={() => flyTo(c.x, c.y, Math.max(cam.current.scale, 1))}
               onFocusPhoto={(x, y) => flyTo(c.x + x, c.y + y, Math.max(cam.current.scale, 0.8), 380)}
@@ -425,7 +480,7 @@ export function MemoryBoard({ photos, today }: { photos: PhotoView[]; today: str
       </div>
 
       {/* Fade under the header so wandering photos don't collide with the nav. */}
-      <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[1] h-28 bg-gradient-to-b from-paper via-paper/80 to-transparent" />
+      <div aria-hidden className="memory-sky-fade pointer-events-none fixed inset-x-0 top-0 z-[1] h-28" />
 
       <div
         className="pointer-events-none fixed inset-x-0 z-10 mx-auto flex max-w-[70rem] flex-col items-start gap-3 px-5 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] sm:left-[var(--nav-w,0px)] sm:bottom-6 sm:flex-row sm:items-end sm:justify-between sm:pr-24"
@@ -483,15 +538,37 @@ export function MemoryBoard({ photos, today }: { photos: PhotoView[]; today: str
   );
 }
 
-const TINT_CLASS = {
-  white: "tint-white",
-  aqua: "tint-aqua",
-} as const;
+/**
+ * The cloud a day's photos float on. Pictures, not CSS shapes: rendered offline (a heap of
+ * lit, self-shadowing puffs, see scripts/generate-clouds.mjs) so they look like real cumulus,
+ * and as plain images they cost nothing to pan. Wider than the island's packing circle on
+ * purpose; the photos sit in its middle.
+ */
+function Cloud({ cluster }: { cluster: MemoryCluster<PhotoView> }) {
+  const { x, y, r, cloud } = cluster;
+  // The picture is 4:3 with the cloud's body in its middle band, so it's drawn well past the
+  // island's circle; neighbouring clouds overlap and merge, like a real sky.
+  const w = Math.round(r * 3.4);
+  const h = Math.round(w * 0.75);
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/clouds/cumulus-${cloud.variant}.webp`}
+      alt=""
+      aria-hidden
+      draggable={false}
+      decoding="async"
+      className="pointer-events-none absolute max-w-none select-none"
+      style={{ left: x - w / 2, top: y - h * 0.56, width: w, height: h, transform: cloud.flip ? "scaleX(-1)" : undefined }}
+    />
+  );
+}
 
 function Island({
   cluster,
   today,
   loaded,
+  eager,
   onOpen,
   onSticker,
   onFocusPhoto,
@@ -499,11 +576,13 @@ function Island({
   cluster: MemoryCluster<PhotoView>;
   today: string;
   loaded: boolean;
+  /** On screen at first paint: fetch these photos before anything else. */
+  eager: boolean;
   onOpen: (id: string, trigger: HTMLElement) => void;
   onSticker: () => void;
   onFocusPhoto: (x: number, y: number) => void;
 }) {
-  const { date, x, y, r, tint, sticker, photos } = cluster;
+  const { date, x, y, sticker, photos } = cluster;
   const isToday = date === today;
   const ethiopian = useCalendarPref() === "ethiopian";
   // Big line in the chosen calendar; the small line above it is the Gregorian date
@@ -512,13 +591,6 @@ function Island({
   const small = isToday ? "today" : ethiopian ? shortDate(date) : weekday(date);
   return (
     <section aria-label={`${big}, ${photos.length} ${photos.length === 1 ? "photo" : "photos"}`} className="absolute" style={{ left: x, top: y }}>
-      {/* the island itself: a soft pastel blob the day's photos sit on */}
-      <div
-        aria-hidden
-        className={`${TINT_CLASS[tint]} memory-island absolute`}
-        style={{ left: -r * 0.92, top: -r * 0.84, width: r * 1.84, height: r * 1.68, rotate: `${sticker.rotate * 3}deg` }}
-      />
-
       {photos.map(({ photo, x: px, y: py, width, rotate }, i) => (
         <button
           key={photo.id}
@@ -543,6 +615,7 @@ function Island({
               alt=""
               draggable={false}
               decoding="async"
+              fetchPriority={eager ? "high" : "low"}
               className="animate-pop-in block w-full rounded-[0.7rem] bg-paper-deep"
               style={{ animationDelay: `${i * 45}ms`, minHeight: 60 }}
             />

@@ -27,7 +27,8 @@ export const newLetterSchema = z.object({
 
 export const letterIdSchema = z.uuid();
 
-export const postponeSchema = z.object({
+/** Moving a sealed letter's opening date (earlier or later). */
+export const changeDateSchema = z.object({
   id: letterIdSchema,
   unlock_local: localDateTime,
 });
