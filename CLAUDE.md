@@ -20,6 +20,12 @@ README's "How the important rules are enforced" table (every hard rule and the P
 - Gregorian or Ethiopian date display, a buildable avatar ("buddy") based on the mascot Hidi, account self-deletion,
   a landing page and install guide for signed-out visitors.
 - **Feedback** (`/feedback`): anyone signed in can send a bug, idea or praise and see replies to it.
+- **Profiles and leaderboard:** a display name and picture (an uploaded photo or the buddy) on `/account`;
+  `/leaderboard` ranks photo streaks weekly and monthly (everyone unless they opt out), with last period's results
+  frozen ("released").
+- **App lock:** an optional per-device PIN or pattern lock screen (`/account`), kept in the browser only.
+- **Two themes:** the original bright teal and a bright modern blue, switched per device with the half-circle
+  button (side nav, phone header, landing page) or on Account. Hidi and the default buddy change color with it.
 - **Admin panel** (`/admin`, admins only): usage numbers (formerly the public `/stats`), accounts (search, details,
   suspend, delete, admin access, CSV export), the feedback inbox with replies, an audit log, and a System tab.
 
@@ -68,7 +74,8 @@ direct upload → `addPhoto`/`replacePhoto`).
 
 ```
 src/proxy.ts                 Next 16 proxy: session refresh + optimistic redirect
-src/app/(app)/               Signed-in pages: dashboard, letters, countdown, calendar (+year), memories, account, feedback
+src/app/(app)/               Signed-in pages: dashboard, letters, countdown, calendar (+year), memories, account, feedback,
+                             leaderboard
 src/app/(app)/admin/         Admin panel: overview, users (+[id], export), feedback, audit, system
 src/app/(auth)/login/        Sign-in (magic link, optional Google, optional Turnstile)
 src/app/(marketing)/         Public /welcome and /install (the only indexable pages); /stats redirects to /admin
@@ -76,13 +83,14 @@ src/app/auth/confirm/        Magic-link / OAuth callback
 src/app/api/cron/            Daily unlock-email job (Bearer CRON_SECRET, off unless ENABLE_UNLOCK_EMAILS=true)
 src/app/api/widget/          Public countdown JSON feed, authenticated by a per-feed token
 src/app/download/android/    The Android app's .apk, streamed from /opt/hidl/downloads on the server (not in git)
-src/actions/                 Server actions: auth, letters, encryption, countdowns, photos, preferences, feedback, admin
+src/actions/                 Server actions: auth, letters, encryption, countdowns, photos, preferences, feedback, admin,
+                             profile
 src/lib/supabase/            server.ts (createClient, requireUser, requireAdmin, isAdmin), client.ts, proxy.ts, admin.ts
 src/lib/data/                Typed read queries per table
 src/lib/validation/          zod schemas used by every action and route handler (server only)
 src/lib/                     Pure helpers: time, dates, ethiopian, calendar, countdown-kinds/units, e2ee,
                              key-store, image, media, memories, avatar, env, public-env, feedback, csv,
-                             admin-format, user-files
+                             admin-format, user-files, profile-rules, app-lock
 src/components/              UI, grouped by feature (letters/, countdown/, calendar/, account/, ...)
 public/sw.js                 Service worker: caches photo files, offline page; never caches pages
 supabase/migrations/         The schema, in order; supabase/config.toml is the local stack config
@@ -105,14 +113,16 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `countdowns` | `kind`, `title`, `target_at`, `target_score`/`max_score`/`actual_score`, `details` jsonb, `units` text[], `is_widget` | `kind` can't be updated; scores only for `exam`; `details` checked by `countdown_details_ok`; one `is_widget` per user. |
 | `widget_tokens` | `id`, `user_id`, `countdown_id` (null = follow the starred one), `token_hash` | `(countdown_id, user_id)` FK → `countdowns(id, user_id)`; `token_hash` is never selectable. |
 | `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover` | Many per day; no future dates (in the owner's zone, from `user_settings`); paths must be in the user's folder; one cover per `(user_id, date)`. |
-| `profiles` | `user_id` (PK), `avatar` jsonb | Checked by `avatar_ok()`, which mirrors `AVATAR_PARTS` in `src/lib/avatar.ts`. |
+| `profiles` | `user_id` (PK), `avatar` jsonb (nullable), `display_name`, `picture_path`, `show_on_leaderboard` | Own row only. `avatar_ok()` mirrors `AVATAR_PARTS` in `src/lib/avatar.ts`; `display_name_ok()` mirrors `src/lib/profile-rules.ts`; names unique ignoring case; `picture_path` must be `<own id>/<16 hex>.webp\|jpg`. Write it update-then-insert (no `.upsert()`). Other people's names/pictures come out only through `leaderboard()`. |
+| `leaderboard_releases`, `leaderboard_results` | `(period, period_start)`, `rank`, `streak`, `photo_days` | No grants. A finished week/month is snapshotted by `leaderboard(p, true)` the first time anyone asks for it. |
 | `usage_daily` | `day`, `user_id`, `visits` | No grants at all. Written only by `record_visit()`, read only through `admin_stats()` / `admin_user_detail()` (admins). |
 | `feedback` | `kind`, `message`, `page`, `user_agent`, `status`, `reply`, `replied_at` | Users insert (`kind`, `message`, `page`, `user_agent` only) and read their own (not `user_agent`); no update/delete. Status and reply only via `admin_update_feedback`. 10 per person per day (trigger, `53400`). Kinds/statuses mirrored in `src/lib/feedback.ts`. |
 | `admins` | `user_id` (PK), `added_by` | No grants. `is_admin()` answers for the caller; changed only by `admin_set_admin` (can't remove yourself). First admin is inserted by hand (README). |
 | `admin_audit` | `admin_email`, `action`, `target_user`, `target_email`, `details` | No grants and **no FK cascade**: entries outlive both accounts. Written by `admin_log()`, read by `admin_audit_log()`. |
 | `user_settings` | `user_id` (PK), `time_zone` | The device's IANA zone, checked by `time_zone_ok()`. No row = Africa/Addis_Ababa. Written only by `setTimeZone`. |
 
-Storage: one private `photos` bucket, `<user_id>/...` folders, 5 MB per file, JPEG/WebP/MP4/WebM/MOV only.
+Storage: one private `photos` bucket, `<user_id>/...` folders, 5 MB per file, JPEG/WebP/MP4/WebM/MOV only. One
+**public** `avatars` bucket for profile pictures, `<user_id>/<16 hex>.webp|jpg`, 512 KB, WebP/JPEG only.
 User preference `calendar` (Gregorian/Ethiopian) lives in `auth.users.user_metadata`, not a table.
 `exam_settings` from the first migrations was migrated into `countdowns` and dropped.
 
@@ -167,7 +177,9 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   `LETTER_META_COLUMNS`, which never includes `body`.
 - **Mirrored rules:** when a Postgres rule has a TypeScript mirror, change both in the same commit:
   `countdown_details_ok` ↔ `src/lib/countdown-kinds.ts`, `countdown_units_ok` ↔ `src/lib/countdown-units.ts`,
-  `avatar_ok` ↔ `src/lib/avatar.ts`, bucket limits ↔ `src/lib/media.ts`, `feedback` checks ↔ `src/lib/feedback.ts`.
+  `avatar_ok` ↔ `src/lib/avatar.ts`, bucket limits ↔ `src/lib/media.ts`, `feedback` checks ↔ `src/lib/feedback.ts`,
+  `display_name_ok` and the `avatars` bucket ↔ `src/lib/profile-rules.ts`, leaderboard periods ↔ `periodBounds` in
+  `src/lib/data/leaderboard.ts`.
   `timeLeft()` in `src/lib/countdown-units.ts` is also copied to `mobile/src/countdown-units.ts` (the widget counts
   on the phone): change both.
 - **Admin features:** every admin read/write is a `SECURITY DEFINER` `admin_*` function that starts with
@@ -187,7 +199,10 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   column grants (`revoke all` then grant per column), `on delete cascade` to `auth.users`, and
   `set search_path = ''` on functions. Functions aren't executable by `anon` by default; grant execute explicitly.
 - **Lazy-load the heavy calendar pieces** through `src/components/calendar/lazy.tsx`, not by direct import.
-- **Style:** light-only teal theme; follow the color rules in `docs/architecture.md` (Visual language).
+- **Style:** two light-only themes, teal (default, `:root`) and blue (`:root[data-theme="blue"]`) in
+  `src/app/globals.css`; follow the color rules in `docs/architecture.md` (Visual language). Use the tokens
+  (`bg-mint`, `text-heading`, `var(--teal)`, `rgb(var(--shadow)/…)`, `--hidi-*` for the mascot), never raw hex,
+  or a color won't follow the theme. Check new UI in both themes.
   kebab-case file names, named exports, comments that explain *why*.
 - **Tests:** pure logic gets a unit test in `tests/unit/`; database rules get an integration test in
   `tests/integration/`.
@@ -207,6 +222,9 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   `SELECT`. Update first, then insert.
 - **Swap flags in one function call.** The one-per-user indexes (`is_widget`, `is_cover`) are flipped atomically by
   `set_widget_countdown` / `set_cover_photo`. Don't do two separate updates.
+- **App lock is client-only.** `<AppLockGate>` wraps everything in the `(app)` layout; the `hidl-lock` cookie (user
+  ids, no secret) makes the server render the page hidden so nothing flashes. Anything new that shows journal content
+  outside the `(app)` layout isn't covered by it.
 - **Encrypted letters:** anything that reads or writes a letter body must sit inside `<LetterKeyGate>`. Older letters
   (`encrypted = false`) are plain text and stay that way.
 - **`ALLOWED_EMAIL` is checked in three places:** the login action, `/auth/confirm` (which also deletes a

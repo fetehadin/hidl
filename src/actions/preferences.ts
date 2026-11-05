@@ -81,10 +81,13 @@ export async function setAvatar(input: unknown): Promise<{ ok: true } | { ok: fa
   return { ok: true };
 }
 
-/** Goes back to Hidi: forgets the buddy, so the app shows the mascot again. */
+/**
+ * Goes back to Hidi: forgets the buddy, so the app shows the mascot again. Clears only the
+ * avatar: the same row holds the display name and picture (since ..._profiles_leaderboard.sql).
+ */
 export async function resetAvatar(): Promise<{ ok: true } | { ok: false; message: string }> {
   const { supabase, user } = await requireUser();
-  const { error } = await supabase.from("profiles").delete().eq("user_id", user.id);
+  const { error } = await supabase.from("profiles").update({ avatar: null }).eq("user_id", user.id);
   if (error) {
     console.error("resetAvatar", error);
     return { ok: false, message: "Couldn't reset. Try again." };

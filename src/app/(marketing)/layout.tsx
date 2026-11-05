@@ -1,8 +1,12 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { Mascot } from "@/components/mascot";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { THEME_COOKIE, parseTheme } from "@/lib/theme";
 
 /** The public pages (landing, install help): their own header and footer, no app chrome. */
-export default function MarketingLayout({ children }: { children: React.ReactNode }) {
+export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex max-w-[72rem] items-center justify-between gap-4 px-5 pt-5 sm:px-8 sm:pt-7">
@@ -20,6 +24,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <Link href="/install" className="hidden rounded-full px-3 py-2 font-bold text-ink-soft hover:bg-mint hover:text-ocean sm:block">
             Get the app
           </Link>
+          <ThemeToggle serverTheme={theme} className={"grid size-11 place-items-center rounded-full text-ink-soft transition-colors hover:bg-mint hover:text-ocean"} />
           <Link href="/login" className="btn btn-primary min-h-11 px-5">
             Sign in
           </Link>

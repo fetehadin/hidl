@@ -181,6 +181,44 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
     fields are formula-escaped (`src/lib/csv.ts`).
   - *System tab:* which optional features are on and whether their env vars are set (never their values), the
     running commit (`HIDL_VERSION`, from the `GIT_SHA` build arg the deploy workflow passes), DB latency, uptime.
+- **Profiles** (`..._profiles_leaderboard.sql`, `src/actions/profile.ts`, `src/components/profile/`): `profiles`
+  gained `display_name` (unique ignoring case, rules in `display_name_ok()` ↔ `src/lib/profile-rules.ts`),
+  `picture_path` and `show_on_leaderboard`; `avatar` is nullable so a row can hold only a name (`resetAvatar` now
+  clears the column instead of deleting the row). A picture is cropped to a 320 px square in the browser
+  (`processProfilePicture` in `src/lib/image.ts`), uploaded to the public `avatars` bucket with a signed URL
+  (`preparePictureUpload` → upload → `setProfilePicture`, which checks the file exists and removes the old one).
+  `<ProfileImage>` draws the picture or else the buddy; the side nav and phone header use it. `removeUserFiles`
+  clears both buckets on account deletion.
+- **Leaderboard** (`/leaderboard`, `leaderboard()` in SQL, `src/lib/data/leaderboard.ts`): ranks the longest run of
+  consecutive *on-time* photo days in the current week (Mon–Sun) or month, by `app_today()`. On time = a photo whose
+  `date` equals its `created_at` day in the owner's zone; backfills don't count. Ties share a rank (then more photo
+  days wins). Everyone is listed unless `show_on_leaderboard` is off; no name shows as "A hidl friend". Rows carry
+  name, buddy, picture path and `is_me`, never ids or emails. The previous period is "released": the first call
+  for it writes `leaderboard_releases` + top 100 into `leaderboard_results`, and later calls read that snapshot
+  (names/pictures stay live; people who opted out since show anonymously). Desktop nav has a Leaderboard item; phones
+  reach it from Today (under the stats) and Account.
+- **App lock** (`src/lib/app-lock.ts`, `src/components/lock/`): optional, per device and per user. A 4–6 digit PIN
+  or a 3×3 pattern (≥ 4 dots; crossing an unused dot adds it), hashed with PBKDF2-SHA256 (100k, random salt) into
+  `localStorage["hidl-lock:<user id>"]`; the secret is never stored or sent. `<AppLockGate>` keeps the app mounted but
+  hidden and `inert` behind the lock screen; it locks on a fresh tab/launch and when the app returns from the
+  background after the chosen timeout (sessionStorage "seen" stamp). The `hidl-lock` cookie lists user ids with a
+  lock on this device, so the server renders the page hidden from the first byte. Five wrong tries, then waits from
+  30 s doubling to 15 min. "Forgot it?" clears the lock and signs out. It's a privacy screen, not encryption.
+- **Themes** (`src/lib/theme.ts`, `src/components/theme/`): `teal` (the original, default) and `blue` (bright modern
+  blue: white page, light cyan `#a7ebf2` surfaces, ocean `#54acbf` highlights, steel `#26658c` buttons/icons, navy
+  `#023859`/`#011c40` text only; Plus Jakarta Sans instead of Fredoka/Nunito, flatter buttons, quieter shadows). Both
+  are light only; the OS dark mode never applies. The `hidl-theme` cookie is read by the root layout, which sets
+  `<html data-theme>` and the browser `theme-color`, so the first paint is right. `applyTheme()` flips the attribute
+  and cookie in place (no reload); `useTheme()` watches the attribute so every switch on the page agrees. The blue
+  theme overrides the CSS variables in `globals.css` and adds depth through class hooks on components, which
+  are inert in teal: `.surface-hero` (cyan gradient + soft rings: the dashboard countdown, featured countdowns,
+  this week's leaderboard), `.surface-cyan` (highlighted cards), `.surface-feature` (steel blue → navy; it
+  re-points the text tokens to light values inside, and restores them on cards/envelopes/fields placed on it),
+  `.stat-chip`/`.stat-alt`/`.stat-icon` (white and cyan stat chips with blue icon discs), `.cd-tile`/`.cd-tile-lead`,
+  `.nav-main`/`.nav-pill`/`.tabbar` (steel blue active item), and envelope `data-state` (sealed: steel edge,
+  ready: cyan glow, opened: muted). Its page is `#e8f7f9` with soft cyan/ocean glows. Hidi (`mascot.tsx`) and the
+  `mint` buddy theme (shown as "Hidi" in the builder) draw with `--hidi-*` variables; other buddy colors stay as
+  chosen. Device-local on purpose, like the nav's collapsed state.
 - **Feedback** (`/feedback`, `src/components/feedback/feedback-form.tsx`, `sendFeedback`): kind + message; the
   side nav's Feedback link passes `?from=<path>` so a report says which page, and the action adds the browser's
   user agent. The page lists what you've sent with its status and any admin reply. The database sets
