@@ -54,11 +54,126 @@
   --btn-ink: var(--white);
   --btn-text: 1.1875rem;
 
+  /* Secondary ("ghost") buttons */
+  --ghost-face: var(--mint);
+  --ghost-ink: var(--ocean);
+  --ghost-hover: var(--aqua);
+  --ghost-edge: var(--aqua);
+
+  /* Hidi (the mascot) and the default "mint" buddy: they follow the theme. */
+  --hidi-light: #f0faf8;
+  --hidi-mid: #9ed5d1;
+  --hidi-dark: #63c1bb;
+  --hidi-limb: #7fcbc5;
+  --hidi-foot: #4faaa8;
+  --hidi-shade: #3a9295;
+  --hidi-belly: #e6f5f2;
+  --hidi-bg: #e3f4f1;
+  --hidi-pattern: #b9e2dd;
+  --hidi-ink: #0f3f45;
+  --hidi-mail-line: #c8e6e2;
+
   /* Shadows: subtle and teal-tinted */
   --shadow: 16 95 104;
   --highlight: 255 255 255;
   --highlight-a: 0.7;
+  /* The page wash at the top of the body background (none in the blue theme). */
+  --page-wash: radial-gradient(60rem 26rem at 50% -8rem, var(--white), transparent 70%),
+    radial-gradient(36rem 28rem at 105% 105%, color-mix(in oklab, var(--white) 55%, transparent), transparent 70%);
   color-scheme: light;
+}
+
+/*
+  The second theme: bright, modern blue (picked per device, see src/lib/theme.ts). Still LIGHT
+  ONLY: white leads (~40%), then light cyan surfaces (~25%), ocean blue (~15%) for highlights,
+  steel blue (~10%) for buttons/icons/active states, and the two navies (~5% each) only for
+  text and small high-emphasis details. Never a navy background.
+
+    page background ............ #ffffff white
+    cards, nav, fields ......... #ffffff, #d3eef3 borders, very soft navy-tinted shadows
+    selected/highlighted areas . #e9f8fb / #e3f7fa light cyan tints
+    secondary buttons, chips ... #a7ebf2 light cyan
+    highlights, progress, deco . #54acbf ocean blue
+    primary buttons, icons ..... #26658c steel blue (white label 6.5:1)
+    headings / body text ....... #011c40 midnight / #023859 deep navy
+*/
+:root[data-theme="blue"] {
+  --mint: #e9f8fb;
+  --aqua: #a7ebf2;
+  --fresh: #54acbf;
+  --teal: #26658c;
+  --ocean: #023859;
+
+  --sky-top: #bfe7f2;
+  --sky-mid: #e6f7fb;
+  --tint-white: var(--white);
+  --tint-aqua: #e3f7fa;
+
+  --paper: var(--white);
+  --paper-deep: #f2fbfc;
+  --card: var(--white);
+  --heading: #011c40; /* 17:1 on white */
+  --ink: #023859; /* 12:1 on white */
+  --ink-soft: #2b4d66; /* 8.9:1 on white */
+  --muted: #4b6a80; /* 5.6:1 on white, 5.1:1 on #e9f8fb */
+  --line: #d3eef3;
+  --accent: var(--teal); /* links: 6.5:1 on white */
+  --accent-soft: var(--mint);
+  --sage: var(--ocean);
+  --sage-soft: var(--mint);
+  --seal: var(--teal);
+  --envelope-flap: var(--mint);
+
+  --btn-face: var(--teal);
+  --btn-face-hover: var(--ocean);
+  --btn-edge: var(--ocean);
+  --btn-ink: var(--white);
+  --btn-text: 1.0625rem; /* 6.5:1, so no need for oversized labels */
+
+  --ghost-face: var(--aqua);
+  --ghost-ink: #011c40;
+  --ghost-hover: var(--fresh);
+  --ghost-edge: #7fd3df;
+
+  --hidi-light: #f3fcfe;
+  --hidi-mid: #a7ebf2;
+  --hidi-dark: #54acbf;
+  --hidi-limb: #7fcfdc;
+  --hidi-foot: #3f8faa;
+  --hidi-shade: #26658c;
+  --hidi-belly: #e3f7fa;
+  --hidi-bg: #e9f8fb;
+  --hidi-pattern: #c4eff5;
+  --hidi-ink: #011c40;
+  --hidi-mail-line: #a7ebf2;
+
+  --shadow: 2 56 89;
+  --highlight-a: 0;
+  --page-wash: none;
+
+  /* Cleaner, more grown-up type than the rounded teal faces. */
+  --font-display: var(--font-modern);
+  --font-body: var(--font-modern);
+}
+
+/* Calmer controls in the blue theme: flat buttons with a thin edge, quieter card shadows. */
+:root[data-theme="blue"] .btn {
+  --edge: 1px;
+  letter-spacing: 0;
+}
+:root[data-theme="blue"] .btn-primary {
+  font-weight: 600;
+}
+:root[data-theme="blue"] :is(.card, .clay) {
+  box-shadow:
+    0 1px 2px rgb(var(--shadow) / 0.04),
+    0 8px 22px -16px rgb(var(--shadow) / 0.18);
+}
+:root[data-theme="blue"] .card-interactive:hover {
+  border-color: var(--fresh);
+  box-shadow:
+    0 1px 2px rgb(var(--shadow) / 0.05),
+    0 14px 28px -18px rgb(var(--shadow) / 0.24);
 }
 
 @theme inline {
@@ -111,9 +226,7 @@
   body {
     background-color: var(--paper);
     /* A soft white wash at the top keeps the page bright; mint below. No dark stops. */
-    background-image:
-      radial-gradient(60rem 26rem at 50% -8rem, var(--white), transparent 70%),
-      radial-gradient(36rem 28rem at 105% 105%, color-mix(in oklab, var(--white) 55%, transparent), transparent 70%);
+    background-image: var(--page-wash);
     background-attachment: fixed;
     color: var(--ink);
     font-family: var(--font-serif);
@@ -237,16 +350,16 @@
   }
   /* Secondary: mint face, dark teal label (5.5:1), aqua edge. */
   .btn-ghost {
-    background: var(--mint);
-    color: var(--ocean);
-    border: 2px solid var(--aqua);
-    box-shadow: 0 var(--edge) 0 var(--aqua);
+    background: var(--ghost-face);
+    color: var(--ghost-ink);
+    border: 2px solid var(--ghost-edge);
+    box-shadow: 0 var(--edge) 0 var(--ghost-edge);
   }
   .btn-ghost:hover {
-    background: var(--aqua);
+    background: var(--ghost-hover);
   }
   .btn-ghost:active {
-    box-shadow: 0 0 0 var(--aqua);
+    box-shadow: 0 0 0 var(--ghost-edge);
   }
 
   /* Fields are "pressed into" the clay. */

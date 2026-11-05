@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { signOut } from "@/actions/auth";
@@ -7,6 +8,8 @@ import { DeleteAccountButton } from "@/components/account/delete-account-button"
 import { LetterEncryption } from "@/components/account/letter-encryption";
 import { AppLockSettings } from "@/components/lock/app-lock-settings";
 import { ProfileEditor } from "@/components/profile/profile-editor";
+import { ThemeChoice } from "@/components/theme/theme-choice";
+import { THEME_COOKIE, parseTheme } from "@/lib/theme";
 import { PageHeader } from "@/components/page-header";
 import { DEFAULT_AVATAR } from "@/lib/avatar";
 import { getKeyBundle } from "@/lib/data/letter-keys";
@@ -20,6 +23,7 @@ export default async function AccountPage() {
   const { supabase, user, calendar, timeZone } = await requireUser();
   const [bundle, profile, admin] = await Promise.all([getKeyBundle(supabase), getProfile(supabase), isAdmin(supabase)]);
   const buddy = profile.avatar;
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
 
   return (
     <>
@@ -51,6 +55,16 @@ export default async function AccountPage() {
         <h2 className="font-display text-xl font-semibold">Your buddy</h2>
         <p className="mt-1 mb-5 text-ink-soft">Make a little character that&apos;s yours. It takes Hidi&apos;s place around the app (Hidi keeps the logo).</p>
         <AvatarBuilder initial={buddy ?? DEFAULT_AVATAR} hasBuddy={buddy !== null} />
+      </div>
+
+      <div className="card mt-4 p-5 sm:p-6">
+        <p className="eyebrow mb-1">appearance</p>
+        <h2 className="font-display text-xl font-semibold">Theme</h2>
+        <p className="mt-1 mb-4 text-ink-soft">
+          How hidl looks on this device. Hidi and your buddy change color with it. You can also switch with the{" "}
+          <span className="font-semibold">half-circle</span> button in the menu.
+        </p>
+        <ThemeChoice serverTheme={theme} />
       </div>
 
       <div className="card mt-4 p-5 sm:p-6">

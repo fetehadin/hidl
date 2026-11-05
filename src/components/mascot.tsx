@@ -17,7 +17,7 @@ import { useBuddy } from "./buddy-context";
 /** "hi" is a big open smile, arms relaxed (used when Hidi opens its quick menu). */
 export type MascotMood = "happy" | "wave" | "cheer" | "sleepy" | "curious" | "hi";
 
-const INK = "#0f3f45";
+const INK = "var(--hidi-ink)";
 
 export function Mascot({
   mood = "happy",
@@ -49,7 +49,7 @@ export function Mascot({
         <defs>
           <BuddyDefs id={id} config={buddy} />
         </defs>
-        <ellipse className={float ? "mascot-shadow" : undefined} cx="60" cy="116" rx="30" ry="5" fill="#63c1bb" opacity="0.35" />
+        <ellipse className={float ? "mascot-shadow" : undefined} cx="60" cy="116" rx="30" ry="5" style={{ fill: "var(--hidi-dark)" }} opacity="0.35" />
         <g className={float ? "mascot-float" : undefined}>
           <BuddyFigure config={buddy} mood={mood} bodyFill={`url(#${id}-b)`} shineFill={`url(#${id}-s)`} />
         </g>
@@ -67,27 +67,27 @@ export function Mascot({
     >
       <defs>
         <radialGradient id={body} cx="38%" cy="30%" r="78%">
-          <stop offset="0" stopColor="#f0faf8" />
-          <stop offset="0.45" stopColor="#9ed5d1" />
-          <stop offset="1" stopColor="#63c1bb" />
+          <stop offset="0" style={{ stopColor: "var(--hidi-light)" }} />
+          <stop offset="0.45" style={{ stopColor: "var(--hidi-mid)" }} />
+          <stop offset="1" style={{ stopColor: "var(--hidi-dark)" }} />
         </radialGradient>
         <radialGradient id={shine} cx="50%" cy="50%" r="50%">
           <stop offset="0" stopColor="#fff" stopOpacity="0.9" />
           <stop offset="1" stopColor="#fff" stopOpacity="0" />
         </radialGradient>
         <linearGradient id={leaf} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#e6f5f2" />
-          <stop offset="1" stopColor="#63c1bb" />
+          <stop offset="0" style={{ stopColor: "var(--hidi-belly)" }} />
+          <stop offset="1" style={{ stopColor: "var(--hidi-dark)" }} />
         </linearGradient>
       </defs>
 
       {/* ground shadow */}
-      <ellipse className={float ? "mascot-shadow" : undefined} cx="60" cy="116" rx="30" ry="5" fill="#63c1bb" opacity="0.35" />
+      <ellipse className={float ? "mascot-shadow" : undefined} cx="60" cy="116" rx="30" ry="5" style={{ fill: "var(--hidi-dark)" }} opacity="0.35" />
 
       <g className={float ? "mascot-float" : undefined}>
         {/* sprout */}
         <g className={mood === "cheer" ? "mascot-cheer" : undefined}>
-          <path d="M60 26 C59 18 61 13 64 9" stroke="#3a9295" strokeWidth="3.4" strokeLinecap="round" fill="none" />
+          <path d="M60 26 C59 18 61 13 64 9" style={{ stroke: "var(--hidi-shade)" }} strokeWidth="3.4" strokeLinecap="round" fill="none" />
           <path d="M63 12 C70 3 82 4 85 9 C80 16 70 17 63 12Z" fill={`url(#${leaf})`} />
           <path d="M61 15 C54 8 44 9 42 14 C47 20 56 20 61 15Z" fill={`url(#${leaf})`} />
         </g>
@@ -95,26 +95,26 @@ export function Mascot({
         {/* arms (behind the body) */}
         {mood === "cheer" ? (
           <>
-            <ellipse cx="19" cy="52" rx="8" ry="11" transform="rotate(-35 19 52)" fill="#7fcbc5" />
-            <ellipse cx="101" cy="52" rx="8" ry="11" transform="rotate(35 101 52)" fill="#7fcbc5" />
+            <ellipse cx="19" cy="52" rx="8" ry="11" transform="rotate(-35 19 52)" style={{ fill: "var(--hidi-limb)" }} />
+            <ellipse cx="101" cy="52" rx="8" ry="11" transform="rotate(35 101 52)" style={{ fill: "var(--hidi-limb)" }} />
           </>
         ) : mood === "wave" ? (
           <>
-            <ellipse cx="18" cy="76" rx="8" ry="10" transform="rotate(25 18 76)" fill="#7fcbc5" />
+            <ellipse cx="18" cy="76" rx="8" ry="10" transform="rotate(25 18 76)" style={{ fill: "var(--hidi-limb)" }} />
             <g className="mascot-wave">
-              <ellipse cx="103" cy="52" rx="8" ry="12" transform="rotate(30 103 52)" fill="#7fcbc5" />
+              <ellipse cx="103" cy="52" rx="8" ry="12" transform="rotate(30 103 52)" style={{ fill: "var(--hidi-limb)" }} />
             </g>
           </>
         ) : (
           <>
-            <ellipse cx="18" cy="76" rx="8" ry="10" transform="rotate(25 18 76)" fill="#7fcbc5" />
-            <ellipse cx="102" cy="76" rx="8" ry="10" transform="rotate(-25 102 76)" fill="#7fcbc5" />
+            <ellipse cx="18" cy="76" rx="8" ry="10" transform="rotate(25 18 76)" style={{ fill: "var(--hidi-limb)" }} />
+            <ellipse cx="102" cy="76" rx="8" ry="10" transform="rotate(-25 102 76)" style={{ fill: "var(--hidi-limb)" }} />
           </>
         )}
 
         {/* feet */}
-        <ellipse cx="44" cy="105" rx="11" ry="7" fill="#4faaa8" />
-        <ellipse cx="76" cy="105" rx="11" ry="7" fill="#4faaa8" />
+        <ellipse cx="44" cy="105" rx="11" ry="7" style={{ fill: "var(--hidi-foot)" }} />
+        <ellipse cx="76" cy="105" rx="11" ry="7" style={{ fill: "var(--hidi-foot)" }} />
 
         {/* body: a soft squircle puff */}
         <path
@@ -124,14 +124,14 @@ export function Mascot({
         {/* clay inner shade + highlight */}
         <path
           d="M28 90 C40 104 82 106 96 88 C92 100 80 106 60 106 C40 106 31 99 28 90Z"
-          fill="#3a9295"
+          style={{ fill: "var(--hidi-shade)" }}
           opacity="0.35"
         />
         <ellipse cx="42" cy="40" rx="15" ry="9" transform="rotate(-20 42 40)" fill={`url(#${shine})`} />
 
         {/* belly patch (a little cream envelope) */}
         <rect x="47" y="80" width="26" height="17" rx="5" fill="#ffffff" opacity="0.92" />
-        <path d="M48.5 82 L60 90 L71.5 82" stroke="#c8e6e2" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M48.5 82 L60 90 L71.5 82" style={{ stroke: "var(--hidi-mail-line)" }} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
         {/* cheeks */}
         <ellipse cx="33" cy="70" rx="7" ry="4.5" fill="#f7b7be" opacity="0.55" />
@@ -172,12 +172,12 @@ export function Mascot({
         )}
 
         {mood === "sleepy" && (
-          <text className="mascot-zz" x="90" y="36" fontSize="15" fontWeight="800" fill="#3a9295" fontFamily="var(--font-display), sans-serif">
+          <text className="mascot-zz" x="90" y="36" fontSize="15" fontWeight="800" style={{ fill: "var(--hidi-shade)" }} fontFamily="var(--font-display), sans-serif">
             z
           </text>
         )}
         {mood === "curious" && (
-          <text x="92" y="38" fontSize="18" fontWeight="800" fill="#3a9295" fontFamily="var(--font-display), sans-serif">
+          <text x="92" y="38" fontSize="18" fontWeight="800" style={{ fill: "var(--hidi-shade)" }} fontFamily="var(--font-display), sans-serif">
             ?
           </text>
         )}

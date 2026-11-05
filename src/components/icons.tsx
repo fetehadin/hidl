@@ -220,3 +220,11 @@ export const ChatIcon = (p: IconProps) => (
     <path d="M8 9.5h8M8 12.5h5" />
   </svg>
 );
+
+/** A half-filled circle: switch the app's look (teal / blue). */
+export const ThemeIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none" />
+  </svg>
+);

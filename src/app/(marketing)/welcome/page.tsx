@@ -343,7 +343,7 @@ function MiniMemories() {
       {cards.map((p, i) => (
         <span
           key={i}
-          className="absolute w-[20%] rounded-xl bg-white p-1.5 pb-4 shadow-[0_8px_18px_-10px_rgb(16_95_104/0.5)]"
+          className="absolute w-[20%] rounded-xl bg-white p-1.5 pb-4 shadow-[0_8px_18px_-10px_rgb(var(--shadow)/0.5)]"
           style={{ left: `${p.x}%`, top: `${p.y}%`, transform: `rotate(${p.r}deg)` }}
         >
           <span

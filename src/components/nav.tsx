@@ -7,6 +7,8 @@ import { signOut } from "@/actions/auth";
 import type { AvatarConfig } from "@/lib/avatar";
 import { NAV_COOKIE } from "@/lib/nav-cookie";
 import { ProfileImage } from "./profile/profile-image";
+import { ThemeToggle } from "./theme/theme-toggle";
+import type { Theme } from "@/lib/theme";
 import {
   CalendarIcon,
   ChatIcon,
@@ -51,12 +53,14 @@ export function AppShell({
   avatar,
   pictureSrc,
   isAdmin,
+  theme,
   children,
 }: {
   initialCollapsed: boolean;
   avatar: AvatarConfig | null;
   pictureSrc: string | null;
   isAdmin: boolean;
+  theme: Theme;
   children: ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
@@ -73,7 +77,7 @@ export function AppShell({
       style={{ "--nav-w": collapsed ? NAV_WIDTH.closed : NAV_WIDTH.open } as React.CSSProperties}
     >
       {children}
-      <SideNav collapsed={collapsed} onToggle={toggle} avatar={avatar} pictureSrc={pictureSrc} isAdmin={isAdmin} />
+      <SideNav collapsed={collapsed} onToggle={toggle} avatar={avatar} pictureSrc={pictureSrc} isAdmin={isAdmin} theme={theme} />
     </div>
   );
 }
@@ -89,12 +93,14 @@ function SideNav({
   avatar,
   pictureSrc,
   isAdmin,
+  theme,
 }: {
   collapsed: boolean;
   onToggle: () => void;
   avatar: AvatarConfig | null;
   pictureSrc: string | null;
   isAdmin: boolean;
+  theme: Theme;
 }) {
   const pathname = usePathname();
   const activeIndex = LINKS.findIndex((l) => isActive(pathname, l.href));
@@ -160,6 +166,12 @@ function SideNav({
           {isAdmin && (
             <FooterLink href="/admin" label="Admin" Icon={ShieldIcon} collapsed={collapsed} active={isActive(pathname, "/admin")} />
           )}
+          <ThemeToggle
+            serverTheme={theme}
+            className="flex h-11 items-center gap-3 rounded-2xl px-3.5 text-sm font-bold text-muted transition-colors hover:bg-mint hover:text-ocean"
+          >
+            <Label collapsed={collapsed}>Theme</Label>
+          </ThemeToggle>
           {/* Tells the form where the person was, so a bug report says which page. */}
           <FooterLink
             href={pathname === "/feedback" ? "/feedback" : `/feedback?from=${encodeURIComponent(pathname)}`}
