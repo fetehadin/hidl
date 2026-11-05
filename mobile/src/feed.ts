@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { timeLeft } from './countdown-units';
 
 /** What GET /api/widget/countdown returns (src/app/api/widget/countdown/route.ts in the web app). */
 export type CountdownFeed = {
@@ -76,9 +77,30 @@ export async function cacheFeed(feed: CountdownFeed) {
   await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ feed, fetchedAt: Date.now() } satisfies CachedFeed));
 }
 
-/** "7mo 13d", in the countdown's own units, the same split the website shows. */
-export function remainingText(feed: CountdownFeed) {
-  if (feed.done) return 'Done!';
+// Older feeds have no timeZone; the website's default zone then, as before per-user zones.
+const DEFAULT_TZ = 'Africa/Addis_Ababa';
+
+/** Whether the countdown has arrived, judged by the phone's clock (not when the feed was fetched). */
+export function isDone(feed: CountdownFeed, now = Date.now()) {
+  return feed.done || new Date(feed.targetAt).getTime() <= now;
+}
+
+/**
+ * "7mo 13d", in the countdown's own units, the same split the website shows. Worked out from
+ * targetAt at `now`, so it stays right between refreshes and offline; the server's `remaining`
+ * is only a fallback for a feed without a usable targetAt.
+ */
+export function remainingText(feed: CountdownFeed, now = Date.now()) {
+  if (isDone(feed, now)) return 'Done!';
+  if (!Number.isNaN(new Date(feed.targetAt).getTime())) {
+    try {
+      return timeLeft(feed.targetAt, now, feed.units, feed.timeZone ?? DEFAULT_TZ)
+        .map((p) => `${p.value}${UNIT_SHORT[p.unit]}`)
+        .join(' ');
+    } catch {
+      // An unknown time zone on an old phone: fall through to the server's numbers.
+    }
+  }
   const parts = UNIT_ORDER.filter((u) => feed.remaining[u] !== undefined).map((u) => `${feed.remaining[u]}${UNIT_SHORT[u]}`);
   return parts.length > 0 ? parts.join(' ') : `${feed.daysLeft}d`;
 }

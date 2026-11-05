@@ -8,6 +8,10 @@ services:
     restart: unless-stopped
     # Localhost only, for a reverse proxy already running on the host (nginx, host Caddy). Never public.
     ports: ["127.0.0.1:${HIDL_PORT:-3000}:3000"]
+    # The Android app's .apk, served at /download/android (src/app/download/android/route.ts).
+    # Publish a new build by copying it to /opt/hidl/downloads/hidl.apk; no restart needed.
+    volumes:
+      - ./downloads:/app/downloads:ro
 
   # The daily unlock-email job at 05:00 UTC.
   cron:

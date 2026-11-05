@@ -82,6 +82,7 @@ src/app/(marketing)/         Public /welcome and /install (the only indexable pa
 src/app/auth/confirm/        Magic-link / OAuth callback
 src/app/api/cron/            Daily unlock-email job (Bearer CRON_SECRET, off unless ENABLE_UNLOCK_EMAILS=true)
 src/app/api/widget/          Public countdown JSON feed, authenticated by a per-feed token
+src/app/download/android/    The Android app's .apk, streamed from /opt/hidl/downloads on the server (not in git)
 src/actions/                 Server actions: auth, letters, encryption, countdowns, photos, preferences, feedback, admin,
                              profile
 src/lib/supabase/            server.ts (createClient, requireUser, requireAdmin, isAdmin), client.ts, proxy.ts, admin.ts
@@ -179,6 +180,8 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   `avatar_ok` ↔ `src/lib/avatar.ts`, bucket limits ↔ `src/lib/media.ts`, `feedback` checks ↔ `src/lib/feedback.ts`,
   `display_name_ok` and the `avatars` bucket ↔ `src/lib/profile-rules.ts`, leaderboard periods ↔ `periodBounds` in
   `src/lib/data/leaderboard.ts`.
+  `timeLeft()` in `src/lib/countdown-units.ts` is also copied to `mobile/src/countdown-units.ts` (the widget counts
+  on the phone): change both.
 - **Admin features:** every admin read/write is a `SECURITY DEFINER` `admin_*` function that starts with
   `perform public.assert_admin()`; pages call `requireAdmin()` (a 404 for non-admins). Anything that needs the
   service-role client (suspend, delete) calls `admin_log` *first*, so the database refuses non-admins before the
@@ -213,7 +216,7 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
 ## 7. Gotchas
 
 - **Public routes are allowlisted by name in two places.** Static files are skipped in the `src/proxy.ts` matcher;
-  public paths (`PUBLIC_PATHS`, `/api/cron`, `/api/widget`, `/api/health`) are skipped in `updateSession`. Anything new and public
+  public paths (`PUBLIC_PATHS` incl. `/download`, `/api/cron`, `/api/widget`, `/api/health`, `/api/app`) are skipped in `updateSession`. Anything new and public
   that isn't added gets a 307 to `/login`. This has happened twice.
 - **Don't use `.upsert()` on column-restricted tables** (`widget_tokens`, `letters`). `ON CONFLICT` needs table-wide
   `SELECT`. Update first, then insert.

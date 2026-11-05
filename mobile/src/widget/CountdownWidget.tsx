@@ -1,5 +1,5 @@
 import { FlexWidget, TextWidget } from 'react-native-android-widget';
-import { remainingText, updatedText, type CachedFeed } from '../feed';
+import { isDone, remainingText, updatedText, type CachedFeed } from '../feed';
 import { colors } from '../theme';
 
 export const WIDGET_NAME = 'Countdown';
@@ -44,7 +44,7 @@ function Ready({ cached, stale }: { cached: CachedFeed; stale?: string }) {
       <TextWidget
         text={remainingText(feed)}
         maxLines={1}
-        style={{ fontSize: 34, fontWeight: '900', adjustsFontSizeToFit: true, color: feed.done ? colors.fresh : colors.ink }}
+        style={{ fontSize: 34, fontWeight: '900', adjustsFontSizeToFit: true, color: isDone(feed) ? colors.fresh : colors.ink }}
       />
       <TextWidget text={stale ?? updatedText(fetchedAt)} maxLines={1} style={{ fontSize: 11, color: colors.muted }} />
     </FlexWidget>
