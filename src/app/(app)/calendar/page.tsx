@@ -20,33 +20,31 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const last = `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
   const photos = await signPhotos(supabase, await listPhotos(supabase, `${month}-01`, last));
 
-  const elapsed = month === currentMonth ? Number(today.slice(8)) : daysInMonth(month);
   const prev = addMonths(month, -1);
   const next = addMonths(month, 1);
   const isCurrent = month === currentMonth;
-  // Distinct days with at least one photo — a day can now hold several, so photos.length
-  // alone would overcount (and could exceed `elapsed`, which reads as broken).
-  const daysCaptured = new Set(photos.map((p) => p.date)).size;
 
   return (
-    <div className="@container -mb-[6.5rem] sm:-mb-[5.5rem]">
-      {/* Kept to two short rows so the whole month fits on screen without scrolling. */}
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2 pt-2 sm:pt-3">
-        <div className="min-w-0">
-          <p className="eyebrow mb-0.5">your days in pictures</p>
-          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{monthLabel(month)}</h1>
-        </div>
-        <nav aria-label="Months" className="flex items-center gap-2">
+    <div className="@container -mx-3 -mb-[6.5rem] sm:mx-0 sm:-mb-[5.5rem]">
+      {/* One short row, so the month itself gets the room. Phones show chevrons only. */}
+      <div className="mb-2 flex items-center justify-between gap-3 px-3 pt-1 sm:mb-3 sm:px-0 sm:pt-2">
+        <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-4xl">{monthLabel(month)}</h1>
+        <nav aria-label="Months" className="flex items-center gap-1.5 sm:gap-2">
           <Link href={`/calendar?m=${prev}`} className="btn btn-ghost min-h-10 px-3" aria-label={`Previous month, ${monthLabel(prev)}`}>
-            ‹ {monthLabel(prev, "short")}
+            ‹<span className="hidden sm:inline"> {monthLabel(prev, "short")}</span>
           </Link>
           {isCurrent ? (
             <button type="button" disabled aria-label="No next month yet" className="btn btn-ghost min-h-10 px-3">
-              {monthLabel(next, "short")} ›
+              <span className="hidden sm:inline">{monthLabel(next, "short")} </span>›
             </button>
           ) : (
             <Link href={`/calendar?m=${next}`} className="btn btn-ghost min-h-10 px-3" aria-label={`Next month, ${monthLabel(next)}`}>
-              {monthLabel(next, "short")} ›
+              <span className="hidden sm:inline">{monthLabel(next, "short")} </span>›
+            </Link>
+          )}
+          {!isCurrent && (
+            <Link href="/calendar" className="btn btn-ghost min-h-10 px-3">
+              Today
             </Link>
           )}
           <Link href={`/calendar/year?y=${month.slice(0, 4)}`} className="btn btn-ghost min-h-10 px-3">
@@ -55,25 +53,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         </nav>
       </div>
 
-      <p className="mb-2 flex flex-wrap items-baseline gap-x-3 text-sm text-ink-soft" aria-live="polite">
-        <span>
-          <strong className="font-display text-lg text-ink">{daysCaptured}</strong> of {elapsed} days captured
-        </span>
-        {photos.length === 0 && (
-          <span className="text-muted">
-            {isCurrent ? "Tap today to add your first picture." : "Tap any day to add a picture."}
-          </span>
-        )}
-        {!isCurrent && (
-          <Link href="/calendar" className="font-semibold text-accent underline-offset-4 hover:underline">
-            Back to this month
-          </Link>
-        )}
-      </p>
-
-      <div className="card p-2 sm:p-4">
-        <MonthGrid key={month} month={month} today={today} photos={photos} addToday={add === "today"} />
-      </div>
+      <MonthGrid key={month} month={month} today={today} photos={photos} addToday={add === "today"} />
     </div>
   );
 }

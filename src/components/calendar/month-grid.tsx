@@ -93,15 +93,15 @@ export function MonthGrid({
   return (
     <>
       {/*
-        Sized to the viewport: as tall as the screen allows (minus the header, month nav
-        and tab bar, which is --chrome) but never taller than square cells would make it.
-        So on a laptop the cells get wider instead of the page scrolling, and on a phone
-        they stay square. --rows is the month's number of weeks (4 to 6). --chrome also
-        leaves room below the grid for Hidi's corner menu (above the tab bar on phones), so it
-        never covers a day, even on a short phone in a six-week month.
+        Sized to the viewport: as tall as the screen allows (minus the app header, month row
+        and tab bar, which is --chrome), so the cells stretch tall on a phone and wide on a
+        laptop and the pictures get as much room as possible. A tall screen with a four-week
+        month is capped at cells 1.8x taller than wide. --rows is the month's number of weeks
+        (4 to 6). --chrome also leaves room below the grid for Hidi's corner menu (above the
+        tab bar on phones), so it never covers a day.
       */}
       <div
-        className="calendar-grid grid h-[max(14rem,min(calc(100dvh-var(--chrome)),calc((100cqw-1rem)*var(--rows)/7+2rem)))] grid-cols-7 grid-rows-[auto_repeat(var(--rows),minmax(0,1fr))] gap-1 text-center [--chrome:25.75rem] sm:gap-2 sm:[--chrome:21.25rem]"
+        className="calendar-grid grid h-[max(14rem,min(calc(100dvh-var(--chrome)),calc(100cqw*var(--rows)/7*1.8)))] grid-cols-7 grid-rows-[auto_repeat(var(--rows),minmax(0,1fr))] gap-1 px-1 text-center [--chrome:21.5rem] sm:gap-1.5 sm:px-0 sm:[--chrome:16.5rem]"
         style={{ "--rows": Math.ceil((leadingBlanks(month) + days.length) / 7) } as React.CSSProperties}
         role="grid"
         aria-label="Days of the month"
@@ -172,7 +172,7 @@ export function MonthGrid({
                   tabIndex={tabIndex}
                   onFocus={() => setFocusedIndex(i)}
                   onKeyDown={(e) => onGridKeyDown(e, i)}
-                  className="grid min-h-0 place-items-center rounded-control text-sm text-muted"
+                  className="min-h-0 rounded-control p-1.5 text-left text-[11px] font-semibold text-muted/60 sm:text-xs"
                 >
                   {day}
                 </div>
@@ -192,13 +192,14 @@ export function MonthGrid({
                 onKeyDown={(e) => onGridKeyDown(e, i)}
                 onClick={(e) => openUpload({ kind: "add", date }, e.currentTarget)}
                 aria-label={`${date}. Add a photo`}
-                className={`grid min-h-0 place-items-center rounded-control text-sm transition-colors ${
+                className={`relative flex min-h-0 items-start rounded-control p-1.5 text-left text-[11px] font-semibold transition-colors sm:text-xs ${
                   isToday
-                    ? `border-2 border-accent bg-accent-soft font-bold text-accent ${ring}`
+                    ? `border-2 border-accent bg-accent-soft text-accent ${ring}`
                     : "border border-line/70 bg-card/40 text-ink-soft hover:border-accent hover:bg-accent-soft hover:text-accent"
                 }`}
               >
-                {isToday ? <span className="leading-tight">{day}<span className="block text-lg leading-none">+</span></span> : day}
+                {day}
+                {isToday && <span className="absolute inset-0 grid place-items-center text-2xl leading-none font-bold">+</span>}
               </button>
             );
           })}

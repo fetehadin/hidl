@@ -24,6 +24,12 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
   const [progress, setProgress] = useState(0);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
+  // Right after sign-in the web view first opens /auth/native. If it ends up on /login before any
+  // real page has loaded, the session handoff failed: say so, instead of dropping back to sign-in
+  // as if nothing had happened.
+  const freshSignIn = startUrl.includes('/auth/native');
+  const opened = useRef(false);
+  const [handoffFailed, setHandoffFailed] = useState(false);
   const splash = useRef(new Animated.Value(1)).current;
 
   // Android's back button walks back through the journal before leaving the app.
@@ -49,8 +55,13 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
       const u = new URL(nav.url);
       if (u.origin === SITE_ORIGIN) path = u.pathname;
     } catch {}
-    // Signed out on the site (or the session ended): back to the app's own sign-in.
-    if (path === '/login') onSignedOut();
+    if (path === '/login') {
+      // Signed out on the site (or the session ended): back to the app's own sign-in.
+      if (opened.current || !freshSignIn) onSignedOut();
+      else setHandoffFailed(true);
+    } else if (path && !path.startsWith('/auth')) {
+      opened.current = true;
+    }
   }
 
   function shouldLoad(req: { url: string }) {
@@ -104,6 +115,17 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
         <Image source={require('../../assets/icon.png')} style={styles.splashIcon} />
         <Text style={styles.splashText}>Opening your journal…</Text>
       </Animated.View>
+
+      {handoffFailed && (
+        <View style={styles.offline}>
+          <Image source={require('../../assets/icon.png')} style={styles.offlineIcon} />
+          <Text style={styles.offlineTitle}>Couldn&apos;t open your journal</Text>
+          <Text style={styles.offlineBody}>You&apos;re signed in, but the journal didn&apos;t accept the session. Sign in once more to fix it.</Text>
+          <Pressable onPress={onSignedOut} style={({ pressed }) => [styles.retry, pressed && styles.retryPressed]} accessibilityRole="button">
+            <Text style={styles.retryText}>Sign in again</Text>
+          </Pressable>
+        </View>
+      )}
 
       {failed && (
         <View style={styles.offline}>

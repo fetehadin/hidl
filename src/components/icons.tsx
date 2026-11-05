@@ -193,9 +193,12 @@ export const PinIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
   </svg>
 );
 
-export const ChevronIcon = (p: IconProps) => (
+/** A side panel (rounded square with a divider near the left edge), chevron pointing out of it when `open`, into it when closed. */
+export const SidebarIcon = ({ open, ...p }: IconProps & { open: boolean }) => (
   <svg {...base} {...p}>
-    <path d="m9 5 7 7-7 7" />
+    <rect x="3" y="4" width="18" height="16" rx="3.5" />
+    <path d="M9.5 4v16" />
+    <path d={open ? "m6.8 10-2 2 2 2" : "m4.8 10 2 2-2 2"} strokeWidth={1.8} />
   </svg>
 );
 

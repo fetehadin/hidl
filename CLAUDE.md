@@ -238,7 +238,8 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
 - **CI doesn't run integration tests** (there's no Docker/Supabase in CI). Run `pnpm test:all` locally for any
   database change.
 - **The phone app signs in through `/api/app/*`** (`src/lib/app-auth.ts`): email code (`/auth/email`, `/auth/verify`),
-  Google (`/auth/google` → `/auth/google/callback` → `hidl://auth?sealed=…` → `/auth/redeem`), and the widget feed
+  which providers are on (`/auth/providers`, so the app hides "Continue with Google" until the Supabase provider is
+  enabled, as the website does), Google (`/auth/google` → `/auth/google/callback` → `hidl://auth?sealed=…` → `/auth/redeem`), and the widget feed
   (`/widget`, bearer token). Its web view takes the session once at `/auth/native`. The allowlist is checked here
   as on the website, so keep these in step with `src/actions/auth.ts` and `/auth/confirm`.
 - **The widget feed is a public contract.** `mobile/` reads the JSON from `/api/widget/countdown` (type

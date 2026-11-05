@@ -1,4 +1,4 @@
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { requestWidgetUpdate } from 'react-native-android-widget';
 import { setUpWidget, type AppSession } from '../auth';
 import { clearFeed, fetchFeed, saveFeedUrl } from '../feed';
@@ -19,31 +19,17 @@ async function save(feedUrl: string) {
 
 /**
  * Right after sign-in: give the home-screen widget this account's countdown feed, so nobody has
- * to copy links. Runs in the background; a failure only means the widget asks to reconnect.
+ * to copy links or answer questions. This phone's widget becomes the account's widget (a link
+ * made earlier, say for KWGT, stops updating). Runs in the background; a failure only means the
+ * widget asks to reconnect and the next sign-in retries.
  */
 export async function connectWidget(session: AppSession) {
   if (Platform.OS !== 'android') return;
   try {
-    const first = await setUpWidget(session);
-    if (first.status === 'created') return save(first.feedUrl);
-
-    // A widget link already exists (e.g. a KWGT widget). Replacing it would stop that one, so ask.
-    Alert.alert(
-      'Show your countdown on this phone?',
-      'Your account already has a widget link, maybe in a widget app like KWGT. Using this phone’s hidl widget instead will stop that one updating.',
-      [
-        { text: 'Not now', style: 'cancel' },
-        {
-          text: 'Use this phone',
-          onPress: async () => {
-            const again = await setUpWidget(session, true).catch(() => null);
-            if (again?.status === 'created') await save(again.feedUrl);
-          },
-        },
-      ],
-    );
+    const result = await setUpWidget(session, true);
+    if (result.status === 'created') await save(result.feedUrl);
   } catch {
-    // Offline or the site is down: the widget shows "Tap to connect" and the next sign-in retries.
+    // Offline or the site is down.
   }
 }
 

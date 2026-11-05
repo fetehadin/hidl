@@ -12,13 +12,13 @@ import type { Theme } from "@/lib/theme";
 import {
   CalendarIcon,
   ChatIcon,
-  ChevronIcon,
   EnvelopeIcon,
   FlameIcon,
   HomeIcon,
   HourglassIcon,
   MemoriesIcon,
   ShieldIcon,
+  SidebarIcon,
   SignOutIcon,
 } from "./icons";
 
@@ -114,22 +114,16 @@ function SideNav({
         aria-label="Main"
         className="clay flex h-full flex-col overflow-hidden rounded-[1.75rem] px-3 py-4"
       >
+        {/* Icon-only, like Gemini's: a side panel with a chevron pointing the way it will move. */}
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={!collapsed}
-          aria-label={collapsed ? "Expand the menu" : "Collapse the menu"}
-          title={collapsed ? "Show labels" : "Icons only"}
-          className="mb-4 flex h-11 shrink-0 items-center gap-3 rounded-2xl px-3 text-muted transition-colors hover:bg-mint hover:text-ocean"
+          aria-label={collapsed ? "Open sidebar" : "Close sidebar"}
+          title={collapsed ? "Open sidebar" : "Close sidebar"}
+          className="mb-4 flex h-11 w-fit shrink-0 items-center rounded-2xl px-3.5 text-muted transition-colors hover:bg-mint hover:text-ocean"
         >
-          <ChevronIcon
-            width={20}
-            height={20}
-            className={`shrink-0 transition-transform duration-300 ${collapsed ? "" : "rotate-180"}`}
-          />
-          <Label collapsed={collapsed} className="text-sm font-bold">
-            Icons only
-          </Label>
+          <SidebarIcon open={!collapsed} width={22} height={22} />
         </button>
 
         <ul className="nav-main relative flex flex-col gap-1.5">
