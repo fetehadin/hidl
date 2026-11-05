@@ -15,8 +15,8 @@ until it's switched off. Supabase (database, login, photo storage) stays a manag
 
 1. Create a `deploy` user that can run Docker, and add the deploy key's public half to its `~/.ssh/authorized_keys`.
 2. Copy `docker-compose.yml`, `Caddyfile` and a filled-in `.env` into `/opt/hidl`.
-3. Let the server pull the image: `docker login ghcr.io` with a GitHub token that has `read:packages`, or make the
-   package public.
+3. Nothing to do for the image: each deploy logs the server in to `ghcr.io` with that run's own GitHub token,
+   pulls, and logs out again.
 4. Start the app: `docker compose up -d`. Add `--profile edge` only if nothing else on the server already uses
    ports 80/443. If something does (e.g. nginx or another app's Caddy), point that proxy at
    `http://127.0.0.1:3000` (change it with `HIDL_PORT` in `.env`). It must pass the original `Host` header
@@ -24,6 +24,13 @@ until it's switched off. Supabase (database, login, photo storage) stays a manag
 
 Sign-in redirects and the unlock emails use `NEXT_PUBLIC_SITE_URL` from the build, so it must be the exact public
 address (`https://<HIDL_DOMAIN>`), and the same URL must be in Supabase's Auth → URL configuration redirect list.
+
+### On the current server
+
+Ports 80/443 belong to the tajstore Caddy (`/opt/tajstore/Caddyfile`), which also serves redart and voxlace. hidl
+has a `hidl.fetehadin.com` block there pointing at `hidl-web:3000`, and `/opt/hidl/docker-compose.override.yml`
+(server-only, not in the repo) joins the `web` container to the `tajstore_default` network under that alias.
+After editing that Caddyfile: `docker exec tajstore-caddy-1 caddy reload --config /etc/caddy/Caddyfile`.
 
 ## GitHub settings (Settings → Secrets and variables → Actions)
 

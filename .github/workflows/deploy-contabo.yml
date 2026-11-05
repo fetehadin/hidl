@@ -49,7 +49,11 @@ jobs:
           SSH_KEY: ${{ secrets.CONTABO_SSH_KEY }}
           HOST: ${{ vars.CONTABO_HOST }}
           USER: ${{ vars.CONTABO_USER || 'deploy' }}
+          # This job's own token (packages: read is implied by write), so the server can pull the
+          # private image without a long-lived personal token stored on it. Logged out right after.
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          mkdir -p ~/.ssh
           install -m 600 /dev/null ~/key && printf '%s\n' "$SSH_KEY" > ~/key
-          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || { mkdir -p ~/.ssh && ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts; }
-          ssh -i ~/key "$USER@$HOST" "cd /opt/hidl && HIDL_TAG=$SHA docker compose pull web && HIDL_TAG=$SHA docker compose up -d --remove-orphans && docker image prune -f"
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+          printf '%s' "$REGISTRY_TOKEN" | ssh -i ~/key "$USER@$HOST" "docker login ghcr.io -u ${{ github.actor }} --password-stdin >/dev/null && cd /opt/hidl && HIDL_TAG=$SHA docker compose pull web; rc=\$?; docker logout ghcr.io >/dev/null; [ \$rc -eq 0 ] && HIDL_TAG=$SHA docker compose up -d --remove-orphans && docker image prune -f"
