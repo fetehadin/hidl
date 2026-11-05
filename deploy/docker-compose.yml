@@ -6,7 +6,8 @@ services:
     image: ghcr.io/fetehadin/hidl:${HIDL_TAG:-latest}
     env_file: .env
     restart: unless-stopped
-    expose: ["3000"]
+    # Localhost only, for a reverse proxy already running on the host (nginx, host Caddy). Never public.
+    ports: ["127.0.0.1:${HIDL_PORT:-3000}:3000"]
 
   # Replaces Vercel Cron: the daily unlock-email job at 05:00 UTC.
   cron:
@@ -14,10 +15,15 @@ services:
     env_file: .env
     restart: unless-stopped
     depends_on: [web]
-    command: >
-      sh -c "apk add --no-cache curl >/dev/null &&
-      echo '0 5 * * * curl -fsS -H \"Authorization: Bearer $$CRON_SECRET\" http://web:3000/api/cron/unlock-emails' | crontab - &&
-      crond -f"
+    # The secret is written into the crontab when the container starts, because busybox crond
+    # doesn't reliably hand the container's environment to its jobs.
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache curl >/dev/null
+        echo "0 5 * * * curl -fsS -H 'Authorization: Bearer $$CRON_SECRET' http://web:3000/api/cron/unlock-emails" | crontab -
+        exec crond -f -l 6
 
   caddy:
     profiles: ["edge"]

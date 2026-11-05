@@ -1,7 +1,7 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { isAllowedEmail } from "@/lib/env";
+import { isAllowedEmail, publicEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { nextPathSchema } from "@/lib/validation/auth";
@@ -14,6 +14,9 @@ import { nextPathSchema } from "@/lib/validation/auth";
  *   (src/actions/auth.ts signInWithGoogle). Must be opened in the browser that started it,
  *   because the code verifier lives in that browser's cookies.
  * A cancelled or failed Google sign-in comes back as `?error=…&error_description=…`.
+ *
+ * Redirects are built on NEXT_PUBLIC_SITE_URL, not request.url: behind a reverse proxy (the Docker
+ * image on Contabo) request.url is the container's own address, e.g. https://0.0.0.0:3000.
  */
 const tokenHashSchema = z.object({
   token_hash: z.string().min(1),
@@ -24,7 +27,7 @@ const codeSchema = z.object({ code: z.string().min(1), next: nextPathSchema });
 
 export async function GET(request: NextRequest) {
   const fail = (code: string) =>
-    NextResponse.redirect(new URL(`/login?error=${code}`, request.url));
+    NextResponse.redirect(new URL(`/login?error=${code}`, publicEnv.NEXT_PUBLIC_SITE_URL));
 
   const params = Object.fromEntries(request.nextUrl.searchParams);
   const supabase = await createClient();
@@ -68,5 +71,5 @@ export async function GET(request: NextRequest) {
     return fail("not-allowed");
   }
 
-  return NextResponse.redirect(new URL(next, request.url));
+  return NextResponse.redirect(new URL(next, publicEnv.NEXT_PUBLIC_SITE_URL));
 }

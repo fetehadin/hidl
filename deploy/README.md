@@ -18,7 +18,12 @@ until it's switched off. Supabase (database, login, photo storage) stays a manag
 3. Let the server pull the image: `docker login ghcr.io` with a GitHub token that has `read:packages`, or make the
    package public.
 4. Start the app: `docker compose up -d`. Add `--profile edge` only if nothing else on the server already uses
-   ports 80/443. If something does (e.g. another app's Caddy), point that proxy at this container instead.
+   ports 80/443. If something does (e.g. nginx or another app's Caddy), point that proxy at
+   `http://127.0.0.1:3000` (change it with `HIDL_PORT` in `.env`). It must pass the original `Host` header
+   through (nginx: `proxy_set_header Host $host;`), or server actions are rejected as cross-origin.
+
+Sign-in redirects and the unlock emails use `NEXT_PUBLIC_SITE_URL` from the build, so it must be the exact public
+address (`https://<HIDL_DOMAIN>`), and the same URL must be in Supabase's Auth → URL configuration redirect list.
 
 ## GitHub settings (Settings → Secrets and variables → Actions)
 
