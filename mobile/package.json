@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "main": "index.ts",
   "dependencies": {
+    "@date-fns/tz": "^1.5.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.118.0",
+    "date-fns": "^4.4.0",
     "expo": "~58.0.23",
     "expo-clipboard": "~58.0.4",
     "expo-constants": "~58.0.15",
@@ -14,6 +16,7 @@
     "expo-linking": "~58.0.16",
     "expo-status-bar": "~58.0.4",
     "expo-system-ui": "~58.0.7",
+    "expo-updates": "~58.0.21",
     "expo-web-browser": "~58.0.7",
     "react": "19.3.0",
     "react-native": "0.88.1",
@@ -32,7 +35,8 @@
     "android": "expo run:android",
     "typecheck": "tsc --noEmit",
     "doctor": "expo-doctor",
-    "build:apk": "npx eas-cli@latest build --platform android --profile preview"
+    "build:apk": "npx eas-cli@latest build --platform android --profile preview",
+    "update": "npx eas-cli@latest update --channel preview --auto"
   },
   "private": true
 }

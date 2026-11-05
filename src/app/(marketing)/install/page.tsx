@@ -6,6 +6,7 @@ import { MascotSays } from "@/components/mascot";
 import { InstallButton } from "@/components/marketing/install-button";
 import { QrCode } from "@/components/marketing/qr-code";
 import { publicEnv } from "@/lib/env";
+import { ANDROID_APP_PATH } from "@/lib/android-app";
 
 /**
  * "Get the app" help, public on every device. hidl is a web app you install from the browser
@@ -141,7 +142,34 @@ function Section({ platform, yours, siteUrl }: { platform: Platform; yours: bool
           </div>
         )}
       </div>
+      {platform === "android" && <AndroidApp />}
     </section>
+  );
+}
+
+/** The native Android app (mobile/): same account, plus the countdown widget a web app can't have. */
+function AndroidApp() {
+  return (
+    <div className="mt-5 rounded-2xl bg-mint p-4">
+      <h3 className="font-display text-lg font-semibold text-ocean">Want a countdown widget? Get the Android app</h3>
+      <p className="mt-1 text-ink-soft">
+        The hidl app is the same journal and account, plus a home-screen widget for your starred countdown.
+      </p>
+      <ol className="mt-3 list-decimal space-y-1 pl-5 text-ink-soft">
+        <li>Download it below and open the downloaded file.</li>
+        <li>
+          If Android asks, allow your browser to <strong>install unknown apps</strong> (the app isn&apos;t in the Play
+          Store yet), then tap <strong>Install</strong>.
+        </li>
+        <li>
+          Sign in, then press and hold your home screen, tap <strong>Widgets</strong>, and add{" "}
+          <strong>hidl countdown</strong>.
+        </li>
+      </ol>
+      <a href={ANDROID_APP_PATH} className="btn btn-primary mt-4 min-h-11" download>
+        Download the Android app
+      </a>
+    </div>
   );
 }
 

@@ -49,6 +49,14 @@
         "projectId": "98fba00e-9373-4564-b086-b41a8842f2aa"
       },
       "siteUrl": "https://hidl.fetehadin.com"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/98fba00e-9373-4564-b086-b41a8842f2aa",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     }
   }
 }
