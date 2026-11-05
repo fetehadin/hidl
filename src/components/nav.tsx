@@ -132,12 +132,12 @@ function SideNav({
           </Label>
         </button>
 
-        <ul className="relative flex flex-col gap-1.5">
+        <ul className="nav-main relative flex flex-col gap-1.5">
           {/* The sliding "you are here" pill. Each item is 3rem tall with a 0.375rem gap. */}
           {activeIndex >= 0 && (
             <li
               aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 h-12 rounded-2xl bg-mint shadow-[inset_0_0_0_2px_var(--teal)] transition-transform duration-300 ease-[cubic-bezier(.34,1.4,.64,1)]"
+              className="nav-pill pointer-events-none absolute inset-x-0 top-0 h-12 rounded-2xl bg-mint shadow-[inset_0_0_0_2px_var(--teal)] transition-transform duration-300 ease-[cubic-bezier(.34,1.4,.64,1)]"
               style={{ transform: `translateY(calc(${activeIndex} * 3.375rem))` }}
             />
           )}
@@ -263,7 +263,7 @@ export function MobileTabBar() {
       className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-line bg-white sm:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="mx-auto grid max-w-md grid-cols-5 px-2 pt-1.5 pb-1">
+      <ul className="tabbar mx-auto grid max-w-md grid-cols-5 px-2 pt-1.5 pb-1">
         {MOBILE_LINKS.map(({ href, label, Icon }) => {
           const active = isActive(pathname, href);
           return (

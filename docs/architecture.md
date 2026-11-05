@@ -210,7 +210,13 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   are light only; the OS dark mode never applies. The `hidl-theme` cookie is read by the root layout, which sets
   `<html data-theme>` and the browser `theme-color`, so the first paint is right. `applyTheme()` flips the attribute
   and cookie in place (no reload); `useTheme()` watches the attribute so every switch on the page agrees. The blue
-  theme only overrides CSS variables in `globals.css` (plus a few `.btn`/`.card` rules). Hidi (`mascot.tsx`) and the
+  theme overrides the CSS variables in `globals.css` and adds depth through class hooks on components, which
+  are inert in teal: `.surface-hero` (cyan gradient + soft rings: the dashboard countdown, featured countdowns,
+  this week's leaderboard), `.surface-cyan` (highlighted cards), `.surface-feature` (steel blue → navy; it
+  re-points the text tokens to light values inside, and restores them on cards/envelopes/fields placed on it),
+  `.stat-chip`/`.stat-alt`/`.stat-icon` (white and cyan stat chips with blue icon discs), `.cd-tile`/`.cd-tile-lead`,
+  `.nav-main`/`.nav-pill`/`.tabbar` (steel blue active item), and envelope `data-state` (sealed: steel edge,
+  ready: cyan glow, opened: muted). Its page is `#e8f7f9` with soft cyan/ocean glows. Hidi (`mascot.tsx`) and the
   `mint` buddy theme (shown as "Hidi" in the builder) draw with `--hidi-*` variables; other buddy colors stay as
   chosen. Device-local on purpose, like the nav's collapsed state.
 - **Feedback** (`/feedback`, `src/components/feedback/feedback-form.tsx`, `sendFeedback`): kind + message; the

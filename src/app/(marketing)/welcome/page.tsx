@@ -133,7 +133,7 @@ export default function WelcomePage() {
           </Feature>
         </div>
 
-        <div className="card tint-aqua mt-5 grid items-center gap-6 p-6 md:grid-cols-[1fr_auto] md:p-8">
+        <div className="card tint-aqua surface-cyan mt-5 grid items-center gap-6 p-6 md:grid-cols-[1fr_auto] md:p-8">
           <div>
             <p className="eyebrow mb-1">and a buddy that&apos;s yours</p>
             <h3 className="font-display text-2xl font-semibold">Make your own character</h3>
@@ -183,7 +183,7 @@ export default function WelcomePage() {
 
       {/* Get the app */}
       <section id="app" className="scroll-mt-8 py-6">
-        <div className="card grid items-center gap-8 overflow-hidden p-6 md:grid-cols-[1fr_auto] md:p-10">
+        <div className="card surface-feature grid items-center gap-8 overflow-hidden p-6 md:grid-cols-[1fr_auto] md:p-10">
           <div>
             <p className="eyebrow mb-2">on your phone</p>
             <h2 className="font-display text-4xl font-semibold tracking-tight">Get hidl on your phone</h2>
