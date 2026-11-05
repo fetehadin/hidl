@@ -12,7 +12,8 @@
       },
       "env": {
         "EXPO_PUBLIC_SITE_URL": "https://hidl.fetehadin.com"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
@@ -21,13 +22,15 @@
       },
       "env": {
         "EXPO_PUBLIC_SITE_URL": "https://hidl.fetehadin.com"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_SITE_URL": "https://hidl.fetehadin.com"
-      }
+      },
+      "channel": "production"
     }
   }
 }

@@ -14,8 +14,8 @@ export async function renderCountdownWidget() {
   } catch (e) {
     const offline = e instanceof FeedError && e.offline;
     const cached = offline ? await getCachedFeed() : null;
-    // Offline, show the last good copy; a revoked link or a server error must not keep showing it.
-    if (cached) return <CountdownWidget state="ready" cached={cached} stale="Offline · last saved" />;
+    // Offline, keep counting from the last good copy (the time left is worked out on the phone); a revoked link or a server error must not keep showing it.
+    if (cached) return <CountdownWidget state="ready" cached={cached} stale="Offline · counting on this phone" />;
     return <CountdownWidget state="error" message={e instanceof FeedError ? e.message : "Couldn't load the countdown."} />;
   }
 }

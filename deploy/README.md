@@ -8,6 +8,7 @@ and restarts it over SSH (`.github/workflows/deploy-contabo.yml`). Supabase (dat
   docker-compose.yml   copy of deploy/docker-compose.yml
   Caddyfile            copy of deploy/Caddyfile (only with the "edge" profile)
   .env                 server settings, from deploy/env.example (never committed)
+  downloads/hidl.apk   the Android app, served at /download/android (see mobile/README.md)
 ```
 
 ## One-time server setup

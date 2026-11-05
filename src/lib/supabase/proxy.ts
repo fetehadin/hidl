@@ -3,7 +3,7 @@ import { NextResponse, userAgent, type NextRequest } from "next/server";
 import { publicEnv } from "@/lib/env";
 
 // /welcome is the landing page, /install the "get the app" help: both for signed-out visitors.
-const PUBLIC_PATHS = ["/login", "/auth", "/welcome", "/install"];
+const PUBLIC_PATHS = ["/login", "/auth", "/welcome", "/install", "/download"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
