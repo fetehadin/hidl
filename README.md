@@ -54,6 +54,13 @@ trips, and a calendar you fill with a photo or a short video a day.
 - **Your own buddy.** Build a Hidi-style avatar on the Account page (color, eyes, mouth, ears or horns, an extra, a
   background). It becomes your icon and takes Hidi's place around the app.
 - **Gregorian or Ethiopian dates**, and your own time zone, picked up from your device (and updated when you travel).
+- **Your profile.** Pick a display name and a picture (upload a photo, or use your buddy). It's what others see on
+  the leaderboard; your email is never shown.
+- **Leaderboard.** `/leaderboard` ranks the longest photo streak this week and this month, counting only photos added
+  on the day itself. Last week's and last month's final results are shown too. Everyone is on it unless they switch
+  it off on Account.
+- **App lock.** Optionally ask for a PIN or a pattern whenever hidl opens on a device, and again after it's been in
+  the background a while. Set per device; forgetting it just means signing out and back in.
 - **Feedback.** Anyone signed in can report a bug or suggest an idea from `/feedback` (in the side nav and on
   Account), and sees the status and any reply there.
 - **Admin panel.** `/admin`, for admins only: usage numbers and charts (these used to be the public `/stats` page),
@@ -92,6 +99,8 @@ plan; sign-in emails go out through Gmail SMTP and the optional unlock emails th
 | Sealed letters can't be edited; the opening date can move earlier or later, but only while sealed and only to a time still in the future | `letters_before_update` trigger plus column grants (only `unlock_at` is updatable). Since `..._letter_date_any_direction.sql`; before that it could only move later. |
 | Usage numbers are for admins only | `usage_daily` (one row per person per day, a visit count) has no grants at all. Writes go only through `record_visit()` (counts the caller, database clock); reads only through `admin_stats()` / `admin_user_detail()`. Rows are deleted with the account. |
 | Only admins can use the admin panel, and only to see counts | `admins` has no grants; every admin read/write is a `SECURITY DEFINER` `admin_*` function starting with `assert_admin()` (42501 for anyone else). None of them selects letter bodies or captions. Suspending and deleting accounts go through the Auth admin API only after `admin_log()` (which is itself admin-only) has recorded them. An admin can't remove their own admin access, so one always remains. |
+| Leaderboard scores can't be inflated by uploading old photos | `leaderboard()` counts only photos whose `date` is the day they were added (`created_at`, set by the database, in the owner's zone). Scores and ranks are computed in Postgres; other people come back as name, buddy and picture only, no ids or emails. Finished periods are frozen in `leaderboard_results` (no grants). Opted-out people (`show_on_leaderboard = false`) are left out. |
+| Display names can't impersonate or collide | `display_name_ok()` (length, no control characters, reserved words like "admin"/"hidl") and a unique index on `lower(display_name)`. Profile pictures must sit in the owner's folder of the `avatars` bucket (check constraint + storage policies). |
 | Every admin action is on record | `admin_audit` has no grants and no cascading foreign keys: written only by the admin functions, kept (with emails) after either account is deleted. Shown on `/admin/audit`. |
 | Feedback can't be faked or flooded | `feedback`: users may insert only `kind`, `message`, `page`, `user_agent` and read only their own rows (not `user_agent`); status, reply and timestamps are set by a trigger or `admin_update_feedback`. Check constraints on kind, length and `page`; at most 10 per person per day. |
 | `opened_at` is recorded on first open and can't be faked | Set inside `open_letter`; the client has no `UPDATE` grant on it |

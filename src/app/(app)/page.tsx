@@ -83,6 +83,11 @@ export default async function DashboardPage() {
         />
         <CountdownStat items={upcoming.map((c) => ({ id: c.id, title: c.title, days: c.days }))} />
       </ul>
+      <p className="-mt-2 mb-5 text-right text-sm">
+        <Link href="/leaderboard" className="font-bold text-accent hover:underline">
+          See this week&apos;s streak leaderboard →
+        </Link>
+      </p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* Primary countdown: a real hero, not a stacked card */}

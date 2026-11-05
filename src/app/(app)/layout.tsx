@@ -2,27 +2,35 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { CalendarPrefProvider } from "@/components/calendar-pref";
 import { HidiMenu } from "@/components/hidi-menu";
-import { Avatar } from "@/components/avatar";
 import { BuddyProvider } from "@/components/buddy-context";
+import { AppLockGate } from "@/components/lock/app-lock-gate";
 import { Mascot } from "@/components/mascot";
 import { AppShell, MobileTabBar } from "@/components/nav";
+import { ProfileImage } from "@/components/profile/profile-image";
 import { UsagePing } from "@/components/usage-ping";
-import { DEFAULT_AVATAR } from "@/lib/avatar";
-import { getAvatar } from "@/lib/data/profile";
+import { LOCK_COOKIE } from "@/lib/app-lock";
+import { getProfile } from "@/lib/data/profile";
 import { NAV_COOKIE } from "@/lib/nav-cookie";
+import { pictureUrl } from "@/lib/profile-rules";
+import { publicEnv } from "@/lib/public-env";
 import { isAdmin, requireUser } from "@/lib/supabase/server";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const [{ supabase, calendar, timeZone }, cookieStore] = await Promise.all([requireUser(), cookies()]);
+  const [{ supabase, user, calendar, timeZone }, cookieStore] = await Promise.all([requireUser(), cookies()]);
   // Read fresh on every request (not from the login token), so a new buddy shows up at once.
   // is_admin() only decides whether the nav shows the Admin link; /admin checks again itself.
-  const [buddy, admin] = await Promise.all([getAvatar(supabase), isAdmin(supabase)]);
+  const [profile, admin] = await Promise.all([getProfile(supabase), isAdmin(supabase)]);
+  const buddy = profile.avatar;
+  const pictureSrc = profile.picturePath ? pictureUrl(publicEnv.NEXT_PUBLIC_SUPABASE_URL, profile.picturePath) : null;
   const navCollapsed = cookieStore.get(NAV_COOKIE)?.value === "collapsed";
+  // This device has an app lock for this user: render everything hidden until it's opened.
+  const lockedHere = decodeURIComponent(cookieStore.get(LOCK_COOKIE)?.value ?? "").split(",").includes(user.id);
 
   return (
     <CalendarPrefProvider value={calendar} timeZone={timeZone}>
       <BuddyProvider value={buddy}>
-      <AppShell initialCollapsed={navCollapsed} avatar={buddy ?? DEFAULT_AVATAR} isAdmin={admin}>
+      <AppLockGate userId={user.id} initiallyLocked={lockedHere}>
+      <AppShell initialCollapsed={navCollapsed} avatar={buddy} pictureSrc={pictureSrc} isAdmin={admin}>
         {/* Positioned so it floats above full-screen pages like the memories board. */}
         <header className="relative z-20 mx-auto flex max-w-[70rem] items-center justify-between gap-3 px-5 pt-4 pb-2 sm:pt-6">
           <Link href="/" className="group flex items-center gap-2 font-display text-[1.9rem] leading-none font-semibold tracking-tight">
@@ -30,7 +38,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             hidl
           </Link>
           <Link href="/account" aria-label="Account" className="clay grid size-11 place-items-center overflow-hidden rounded-full sm:hidden">
-            <Avatar config={buddy ?? DEFAULT_AVATAR} size={44} />
+            <ProfileImage pictureSrc={pictureSrc} avatar={buddy} size={44} />
           </Link>
         </header>
 
@@ -39,6 +47,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       </AppShell>
       <MobileTabBar />
       <HidiMenu />
+      </AppLockGate>
       <UsagePing />
       </BuddyProvider>
     </CalendarPrefProvider>

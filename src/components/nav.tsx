@@ -6,12 +6,13 @@ import { useState, type ReactNode } from "react";
 import { signOut } from "@/actions/auth";
 import type { AvatarConfig } from "@/lib/avatar";
 import { NAV_COOKIE } from "@/lib/nav-cookie";
-import { Avatar } from "./avatar";
+import { ProfileImage } from "./profile/profile-image";
 import {
   CalendarIcon,
   ChatIcon,
   ChevronIcon,
   EnvelopeIcon,
+  FlameIcon,
   HomeIcon,
   HourglassIcon,
   MemoriesIcon,
@@ -25,7 +26,11 @@ const LINKS = [
   { href: "/countdown", label: "Countdown", Icon: HourglassIcon },
   { href: "/calendar", label: "Calendar", Icon: CalendarIcon },
   { href: "/memories", label: "Memories", Icon: MemoriesIcon },
+  // Side nav only: the phone tab bar has room for five. Phones reach it from Today and Account.
+  { href: "/leaderboard", label: "Leaderboard", Icon: FlameIcon, desktopOnly: true },
 ] as const;
+
+const MOBILE_LINKS = LINKS.filter((l) => !("desktopOnly" in l));
 
 
 /** Width the side nav takes (sm and up), matching its two states. */
@@ -44,11 +49,13 @@ function isActive(pathname: string, href: string) {
 export function AppShell({
   initialCollapsed,
   avatar,
+  pictureSrc,
   isAdmin,
   children,
 }: {
   initialCollapsed: boolean;
-  avatar: AvatarConfig;
+  avatar: AvatarConfig | null;
+  pictureSrc: string | null;
   isAdmin: boolean;
   children: ReactNode;
 }) {
@@ -66,7 +73,7 @@ export function AppShell({
       style={{ "--nav-w": collapsed ? NAV_WIDTH.closed : NAV_WIDTH.open } as React.CSSProperties}
     >
       {children}
-      <SideNav collapsed={collapsed} onToggle={toggle} avatar={avatar} isAdmin={isAdmin} />
+      <SideNav collapsed={collapsed} onToggle={toggle} avatar={avatar} pictureSrc={pictureSrc} isAdmin={isAdmin} />
     </div>
   );
 }
@@ -80,11 +87,13 @@ function SideNav({
   collapsed,
   onToggle,
   avatar,
+  pictureSrc,
   isAdmin,
 }: {
   collapsed: boolean;
   onToggle: () => void;
-  avatar: AvatarConfig;
+  avatar: AvatarConfig | null;
+  pictureSrc: string | null;
   isAdmin: boolean;
 }) {
   const pathname = usePathname();
@@ -168,7 +177,7 @@ function SideNav({
             }`}
           >
             {/* 28px buddy in the 20px icon column, so the label stays aligned with the others. */}
-            <Avatar config={avatar} size={28} className="-mx-1 rounded-full ring-2 ring-aqua" />
+            <ProfileImage pictureSrc={pictureSrc} avatar={avatar} size={28} className="-mx-1 ring-2 ring-aqua" />
             <Label collapsed={collapsed}>Account</Label>
           </Link>
           <form action={signOut}>
@@ -243,7 +252,7 @@ export function MobileTabBar() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="mx-auto grid max-w-md grid-cols-5 px-2 pt-1.5 pb-1">
-        {LINKS.map(({ href, label, Icon }) => {
+        {MOBILE_LINKS.map(({ href, label, Icon }) => {
           const active = isActive(pathname, href);
           return (
             <li key={href}>

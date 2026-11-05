@@ -1,13 +1,21 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PHOTO_BUCKET } from "@/lib/data/photos";
+import { AVATAR_BUCKET } from "@/lib/profile-rules";
 
 /**
- * Removes every file in a user's photo folder (`<user_id>/...`, flat). Storage lists 100 names
- * by default, so this pages through until the folder is empty. Returns how many it removed.
+ * Removes every file in a user's folders (`<user_id>/...`, flat) of the photos and profile
+ * picture buckets. Returns how many it removed.
  */
 export async function removeUserFiles(supabase: SupabaseClient, userId: string): Promise<number> {
-  const bucket = supabase.storage.from(PHOTO_BUCKET);
+  let removed = 0;
+  for (const bucket of [PHOTO_BUCKET, AVATAR_BUCKET]) removed += await removeFolder(supabase, bucket, userId);
+  return removed;
+}
+
+/** Storage lists 100 names by default, so this pages through until the folder is empty. */
+async function removeFolder(supabase: SupabaseClient, bucketName: string, userId: string): Promise<number> {
+  const bucket = supabase.storage.from(bucketName);
   let removed = 0;
   // Each round lists from the start again: what was listed is gone by the next round.
   for (let round = 0; round < 1000; round++) {
