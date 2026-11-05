@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat, Fredoka, Newsreader, Nunito } from "next/font/google";
+import { Caveat, Fredoka, Newsreader, Nunito, Plus_Jakarta_Sans } from "next/font/google";
+import { cookies } from "next/headers";
 import { RegisterServiceWorker } from "@/components/register-service-worker";
+import { THEME_COOKIE, THEME_INFO, parseTheme } from "@/lib/theme";
 import "./globals.css";
 
 // Rounded, friendly faces for the UI; a book serif is kept only for reading letters.
@@ -18,6 +20,13 @@ const body = Nunito({
 // preloaded on every page: the browser fetches them the first time a page actually uses them.
 const letter = Newsreader({
   variable: "--font-letter",
+  subsets: ["latin"],
+  preload: false,
+});
+
+// The blue theme's face (headings and text). Not preloaded: teal pages never ask for it.
+const modern = Plus_Jakarta_Sans({
+  variable: "--font-modern",
   subsets: ["latin"],
   preload: false,
 });
@@ -44,16 +53,20 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = {
-  // Light only, regardless of the OS preference.
-  themeColor: "#c8e6e2",
-  colorScheme: "light",
-  viewportFit: "cover",
-};
+/** The browser's bar color follows the chosen theme. Light only, regardless of the OS preference. */
+export async function generateViewport(): Promise<Viewport> {
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+  return { themeColor: THEME_INFO[theme].color, colorScheme: "light", viewportFit: "cover" };
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${hand.variable} ${letter.variable} h-full`}>
+    <html
+      lang="en"
+      data-theme={theme}
+      className={`${display.variable} ${body.variable} ${modern.variable} ${hand.variable} ${letter.variable} h-full`}
+    >
       <body className="min-h-full antialiased text-[17px] leading-relaxed">
         <RegisterServiceWorker />
         {children}

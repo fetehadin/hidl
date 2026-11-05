@@ -69,7 +69,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
         </Notice>
       ) : null}
 
-      <section aria-labelledby="now" className="card p-5 sm:p-6">
+      <section aria-labelledby="now" className="card surface-hero p-5 sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="now" className="font-display text-xl font-semibold">{LABEL[period].now}</h2>
           <p className="text-sm text-muted">{range(board)}</p>
@@ -100,7 +100,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
         )}
       </section>
 
-      <section aria-labelledby="last" className="card mt-4 p-5 sm:p-6">
+      <section aria-labelledby="last" className="card surface-feature mt-4 p-5 sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="last" className="font-display text-xl font-semibold">{LABEL[period].last}&apos;s results</h2>
           <p className="text-sm text-muted">{range(last)} · final</p>

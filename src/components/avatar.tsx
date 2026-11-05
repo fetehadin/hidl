@@ -8,7 +8,8 @@ import { AVATAR_THEMES, type AvatarConfig } from "@/lib/avatar";
  * (src/lib/avatar.ts), in a round badge. Character coordinates match src/components/mascot.tsx
  * (viewBox 120×124), scaled into a 120×120 circle. Purely decorative unless `label` is passed.
  */
-const INK = "#0f3f45";
+// Eyes and mouth: dark teal or midnight navy, with the theme.
+const INK = "var(--hidi-ink)";
 const PINK = "#f49aa5";
 
 export type BuddyMood = "happy" | "wave" | "cheer" | "sleepy" | "curious" | "hi";

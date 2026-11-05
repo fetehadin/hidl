@@ -71,9 +71,9 @@ export function LiveCountdown({
         <div
           key={p.unit}
           aria-hidden
-          className={`relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border-2 px-1.5 ${
+          className={`cd-tile relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border-2 px-1.5 ${
             large ? "py-4 sm:py-5" : "py-3"
-          } ${i === 0 ? "border-teal/60 bg-mint" : "border-aqua bg-mint/60"}`}
+          } ${i === 0 ? "cd-tile-lead border-teal/60 bg-mint" : "border-aqua bg-mint/60"}`}
         >
           {/* a soft highlight across the top, like the clay buttons */}
           <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/55 to-transparent" />

@@ -80,7 +80,7 @@ export function HidiMenu() {
         style={{
           translate: "-50% -50%",
           background:
-            "radial-gradient(circle, rgb(255 255 255 / 0.97) 0%, rgb(240 250 248 / 0.92) 38%, rgb(200 230 226 / 0.6) 55%, transparent 70%)",
+            "radial-gradient(circle, rgb(255 255 255 / 0.97) 0%, color-mix(in oklab, var(--hidi-light) 92%, transparent) 38%, color-mix(in oklab, var(--mint) 60%, transparent) 55%, transparent 70%)",
         }}
       />
 
@@ -99,7 +99,7 @@ export function HidiMenu() {
                 aria-label={hint}
                 title={hint}
                 onClick={() => setOpen(false)}
-                className="group absolute top-1/2 left-1/2 grid size-[3.25rem] place-items-center rounded-full border-2 border-aqua bg-white text-teal shadow-[0_6px_0_var(--aqua),0_14px_28px_-12px_rgb(16_95_104/0.45)] transition-[translate,scale,opacity,background-color] duration-[420ms] ease-[cubic-bezier(.34,1.56,.64,1)] hover:bg-mint"
+                className="group absolute top-1/2 left-1/2 grid size-[3.25rem] place-items-center rounded-full border-2 border-aqua bg-white text-teal shadow-[0_6px_0_var(--aqua),0_14px_28px_-12px_rgb(var(--shadow)/0.45)] transition-[translate,scale,opacity,background-color] duration-[420ms] ease-[cubic-bezier(.34,1.56,.64,1)] hover:bg-mint"
                 style={
                   {
                     translate: open
@@ -125,7 +125,7 @@ export function HidiMenu() {
         aria-expanded={open}
         aria-controls="hidi-menu"
         aria-label={open ? "Close Hidi's shortcuts" : "Hidi: open shortcuts"}
-        className={`relative grid size-16 place-items-center rounded-full border-2 bg-white shadow-[0_5px_0_var(--aqua),0_14px_30px_-14px_rgb(16_95_104/0.5)] transition-[transform,border-color] duration-150 active:scale-95 ${
+        className={`relative grid size-16 place-items-center rounded-full border-2 bg-white shadow-[0_5px_0_var(--aqua),0_14px_30px_-14px_rgb(var(--shadow)/0.5)] transition-[transform,border-color] duration-150 active:scale-95 ${
           open ? "border-teal" : "border-aqua hover:border-fresh"
         }`}
       >

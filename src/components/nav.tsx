@@ -7,6 +7,8 @@ import { signOut } from "@/actions/auth";
 import type { AvatarConfig } from "@/lib/avatar";
 import { NAV_COOKIE } from "@/lib/nav-cookie";
 import { ProfileImage } from "./profile/profile-image";
+import { ThemeToggle } from "./theme/theme-toggle";
+import type { Theme } from "@/lib/theme";
 import {
   CalendarIcon,
   ChatIcon,
@@ -51,12 +53,14 @@ export function AppShell({
   avatar,
   pictureSrc,
   isAdmin,
+  theme,
   children,
 }: {
   initialCollapsed: boolean;
   avatar: AvatarConfig | null;
   pictureSrc: string | null;
   isAdmin: boolean;
+  theme: Theme;
   children: ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
@@ -73,7 +77,7 @@ export function AppShell({
       style={{ "--nav-w": collapsed ? NAV_WIDTH.closed : NAV_WIDTH.open } as React.CSSProperties}
     >
       {children}
-      <SideNav collapsed={collapsed} onToggle={toggle} avatar={avatar} pictureSrc={pictureSrc} isAdmin={isAdmin} />
+      <SideNav collapsed={collapsed} onToggle={toggle} avatar={avatar} pictureSrc={pictureSrc} isAdmin={isAdmin} theme={theme} />
     </div>
   );
 }
@@ -89,12 +93,14 @@ function SideNav({
   avatar,
   pictureSrc,
   isAdmin,
+  theme,
 }: {
   collapsed: boolean;
   onToggle: () => void;
   avatar: AvatarConfig | null;
   pictureSrc: string | null;
   isAdmin: boolean;
+  theme: Theme;
 }) {
   const pathname = usePathname();
   const activeIndex = LINKS.findIndex((l) => isActive(pathname, l.href));
@@ -126,12 +132,12 @@ function SideNav({
           </Label>
         </button>
 
-        <ul className="relative flex flex-col gap-1.5">
+        <ul className="nav-main relative flex flex-col gap-1.5">
           {/* The sliding "you are here" pill. Each item is 3rem tall with a 0.375rem gap. */}
           {activeIndex >= 0 && (
             <li
               aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 h-12 rounded-2xl bg-mint shadow-[inset_0_0_0_2px_var(--teal)] transition-transform duration-300 ease-[cubic-bezier(.34,1.4,.64,1)]"
+              className="nav-pill pointer-events-none absolute inset-x-0 top-0 h-12 rounded-2xl bg-mint shadow-[inset_0_0_0_2px_var(--teal)] transition-transform duration-300 ease-[cubic-bezier(.34,1.4,.64,1)]"
               style={{ transform: `translateY(calc(${activeIndex} * 3.375rem))` }}
             />
           )}
@@ -160,6 +166,12 @@ function SideNav({
           {isAdmin && (
             <FooterLink href="/admin" label="Admin" Icon={ShieldIcon} collapsed={collapsed} active={isActive(pathname, "/admin")} />
           )}
+          <ThemeToggle
+            serverTheme={theme}
+            className="flex h-11 items-center gap-3 rounded-2xl px-3.5 text-sm font-bold text-muted transition-colors hover:bg-mint hover:text-ocean"
+          >
+            <Label collapsed={collapsed}>Theme</Label>
+          </ThemeToggle>
           {/* Tells the form where the person was, so a bug report says which page. */}
           <FooterLink
             href={pathname === "/feedback" ? "/feedback" : `/feedback?from=${encodeURIComponent(pathname)}`}
@@ -251,7 +263,7 @@ export function MobileTabBar() {
       className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-line bg-white sm:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="mx-auto grid max-w-md grid-cols-5 px-2 pt-1.5 pb-1">
+      <ul className="tabbar mx-auto grid max-w-md grid-cols-5 px-2 pt-1.5 pb-1">
         {MOBILE_LINKS.map(({ href, label, Icon }) => {
           const active = isActive(pathname, href);
           return (

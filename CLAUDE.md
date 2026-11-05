@@ -24,6 +24,8 @@ README's "How the important rules are enforced" table (every hard rule and the P
   `/leaderboard` ranks photo streaks weekly and monthly (everyone unless they opt out), with last period's results
   frozen ("released").
 - **App lock:** an optional per-device PIN or pattern lock screen (`/account`), kept in the browser only.
+- **Two themes:** the original bright teal and a bright modern blue, switched per device with the half-circle
+  button (side nav, phone header, landing page) or on Account. Hidi and the default buddy change color with it.
 - **Admin panel** (`/admin`, admins only): usage numbers (formerly the public `/stats`), accounts (search, details,
   suspend, delete, admin access, CSV export), the feedback inbox with replies, an audit log, and a System tab.
 
@@ -194,7 +196,10 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   column grants (`revoke all` then grant per column), `on delete cascade` to `auth.users`, and
   `set search_path = ''` on functions. Functions aren't executable by `anon` by default; grant execute explicitly.
 - **Lazy-load the heavy calendar pieces** through `src/components/calendar/lazy.tsx`, not by direct import.
-- **Style:** light-only teal theme; follow the color rules in `docs/architecture.md` (Visual language).
+- **Style:** two light-only themes, teal (default, `:root`) and blue (`:root[data-theme="blue"]`) in
+  `src/app/globals.css`; follow the color rules in `docs/architecture.md` (Visual language). Use the tokens
+  (`bg-mint`, `text-heading`, `var(--teal)`, `rgb(var(--shadow)/…)`, `--hidi-*` for the mascot), never raw hex,
+  or a color won't follow the theme. Check new UI in both themes.
   kebab-case file names, named exports, comments that explain *why*.
 - **Tests:** pure logic gets a unit test in `tests/unit/`; database rules get an integration test in
   `tests/integration/`.

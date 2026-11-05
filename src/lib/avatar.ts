@@ -5,7 +5,9 @@
  */
 
 export const AVATAR_THEMES = {
-  mint: { label: "Mint", light: "#f0faf8", mid: "#9ed5d1", dark: "#63c1bb", limb: "#7fcbc5", foot: "#4faaa8", shade: "#3a9295", bg: "#e3f4f1", pattern: "#b9e2dd" },
+  // Hidi's own colors, which follow the app theme (teal or blue; see --hidi-* in globals.css).
+  // The key stays "mint": it's what saved buddies and avatar_ok() use.
+  mint: { label: "Hidi", light: "var(--hidi-light)", mid: "var(--hidi-mid)", dark: "var(--hidi-dark)", limb: "var(--hidi-limb)", foot: "var(--hidi-foot)", shade: "var(--hidi-shade)", bg: "var(--hidi-bg)", pattern: "var(--hidi-pattern)" },
   sunset: { label: "Sunset", light: "#fff6ee", mid: "#ffc49b", dark: "#f59a6b", limb: "#f8ad84", foot: "#e07d50", shade: "#c8643b", bg: "#ffeedf", pattern: "#ffd2b0" },
   berry: { label: "Berry", light: "#fff2f6", mid: "#f6b0c6", dark: "#e57c9f", limb: "#ee96b3", foot: "#cf6389", shade: "#b44d72", bg: "#fde6ee", pattern: "#f6c4d5" },
   ocean: { label: "Ocean", light: "#eef6ff", mid: "#a6cbf2", dark: "#6fa3df", limb: "#89b6e8", foot: "#4f86c7", shade: "#3c6fae", bg: "#e2eefc", pattern: "#bcd6f5" },
