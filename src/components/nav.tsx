@@ -9,11 +9,13 @@ import { NAV_COOKIE } from "@/lib/nav-cookie";
 import { Avatar } from "./avatar";
 import {
   CalendarIcon,
+  ChatIcon,
   ChevronIcon,
   EnvelopeIcon,
   HomeIcon,
   HourglassIcon,
   MemoriesIcon,
+  ShieldIcon,
   SignOutIcon,
 } from "./icons";
 
@@ -42,10 +44,12 @@ function isActive(pathname: string, href: string) {
 export function AppShell({
   initialCollapsed,
   avatar,
+  isAdmin,
   children,
 }: {
   initialCollapsed: boolean;
   avatar: AvatarConfig;
+  isAdmin: boolean;
   children: ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
@@ -62,7 +66,7 @@ export function AppShell({
       style={{ "--nav-w": collapsed ? NAV_WIDTH.closed : NAV_WIDTH.open } as React.CSSProperties}
     >
       {children}
-      <SideNav collapsed={collapsed} onToggle={toggle} avatar={avatar} />
+      <SideNav collapsed={collapsed} onToggle={toggle} avatar={avatar} isAdmin={isAdmin} />
     </div>
   );
 }
@@ -72,7 +76,17 @@ export function AppShell({
  * leaves only the icons; expanding slides them back. The active page sits in a pill that
  * glides between items.
  */
-function SideNav({ collapsed, onToggle, avatar }: { collapsed: boolean; onToggle: () => void; avatar: AvatarConfig }) {
+function SideNav({
+  collapsed,
+  onToggle,
+  avatar,
+  isAdmin,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+  avatar: AvatarConfig;
+  isAdmin: boolean;
+}) {
   const pathname = usePathname();
   const activeIndex = LINKS.findIndex((l) => isActive(pathname, l.href));
 
@@ -134,6 +148,17 @@ function SideNav({ collapsed, onToggle, avatar }: { collapsed: boolean; onToggle
         </ul>
 
         <div className="mt-auto flex flex-col gap-1.5 border-t-2 border-mint pt-3">
+          {isAdmin && (
+            <FooterLink href="/admin" label="Admin" Icon={ShieldIcon} collapsed={collapsed} active={isActive(pathname, "/admin")} />
+          )}
+          {/* Tells the form where the person was, so a bug report says which page. */}
+          <FooterLink
+            href={pathname === "/feedback" ? "/feedback" : `/feedback?from=${encodeURIComponent(pathname)}`}
+            label="Feedback"
+            Icon={ChatIcon}
+            collapsed={collapsed}
+            active={pathname === "/feedback"}
+          />
           <Link
             href="/account"
             aria-current={pathname === "/account" ? "page" : undefined}
@@ -159,6 +184,35 @@ function SideNav({ collapsed, onToggle, avatar }: { collapsed: boolean; onToggle
         </div>
       </nav>
     </aside>
+  );
+}
+
+/** A small link in the side nav's footer (Admin, Feedback), styled like Account and Sign out. */
+function FooterLink({
+  href,
+  label,
+  Icon,
+  collapsed,
+  active,
+}: {
+  href: string;
+  label: string;
+  Icon: typeof ChatIcon;
+  collapsed: boolean;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      title={collapsed ? label : undefined}
+      className={`flex h-11 items-center gap-3 rounded-2xl px-3.5 text-sm font-bold transition-colors hover:bg-mint ${
+        active ? "bg-mint text-ocean" : "text-muted hover:text-ocean"
+      }`}
+    >
+      <Icon width={20} height={20} className="shrink-0" />
+      <Label collapsed={collapsed}>{label}</Label>
+    </Link>
   );
 }
 

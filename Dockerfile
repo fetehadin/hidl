@@ -27,6 +27,10 @@ RUN addgroup -S hidl && adduser -S hidl -G hidl
 COPY --from=build --chown=hidl:hidl /app/.next/standalone ./
 COPY --from=build --chown=hidl:hidl /app/.next/static ./.next/static
 COPY --from=build --chown=hidl:hidl /app/public ./public
+# The commit this image was built from, shown on the admin panel's System tab. Declared after the
+# RUN above so a new commit doesn't rebuild that layer.
+ARG GIT_SHA=unknown
+ENV HIDL_VERSION=$GIT_SHA
 USER hidl
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s CMD wget -qO- http://127.0.0.1:3000/api/health || exit 1

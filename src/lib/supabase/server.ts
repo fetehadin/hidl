@@ -1,7 +1,7 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { calendarPref } from "@/lib/dates";
 import { isAllowedEmail, publicEnv } from "@/lib/env";
 import { TZ_COOKIE, resolveTimeZone } from "@/lib/time";
@@ -59,4 +59,22 @@ export async function requireUser() {
      */
     timeZone: resolveTimeZone(cookieStore.get(TZ_COOKIE)?.value),
   };
+}
+
+/**
+ * requireUser() plus "is an admin" (public.admins, via is_admin()). Non-admins get a 404, so the
+ * panel's existence isn't advertised. The database checks again inside every admin_* function,
+ * so this is the UX gate, not the security boundary.
+ */
+export async function requireAdmin() {
+  const ctx = await requireUser();
+  if (!(await isAdmin(ctx.supabase))) notFound();
+  return ctx;
+}
+
+/** Whether the signed-in user is an admin. False on any error (fails closed). */
+export async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data, error } = await supabase.rpc("is_admin");
+  if (error) console.error("isAdmin", error);
+  return data === true;
 }

@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
   // Hidi's quick menu owns the bottom-right corner and the side nav the left edge; keep the
   // dev-only badge out of both.
   devIndicators: { position: "top-right" },
+  // The usage numbers moved from the public /stats page into the admin panel (2026-11-05).
+  // Signed-out visitors land on /login; signed-in non-admins get a 404 there.
+  async redirects() {
+    return [{ source: "/stats", destination: "/admin", permanent: false }];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

@@ -9,14 +9,14 @@ import { PageHeader } from "@/components/page-header";
 import { DEFAULT_AVATAR } from "@/lib/avatar";
 import { getKeyBundle } from "@/lib/data/letter-keys";
 import { getAvatar } from "@/lib/data/profile";
-import { requireUser } from "@/lib/supabase/server";
+import { isAdmin, requireUser } from "@/lib/supabase/server";
 import { requestNow, timeZoneCity } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Account" };
 
 export default async function AccountPage() {
   const { supabase, user, calendar, timeZone } = await requireUser();
-  const [bundle, buddy] = await Promise.all([getKeyBundle(supabase), getAvatar(supabase)]);
+  const [bundle, buddy, admin] = await Promise.all([getKeyBundle(supabase), getAvatar(supabase), isAdmin(supabase)]);
 
   return (
     <>
@@ -57,6 +57,26 @@ export default async function AccountPage() {
         <LetterEncryption bundle={bundle} />
       </div>
 
+      <div className="card mt-4 p-5 sm:p-6">
+        <p className="eyebrow mb-1">feedback</p>
+        <h2 className="font-display text-xl font-semibold">Tell us what you think</h2>
+        <p className="mt-1 mb-4 text-ink-soft">Report a bug, suggest an idea, or just say hi. You&apos;ll see any reply on the feedback page.</p>
+        <Link href="/feedback?from=/account" className="btn btn-ghost">
+          Send feedback
+        </Link>
+      </div>
+
+      {admin && (
+        <div className="card mt-4 p-5 sm:p-6">
+          <p className="eyebrow mb-1">admin</p>
+          <h2 className="font-display text-xl font-semibold">Admin panel</h2>
+          <p className="mt-1 mb-4 text-ink-soft">Usage numbers, accounts, feedback and the audit log.</p>
+          <Link href="/admin" className="btn btn-ghost">
+            Open the admin panel
+          </Link>
+        </div>
+      )}
+
       <div className="card mt-4 border-wax/30 p-5 sm:p-6">
         <p className="eyebrow mb-1 text-wax">danger zone</p>
         <h2 className="font-display text-xl font-semibold">Delete your account</h2>
@@ -67,11 +87,6 @@ export default async function AccountPage() {
           <DeleteAccountButton />
         </div>
       </div>
-
-      <p className="mt-6 text-center text-sm text-muted">
-        <Link href="/stats" className="font-semibold text-accent underline-offset-4 hover:underline">hidl in numbers</Link>
-        {" "}· how many people use hidl
-      </p>
     </>
   );
 }
