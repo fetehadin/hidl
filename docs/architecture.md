@@ -79,10 +79,10 @@ still applies, uses the user's own session), then deletes the `auth.users` row v
 `letters`, `letter_keys`, `photos`, `countdowns`, `widget_tokens`, and `profiles`. A new user table needs the same
 `references auth.users (id) on delete cascade`, or account deletion leaves its rows behind. Covered end-to-end in `tests/integration/account-deletion.test.ts`.
 
-**Photo upload is two-step and bypasses Vercel's body-size limit on purpose.** Images are resized client-side
+**Photo upload is two-step and never passes through the app server, on purpose.** Images are resized client-side
 (`src/lib/image.ts` `processMedia`: 1600px full image + 480px thumbnail, WebP or JPEG; videos ≤ 5 MB go up as-is
 with a frame-grab thumbnail) and uploaded directly to Supabase Storage
-via one-time signed URLs, never through a Vercel function. The flow (`src/actions/photos.ts`):
+via one-time signed URLs, never through the app server. The flow (`src/actions/photos.ts`):
 1. `prepareUpload()` — issues a `createSignedUploadUrl` for both the image and the thumbnail.
 2. (client uploads both files directly to Supabase Storage) — the upload sheet does steps 1–2 **in the
    background as soon as a photo is picked**, so Save usually only runs step 3. Files for a photo that's removed
@@ -211,9 +211,8 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   online navigations aren't slowed). Bump the cache names in `sw.js` if the cached format changes. Installing
   doesn't create a separate session; it's the same origin and cookie jar as the browser.
 - Performance rules this app relies on:
-  - `vercel.json` pins functions to `cdg1` (Paris), next to the Supabase project (`eu-west-3`). Vercel's
-    default region is Washington DC, which put an ocean between every query and the database. If the Supabase
-    project ever moves, move this too.
+  - The app server and the Supabase project (`eu-central-1`, Frankfurt) should stay on the same continent: every
+    page makes several round trips to the database. If either one moves, move the other too.
   - Client components must not import zod or anything that does (`src/lib/validation/*`, `src/lib/env.ts`).
     Browser code reads settings from `src/lib/public-env.ts`; shared constants used by forms live outside
     `validation/` (e.g. `detailField` in `countdown-kinds.ts`).

@@ -1,9 +1,8 @@
 name: Deploy (Contabo)
 
 # Builds the Docker image, pushes it to GitHub's registry, and restarts the app on the
-# Contabo server over SSH. Runs after CI passes on main, alongside the Vercel deploy
-# (deploy.yml), which keeps working as a fallback. Does nothing until the CONTABO_HOST
-# repository variable is set. Setup: deploy/README.md.
+# Contabo server over SSH. Runs after CI passes on main. Does nothing unless the
+# CONTABO_HOST repository variable is set. Setup: deploy/README.md.
 on:
   workflow_run:
     workflows: ["CI"]

@@ -1,8 +1,7 @@
 # Hosting on the Contabo VPS
 
 The app runs as a Docker container on the Contabo server. GitHub Actions builds the image on every merge to `main`
-and restarts it over SSH (`.github/workflows/deploy-contabo.yml`). Vercel keeps deploying too, as a fallback,
-until it's switched off. Supabase (database, login, photo storage) stays a managed service.
+and restarts it over SSH (`.github/workflows/deploy-contabo.yml`). Supabase (database, login, photo storage) stays a managed service.
 
 ```
 /opt/hidl/

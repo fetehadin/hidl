@@ -9,7 +9,7 @@ services:
     # Localhost only, for a reverse proxy already running on the host (nginx, host Caddy). Never public.
     ports: ["127.0.0.1:${HIDL_PORT:-3000}:3000"]
 
-  # Replaces Vercel Cron: the daily unlock-email job at 05:00 UTC.
+  # The daily unlock-email job at 05:00 UTC.
   cron:
     image: alpine:3.20
     env_file: .env
