@@ -22,7 +22,7 @@ function authorized(header: string | null, secret: string) {
   return got.length === expected.length && timingSafeEqual(got, expected);
 }
 
-/** Daily cron: Vercel Cron (vercel.json) or the `cron` service in deploy/docker-compose.yml. Off unless ENABLE_UNLOCK_EMAILS=true. */
+/** Daily cron: the `cron` service in deploy/docker-compose.yml. Off unless ENABLE_UNLOCK_EMAILS=true. */
 export async function GET(request: NextRequest) {
   if (process.env.ENABLE_UNLOCK_EMAILS !== "true") {
     return NextResponse.json({ skipped: "ENABLE_UNLOCK_EMAILS is not true" });

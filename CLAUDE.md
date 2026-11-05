@@ -21,8 +21,8 @@ README's "How the important rules are enforced" table (every hard rule and the P
   a landing page and install guide for signed-out visitors.
 
 Who it's for: one person or a short allowlist (`ALLOWED_EMAIL=a@x.com,b@y.com`), or anyone (`ALLOWED_EMAIL=*`).
-Every account's data is isolated by Postgres RLS either way. It is built to run entirely on free tiers (Vercel
-Hobby, Supabase free, optional Resend).
+Every account's data is isolated by Postgres RLS either way. It runs on a Contabo VPS (Docker) with free tiers for the rest
+(Supabase free, Gmail SMTP for sign-in emails, optional Resend).
 
 ## 2. Tech stack
 
@@ -37,7 +37,7 @@ Hobby, Supabase free, optional Resend).
 | Tests | Vitest, two projects: `unit` and `integration` | `vitest` ^5.0.5 |
 | Lint | ESLint 9 flat config, `eslint-config-next` core-web-vitals + typescript | |
 | Tooling | pnpm (pinned via `packageManager`), Node 22 in CI, Supabase CLI (dev dep) | `pnpm` 10.34.6 |
-| Hosting | Vercel (functions pinned to `cdg1`), Supabase, Resend for optional emails | |
+| Hosting | Docker on a Contabo VPS behind Caddy (`hidl.fetehadin.com`), Supabase, Gmail SMTP, Resend for optional emails | |
 
 ## 3. Architecture
 
@@ -57,7 +57,7 @@ unique indexes and `SECURITY DEFINER` functions. The TypeScript side mirrors tho
 them. Details per feature: [`docs/architecture.md`](docs/architecture.md#core-architecture).
 
 **Mutations** happen only in server actions (`src/actions/*.ts`) plus two route handlers: the unlock-email cron
-and `/auth/confirm`. The widget feed is read-only. Photo files never pass through Vercel: the browser resizes
+and `/auth/confirm`. The widget feed is read-only. Photo files never pass through the app server: the browser resizes
 them (`src/lib/image.ts`) and uploads them straight to Storage with one-time signed URLs (`prepareUpload` →
 direct upload → `addPhoto`/`replacePhoto`).
 
@@ -84,7 +84,7 @@ supabase/templates/          Branded magic-link and confirm-signup emails (need 
 tests/unit/                  Pure logic, no services
 tests/integration/           Against a real local Supabase
 mobile/                      Expo app (own npm toolchain): Android countdown widget; see mobile/README.md
-.github/workflows/           ci.yml (web: typecheck, lint, unit tests; mobile: typecheck), deploy.yml (Vercel prod deploy after CI on main)
+.github/workflows/           ci.yml (web: typecheck, lint, unit tests; mobile: typecheck), deploy-contabo.yml (Docker build + server restart after CI on main)
 ```
 
 ## 4. Data model
@@ -138,8 +138,7 @@ Mobile app (`mobile/`, npm, not pnpm): `cd mobile && npm install && npm run type
 installable APK in the cloud with `npm run build:apk` (EAS). The root `tsconfig.json` and ESLint config exclude
 `mobile/`; CI type-checks it in its own job (`mobile` in `ci.yml`).
 
-Deploy: pushing to `main` runs CI. Then `deploy.yml` runs `vercel deploy --prod` (needs the `VERCEL_TOKEN` repo
-secret), and `deploy-contabo.yml` builds the Docker image (`Dockerfile`, Next `output: "standalone"`) and restarts it
+Deploy: pushing to `main` runs CI. Then `deploy-contabo.yml` builds the Docker image (`Dockerfile`, Next `output: "standalone"`) and restarts it
 on the Contabo VPS. The Contabo workflow is off until the `CONTABO_HOST` variable is set; see `deploy/README.md`. Production schema changes go out with `pnpm exec supabase db push` against the linked project.
 Production env vars are listed in the README.
 Production Supabase auth settings (URLs, code length, templates, Google, SMTP) live in
@@ -197,7 +196,6 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   (`encrypted = false`) are plain text and stay that way.
 - **`ALLOWED_EMAIL` is checked in three places:** the login action, `/auth/confirm` (which also deletes a
   just-created Google account that isn't allowed), and `requireUser()`.
-- **Vercel region:** `vercel.json` pins `cdg1` to sit next to the Supabase project. Move them together.
 - **Service worker:** bump the cache names in `public/sw.js` if the cached format changes. Videos are never cached.
 - **Stale `.next`:** mixing `pnpm build` and `pnpm dev` can break `next/font/google` in dev (a 500 on first load).
   `rm -rf .next` fixes it.
@@ -217,8 +215,6 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
 
 ## 8. Open questions
 
-- **Supabase region:** the README's setup example says `eu-central-1`, but `vercel.json` and these docs assume the
-  project is in `eu-west-3` (Paris). Which is production?
 - **Orphaned uploads:** should there be a cleanup job for files no `photos` row points at?
 - **Integration tests in CI:** should CI start Supabase (for example with `supabase start` in a Docker-capable job)?
 - **Test-only env:** `tests/integration/setup.ts` loads `.env.test.local` before `.env.local`, but that file isn't

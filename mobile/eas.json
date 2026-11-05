@@ -11,7 +11,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_SITE_URL": "https://hidl-sigma.vercel.app"
+        "EXPO_PUBLIC_SITE_URL": "https://hidl.fetehadin.com"
       }
     },
     "preview": {
@@ -20,13 +20,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_SITE_URL": "https://hidl-sigma.vercel.app"
+        "EXPO_PUBLIC_SITE_URL": "https://hidl.fetehadin.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_SITE_URL": "https://hidl-sigma.vercel.app"
+        "EXPO_PUBLIC_SITE_URL": "https://hidl.fetehadin.com"
       }
     }
   }

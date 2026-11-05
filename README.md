@@ -9,7 +9,7 @@
 A small, private journal: letters that stay sealed until the day you choose, countdowns to exams, birthdays and
 trips, and a calendar you fill with a photo or a short video a day.
 
-[Live app](https://hidl-sigma.vercel.app) · [hidl in numbers](https://hidl-sigma.vercel.app/stats) ·
+[Live app](https://hidl.fetehadin.com) · [hidl in numbers](https://hidl.fetehadin.com/stats) ·
 [Architecture](docs/architecture.md) · [Local setup](#local-setup)
 
 </div>
@@ -54,7 +54,7 @@ trips, and a calendar you fill with a photo or a short video a day.
 - **Your own buddy.** Build a Hidi-style avatar on the Account page (color, eyes, mouth, ears or horns, an extra, a
   background). It becomes your icon and takes Hidi's place around the app.
 - **Gregorian or Ethiopian dates**, and your own time zone, picked up from your device (and updated when you travel).
-- **hidl in numbers.** A public [`/stats`](https://hidl-sigma.vercel.app/stats) page: how many people use hidl
+- **hidl in numbers.** A public [`/stats`](https://hidl.fetehadin.com/stats) page: how many people use hidl
   each day and how much they've made, as totals only.
 - **Installable as an app.** "Add to Home Screen" on Android or iOS gives a real app icon and a full-screen launch,
   using the same sign-in. `/install` walks through it for each kind of device.
@@ -71,11 +71,11 @@ either way:
 
 ### Built with
 
-Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Supabase (Auth, Postgres, Storage) · Vercel
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Supabase (Auth, Postgres, Storage) · Docker + Caddy
 
-**Hosting is free.** The app runs on the Vercel Hobby plan; the database, auth and photo storage run on the Supabase
-free plan; the optional unlock emails use Resend's free plan. (A Docker image for your own server is optional too:
-see [`deploy/README.md`](deploy/README.md).)
+**Hosting.** The app runs as a Docker container on a Contabo VPS, deployed by GitHub Actions on every merge to
+`main` (see [`deploy/README.md`](deploy/README.md)). The database, auth and photo storage run on the Supabase free
+plan; sign-in emails go out through Gmail SMTP and the optional unlock emails through Resend's free plan.
 
 ---
 
@@ -148,8 +148,7 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
 
 ## Supabase (production) setup
 
-1. Create a project at [supabase.com](https://supabase.com) and pick a region close to your users (and to your
-   Vercel region: `vercel.json` pins functions to `cdg1`, Paris).
+1. Create a project at [supabase.com](https://supabase.com) and pick a region close to your users and your server.
 2. Link it and push the schema:
    ```bash
    pnpm exec supabase login
@@ -157,8 +156,8 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
    pnpm exec supabase db push        # applies supabase/migrations (tables, RLS, bucket, policies)
    ```
 3. **Authentication → URL Configuration**:
-   - Site URL: `https://<your-app>.vercel.app`
-   - Redirect URLs: `https://<your-app>.vercel.app/**`
+   - Site URL: `https://<your-domain>`
+   - Redirect URLs: `https://<your-domain>/**`
 4. **Email template (cross-device links).** `/auth/confirm` accepts both link formats, but the custom template is
    what makes magic links work from any device, not just the one that requested them:
    - With Supabase's **default** template, the link is a PKCE `?code=` link that only works in the browser that
@@ -173,7 +172,7 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
 5. **Authentication → Sign In / Providers**: if `ALLOWED_EMAIL` is a specific list (not `*`), sign in once to
    create your account, then turn off **Allow new users to sign up** — the app's allowlist already blocks other
    emails, but this closes it at the source too. Leave sign-ups on if `ALLOWED_EMAIL=*`.
-6. **Project Settings → API Keys**: copy the **publishable** key and the **secret** key for Vercel.
+6. **Project Settings → API Keys**: copy the **publishable** key and the **secret** key for the server.
 7. **"Continue with Google" (optional).** The login page shows the button automatically once Google is enabled
    in Supabase (it checks Auth's public settings; no app config or redeploy needed, appears within a minute).
    1. In [Google Cloud Console](https://console.cloud.google.com/), create a project, then open **Google Auth
@@ -181,7 +180,7 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
       (`public/icon-512.png`). Under **Audience**, choose **External** and press **Publish app**, otherwise only
       listed test users can sign in. The app only asks for name and email (`openid`, `email`, `profile`), which
       needs no Google review.
-   2. **Clients → Create client → Web application.** Authorized JavaScript origin: `https://<your-app>.vercel.app`.
+   2. **Clients → Create client → Web application.** Authorized JavaScript origin: `https://<your-domain>`.
       Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback` (Supabase shows the exact one
       on the Google provider page).
    3. Supabase → **Authentication → Sign In / Providers → Google**: enable it and paste the client ID and secret.
@@ -194,35 +193,24 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
 > Supabase's built-in email sender is rate-limited (a few emails per hour) and only delivers to members of your
 > Supabase organisation, which is fine for a single owner. Set up custom SMTP if you need more.
 
-## Deploy to Vercel
+## Deploy
 
-1. Push the repo to GitHub and import it at [vercel.com/new](https://vercel.com/new), or run `pnpm dlx vercel` from this folder.
-2. Add the environment variables (Project → Settings → Environment Variables):
+The app is a Docker image (`Dockerfile`, Next `output: "standalone"`) run by `deploy/docker-compose.yml` on the
+server. `.github/workflows/deploy-contabo.yml` builds it after CI passes on `main`, pushes it to `ghcr.io`, and
+restarts it over SSH. Server setup, the GitHub variables it needs, logs and rollback: [`deploy/README.md`](deploy/README.md).
 
-   | Variable | Value |
-   | --- | --- |
-   | `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` |
-   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | publishable key |
-   | `SUPABASE_SECRET_KEY` | secret key (only needed for unlock emails) |
-   | `NEXT_PUBLIC_SITE_URL` | `https://<your-app>.vercel.app` |
-   | `ALLOWED_EMAIL` | your email (comma-separated if more than one person signs in) |
-
-3. Deploy, then make sure the Supabase Site URL and redirect URLs (steps 3–4 above) match the deployed domain.
-
-**Auto-deploy on push.** `.github/workflows/deploy.yml` deploys to Vercel via the CLI after CI passes on `main`,
-instead of Vercel's native Git integration (that integration needs its GitHub App installed on the repo owner's
-account, which needs admin access we don't have here). It needs a `VERCEL_TOKEN` repository secret (Settings →
-Secrets and variables → Actions on GitHub) — generate one at
-[vercel.com/account/tokens](https://vercel.com/account/tokens).
+Runtime settings live in `/opt/hidl/.env` on the server; `NEXT_PUBLIC_*` values are GitHub repository variables
+because they're built into the browser code.
 
 ### Optional: email on unlock day
 
-`vercel.json` schedules `/api/cron/unlock-emails` daily at 05:00 UTC (08:00 in Addis). It does nothing unless enabled:
+The `cron` service in `deploy/docker-compose.yml` calls `/api/cron/unlock-emails` daily at 05:00 UTC (08:00 in
+Addis), with these set in the server's `.env`. It does nothing unless enabled:
 
 | Variable | Value |
 | --- | --- |
 | `ENABLE_UNLOCK_EMAILS` | `true` |
-| `CRON_SECRET` | 32+ random characters (Vercel sends it as a Bearer token) |
+| `CRON_SECRET` | 32+ random characters (the cron service sends it as a Bearer token) |
 | `RESEND_API_KEY` | from [resend.com](https://resend.com) |
 | `EMAIL_FROM` | a sender on a domain verified in Resend, e.g. `hidl <letters@yourdomain.com>` |
 | `SUPABASE_SECRET_KEY` | required for this job |
@@ -232,8 +220,8 @@ The email contains the letter's title and a link, never the body. Each letter is
 ---
 
 > **Free-tier limits to know about.** Supabase pauses a free project after a week with no activity; open the
-> dashboard and click **Restore** if that happens (data is kept). Vercel Hobby runs cron jobs at most once a day,
-> which is all the unlock-email job needs. Resend's free plan allows 3,000 emails a month.
+> dashboard and click **Restore** if that happens (data is kept). Resend's free plan allows 3,000 emails a month,
+> and Gmail SMTP about 500 sign-in emails a day.
 
 ---
 
@@ -245,7 +233,7 @@ The email contains the letter's title and a link, never the body. Each letter is
 - Database changes go in a **new** file in `supabase/migrations/` (`pnpm exec supabase migration new <name>`).
   Never edit a migration that has already been pushed to production. Apply it locally with `pnpm db:reset`.
 - Never commit `.env.local` or real keys. If you add a variable, add a placeholder for it to `.env.example` and a row to this README.
-- Production keys live only in Vercel and the Supabase dashboard. Ask the owner for access there instead of sharing keys in chat.
+- Production keys live only on the server (`/opt/hidl/.env`), in GitHub settings, and in the Supabase dashboard. Ask the owner for access there instead of sharing keys in chat.
 
 ---
 
@@ -284,7 +272,7 @@ docs/                     Architecture notes and the screenshots in this README
   they show a live Ethiopian-equivalent label next to them. The calendar's month grid itself (`/calendar`) stays
   Gregorian-indexed, since its navigation is tied to the `?m=` query param and photo date-range queries.
 - Photos are resized in the browser and uploaded straight to Supabase Storage through one-time signed upload URLs,
-  so large phone photos never go through a Vercel function (which has a 4.5 MB body limit). The server
+  so large phone photos never go through the app server. The server
   checks that the files exist in your folder before recording them, and deletes replaced or orphaned files.
 - A day can hold any number of photos. The calendar picker accepts multiple files at once — pick several, or drag
   and drop them onto the upload sheet — and each becomes its own photo. A day's cell shows its pinned "wallpaper" (or else the first one) with a
