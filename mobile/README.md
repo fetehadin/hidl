@@ -6,8 +6,10 @@ website, because they come from the same place. Native screens can replace web o
 
 ## How it works
 
-1. **Sign in (native, `src/screens/SignInScreen.tsx`):** "Continue with Google", or an email address and the 6-digit
-   code from the sign-in email. The app never talks to Supabase itself. The website's `/api/app/*` routes do every
+1. **Sign in (native, `src/screens/SignInScreen.tsx`):** "Continue with Google" (only shown once the site says the
+   provider is on), or an email address and the 6-digit code from the sign-in email. The code step reads the
+   clipboard when it opens and whenever the app comes back to the foreground, and submits a copied code by itself
+   (plus a "Paste code" button). The app never talks to Supabase itself. The website's `/api/app/*` routes do every
    check (allowlist, codes, Google) and return a session (`src/auth.ts`).
    - **Google** runs in a secure browser tab. The session comes back through the `hidl://auth` redirect sealed with
      a one-off secret only this app holds (`sealForApp` in the web app's `src/lib/app-auth.ts`), so another app
@@ -20,7 +22,7 @@ website, because they come from the same place. Native screens can replace web o
    - **Offline:** the app shows its own offline screen.
    - **Signing out:** signing out on the site brings back the native sign-in screen and unhooks the widget.
 3. **Widget (`src/widget/`):** it always shows the account's starred countdown. Right after sign-in the app asks `/api/app/widget` for the account's countdown feed,
-   so nobody copies links. If a widget link already exists (e.g. KWGT), it asks before replacing it. Android
+   so nobody copies links or answers questions; this phone's widget replaces an older link (e.g. KWGT). Android
    redraws the widget every 30 minutes, headless. The time left is worked out on the phone from the countdown's date
    (`src/countdown-units.ts`, a copy of the website's), so it stays right offline and between refreshes.
 

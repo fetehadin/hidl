@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 /**
  * Phone app: sets up the home-screen widget right after sign-in, so nobody pastes links.
  * Gives the app a feed URL for the account's starred countdown. If that feed already has a
- * token (a widget set up elsewhere), it answers `exists` instead of silently breaking that
- * widget, and the app asks before calling again with `replace: true`.
+ * token (a widget set up elsewhere), it answers `exists` unless the caller passes `replace: true`,
+ * which is what the app does: the phone's own widget takes over from older links without asking.
  */
 export async function POST(request: NextRequest) {
   const accessToken = request.headers.get("authorization")?.replace(/^Bearer /, "");

@@ -44,6 +44,17 @@ async function post<T>(path: string, body: unknown, accessToken?: string): Promi
   return json;
 }
 
+/** Which sign-in methods the site has switched on. Anything that goes wrong means "email only". */
+export async function fetchProviders(): Promise<{ google: boolean }> {
+  try {
+    const res = await fetch(`${SITE_URL}/api/app/auth/providers`);
+    const json = (await res.json()) as { ok?: boolean; google?: boolean };
+    return { google: json.ok === true && json.google === true };
+  } catch {
+    return { google: false };
+  }
+}
+
 export async function sendEmailCode(email: string) {
   await post('/api/app/auth/email', { email });
 }

@@ -1,9 +1,11 @@
 import type React from 'react';
+import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  AppState,
   Easing,
   Image,
   KeyboardAvoidingView,
@@ -17,7 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
-import { AuthError, sendEmailCode, signInWithGoogle, verifyEmailCode, type AppSession } from '../auth';
+import { AuthError, fetchProviders, sendEmailCode, signInWithGoogle, verifyEmailCode, type AppSession } from '../auth';
 import { colors } from '../theme';
 
 const RESEND_AFTER_S = 30;
@@ -31,7 +33,13 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState<null | 'google' | 'email' | 'code'>(null);
   const [error, setError] = useState<string | null>(null);
+  // Google shows up only once the site says it's switched on, so it's never a button that fails.
+  const [googleOn, setGoogleOn] = useState(false);
   const appear = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    fetchProviders().then((p) => setGoogleOn(p.google));
+  }, []);
 
   useEffect(() => {
     appear.setValue(0);
@@ -85,7 +93,6 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
-            <View style={styles.glow} />
             <Image source={require('../../assets/icon.png')} style={styles.mascot} accessibilityLabel="Hidi, the hidl mascot" />
             <Text style={styles.wordmark}>hidl</Text>
             <Text style={styles.tagline}>Letters to future you, countdowns, and a photo for every day.</Text>
@@ -97,21 +104,25 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
                 <Text style={styles.title}>Sign in</Text>
                 <Text style={styles.subtitle}>Same account as the website. Everything stays in sync.</Text>
 
-                <Pressable
-                  onPress={google}
-                  disabled={busy !== null}
-                  style={({ pressed }) => [styles.google, pressed && styles.pressed, busy !== null && styles.dim]}
-                  accessibilityRole="button"
-                >
-                  {busy === 'google' ? <ActivityIndicator color={colors.ocean} /> : <GoogleLogo />}
-                  <Text style={styles.googleText}>Continue with Google</Text>
-                </Pressable>
+                {googleOn && (
+                  <>
+                    <Pressable
+                      onPress={google}
+                      disabled={busy !== null}
+                      style={({ pressed }) => [styles.google, pressed && styles.pressed, busy !== null && styles.dim]}
+                      accessibilityRole="button"
+                    >
+                      {busy === 'google' ? <ActivityIndicator color={colors.ocean} /> : <GoogleLogo />}
+                      <Text style={styles.googleText}>Continue with Google</Text>
+                    </Pressable>
 
-                <View style={styles.dividerRow}>
-                  <View style={styles.rule} />
-                  <Text style={styles.dividerText}>or with email</Text>
-                  <View style={styles.rule} />
-                </View>
+                    <View style={styles.dividerRow}>
+                      <View style={styles.rule} />
+                      <Text style={styles.dividerText}>or with email</Text>
+                      <View style={styles.rule} />
+                    </View>
+                  </>
+                )}
 
                 <TextInput
                   style={[styles.input, error && styles.inputError]}
@@ -164,6 +175,14 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
   );
 }
 
+/** The 6-digit code in some copied text: just the code, "123 456", or a sentence containing it. */
+function findCode(text: string | null | undefined) {
+  if (!text) return null;
+  const compact = text.replace(/[\s-]/g, '');
+  if (/^\d{6}$/.test(compact)) return compact;
+  return text.match(/(?<!\d)\d{6}(?!\d)/)?.[0] ?? null;
+}
+
 function CodeStep({
   email,
   busy,
@@ -180,6 +199,10 @@ function CodeStep({
   const [code, setCode] = useState('');
   const [wait, setWait] = useState(RESEND_AFTER_S);
   const input = useRef<React.ComponentRef<typeof TextInput>>(null);
+  // Codes already tried, so a wrong one left on the clipboard isn't submitted again and again.
+  const tried = useRef(new Set<string>());
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
 
   useEffect(() => {
     if (wait <= 0) return;
@@ -187,14 +210,30 @@ function CodeStep({
     return () => clearTimeout(t);
   }, [wait]);
 
-  async function change(text: string) {
-    const digits = text.replace(/\D/g, '').slice(0, 6);
+  async function submit(digits: string) {
     setCode(digits);
-    if (digits.length === 6) {
-      const ok = await onVerify(digits);
-      if (!ok) setCode('');
-    }
+    if (digits.length < 6) return;
+    tried.current.add(digits);
+    const ok = await onVerify(digits);
+    if (!ok) setCode('');
   }
+
+  /** Takes a code from the clipboard if there's a fresh one (like the banking and exchange apps do). */
+  async function takeFromClipboard(force = false) {
+    if (busyRef.current) return;
+    const found = findCode(await Clipboard.getStringAsync().catch(() => ''));
+    if (found && (force || !tried.current.has(found))) await submit(found);
+  }
+
+  // Right away, and again whenever the person comes back from their mail app with the code copied.
+  useEffect(() => {
+    takeFromClipboard();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') takeFromClipboard();
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <>
@@ -215,12 +254,12 @@ function CodeStep({
         <TextInput
           ref={input}
           value={code}
-          onChangeText={change}
+          // A paste can carry spaces or a whole sentence, so find the code in it instead of cutting at 6 characters.
+          onChangeText={(text) => submit(findCode(text) ?? text.replace(/\D/g, '').slice(0, 6))}
           autoFocus
           keyboardType="number-pad"
           textContentType="oneTimeCode"
           autoComplete="one-time-code"
-          maxLength={6}
           editable={!busy}
           style={styles.hiddenInput}
           caretHidden
@@ -233,21 +272,32 @@ function CodeStep({
           <Text style={styles.subtitle}>Signing you in…</Text>
         </View>
       ) : (
-        <View style={styles.codeActions}>
+        <>
           <Pressable
-            disabled={wait > 0}
-            onPress={async () => {
-              await onResend();
-              setWait(RESEND_AFTER_S);
-            }}
-            hitSlop={8}
+            onPress={() => takeFromClipboard(true)}
+            style={({ pressed }) => [styles.paste, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Paste the code from the clipboard"
           >
-            <Text style={[styles.link, wait > 0 && styles.linkMuted]}>{wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code'}</Text>
+            <Text style={styles.pasteText}>Paste code</Text>
           </Pressable>
-          <Pressable onPress={onBack} hitSlop={8}>
-            <Text style={styles.link}>Use a different email</Text>
-          </Pressable>
-        </View>
+          <View style={styles.codeActions}>
+            <Pressable
+              disabled={wait > 0}
+              onPress={async () => {
+                tried.current.clear();
+                await onResend();
+                setWait(RESEND_AFTER_S);
+              }}
+              hitSlop={8}
+            >
+              <Text style={[styles.link, wait > 0 && styles.linkMuted]}>{wait > 0 ? `Send a new code in ${wait}s` : 'Send a new code'}</Text>
+            </Pressable>
+            <Pressable onPress={onBack} hitSlop={8}>
+              <Text style={styles.link}>Use a different email</Text>
+            </Pressable>
+          </View>
+        </>
       )}
     </>
   );
@@ -280,12 +330,11 @@ function GoogleLogo() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.mint },
   flex: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', padding: 20, gap: 20 },
-  hero: { alignItems: 'center', paddingTop: 12 },
-  glow: { position: 'absolute', top: -10, width: 220, height: 220, borderRadius: 110, backgroundColor: colors.white, opacity: 0.55 },
-  mascot: { width: 112, height: 112, borderRadius: 28 },
-  wordmark: { marginTop: 10, fontSize: 40, fontWeight: '800', color: colors.ocean, letterSpacing: -0.5 },
-  tagline: { marginTop: 4, fontSize: 15, lineHeight: 21, color: colors.ink, textAlign: 'center', maxWidth: 300 },
+  content: { flexGrow: 1, justifyContent: 'center', padding: 20, gap: 28 },
+  hero: { alignItems: 'center', gap: 6 },
+  mascot: { width: 104, height: 104, borderRadius: 28, marginBottom: 6 },
+  wordmark: { fontSize: 38, lineHeight: 44, fontWeight: '800', color: colors.ocean, letterSpacing: -0.5, textAlign: 'center' },
+  tagline: { fontSize: 15, lineHeight: 22, color: colors.ink, textAlign: 'center', maxWidth: 280 },
   card: {
     backgroundColor: colors.white,
     borderColor: colors.aqua,
@@ -356,8 +405,19 @@ const styles = StyleSheet.create({
   codeBoxFilled: { backgroundColor: colors.white, borderColor: colors.fresh },
   codeDigit: { fontSize: 26, fontWeight: '800', color: colors.ocean },
   hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
+  paste: {
+    alignSelf: 'center',
+    minHeight: 44,
+    paddingHorizontal: 22,
+    justifyContent: 'center',
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.aqua,
+    backgroundColor: colors.white,
+  },
+  pasteText: { fontSize: 15, fontWeight: '700', color: colors.ocean },
   verifying: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 44 },
-  codeActions: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, minHeight: 44, alignItems: 'center' },
+  codeActions: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, minHeight: 36, alignItems: 'center' },
   link: { color: colors.ocean, fontSize: 15, fontWeight: '700', textDecorationLine: 'underline' },
   linkMuted: { color: colors.muted, textDecorationLine: 'none', fontWeight: '600' },
   error: { color: colors.danger, fontSize: 15, lineHeight: 21 },

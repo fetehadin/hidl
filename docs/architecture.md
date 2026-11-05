@@ -232,7 +232,7 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   app except where it's passed `brand` (the header logo). No row = Hidi. Public pages have no provider, so they
   always show Hidi. The nav's Account icon shows the buddy (the default look until they make one).
 - **Navigation:** on sm+ the nav is a left-side panel (`AppShell`/`SideNav` in `src/components/nav.tsx`) that
-  collapses to icons only; its state is the `hidl-nav` cookie (`src/lib/nav-cookie.ts`) so the server renders the
+  collapses to icons only (a Gemini-style side-panel icon button, "Open sidebar" / "Close sidebar"); its state is the `hidl-nav` cookie (`src/lib/nav-cookie.ts`) so the server renders the
   right width. `AppShell` sets `--nav-w`; full-screen fixed overlays (the memories board) use
   `sm:left-[var(--nav-w)]` to stay clear of it. Phones keep the bottom tab bar.
 - **Hidi's quick menu** (`src/components/hidi-menu.tsx`) is fixed in the bottom-right corner of every app page
@@ -305,8 +305,10 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   the server HTML with `fetchPriority="high"`, so their photos download while the JS loads; islands just off
   screen are only added after those have loaded.
 - The month calendar (`src/components/calendar/month-grid.tsx`) is sized to fit the viewport without scrolling:
-  its height is `min(100dvh - --chrome, square-cell height)` using container query units (the page wrapper is an
-  `@container`), so cells widen on laptops and stay square on phones. If you add anything above or below the grid
+  its height is `min(100dvh - --chrome, 1.8 x square-cell height)` using container query units (the page wrapper is an
+  `@container`), so the cells stretch to fill the screen: tall on phones, wide on laptops. There is no card around
+  the grid and no "days captured" line, on purpose: the pictures get the room (the page wrapper uses `-mx-3` on phones
+  to go nearly edge to edge). If you add anything above or below the grid
   on `/calendar`, adjust `--chrome` or it will start scrolling again. On sm+ `--chrome` also reserves room under
   the grid for Hidi's corner menu, and the page's negative bottom margin cancels `main`'s bottom padding.
 - "New" on `/countdown` opens a kind picker dialog (`new-countdown-button.tsx`, `kind-picker.tsx`) that links to
