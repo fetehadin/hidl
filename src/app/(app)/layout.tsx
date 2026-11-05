@@ -10,18 +10,19 @@ import { UsagePing } from "@/components/usage-ping";
 import { DEFAULT_AVATAR } from "@/lib/avatar";
 import { getAvatar } from "@/lib/data/profile";
 import { NAV_COOKIE } from "@/lib/nav-cookie";
-import { requireUser } from "@/lib/supabase/server";
+import { isAdmin, requireUser } from "@/lib/supabase/server";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const [{ supabase, calendar, timeZone }, cookieStore] = await Promise.all([requireUser(), cookies()]);
   // Read fresh on every request (not from the login token), so a new buddy shows up at once.
-  const buddy = await getAvatar(supabase);
+  // is_admin() only decides whether the nav shows the Admin link; /admin checks again itself.
+  const [buddy, admin] = await Promise.all([getAvatar(supabase), isAdmin(supabase)]);
   const navCollapsed = cookieStore.get(NAV_COOKIE)?.value === "collapsed";
 
   return (
     <CalendarPrefProvider value={calendar} timeZone={timeZone}>
       <BuddyProvider value={buddy}>
-      <AppShell initialCollapsed={navCollapsed} avatar={buddy ?? DEFAULT_AVATAR}>
+      <AppShell initialCollapsed={navCollapsed} avatar={buddy ?? DEFAULT_AVATAR} isAdmin={admin}>
         {/* Positioned so it floats above full-screen pages like the memories board. */}
         <header className="relative z-20 mx-auto flex max-w-[70rem] items-center justify-between gap-3 px-5 pt-4 pb-2 sm:pt-6">
           <Link href="/" className="group flex items-center gap-2 font-display text-[1.9rem] leading-none font-semibold tracking-tight">

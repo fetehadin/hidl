@@ -19,6 +19,9 @@ README's "How the important rules are enforced" table (every hard rule and the P
   year view, and `/memories`, a pannable board of past days.
 - Gregorian or Ethiopian date display, a buildable avatar ("buddy") based on the mascot Hidi, account self-deletion,
   a landing page and install guide for signed-out visitors.
+- **Feedback** (`/feedback`): anyone signed in can send a bug, idea or praise and see replies to it.
+- **Admin panel** (`/admin`, admins only): usage numbers (formerly the public `/stats`), accounts (search, details,
+  suspend, delete, admin access, CSV export), the feedback inbox with replies, an audit log, and a System tab.
 
 Who it's for: one person or a short allowlist (`ALLOWED_EMAIL=a@x.com,b@y.com`), or anyone (`ALLOWED_EMAIL=*`).
 Every account's data is isolated by Postgres RLS either way. It runs on a Contabo VPS (Docker) with free tiers for the rest
@@ -65,18 +68,20 @@ direct upload → `addPhoto`/`replacePhoto`).
 
 ```
 src/proxy.ts                 Next 16 proxy: session refresh + optimistic redirect
-src/app/(app)/               Signed-in pages: dashboard, letters, countdown, calendar (+year), memories, account
+src/app/(app)/               Signed-in pages: dashboard, letters, countdown, calendar (+year), memories, account, feedback
+src/app/(app)/admin/         Admin panel: overview, users (+[id], export), feedback, audit, system
 src/app/(auth)/login/        Sign-in (magic link, optional Google, optional Turnstile)
-src/app/(marketing)/         Public /welcome, /install and /stats (the only indexable pages)
+src/app/(marketing)/         Public /welcome and /install (the only indexable pages); /stats redirects to /admin
 src/app/auth/confirm/        Magic-link / OAuth callback
 src/app/api/cron/            Daily unlock-email job (Bearer CRON_SECRET, off unless ENABLE_UNLOCK_EMAILS=true)
 src/app/api/widget/          Public countdown JSON feed, authenticated by a per-feed token
-src/actions/                 Server actions: auth, letters, encryption, countdowns, photos, preferences
-src/lib/supabase/            server.ts (createClient, requireUser), client.ts (browser), proxy.ts, admin.ts
+src/actions/                 Server actions: auth, letters, encryption, countdowns, photos, preferences, feedback, admin
+src/lib/supabase/            server.ts (createClient, requireUser, requireAdmin, isAdmin), client.ts, proxy.ts, admin.ts
 src/lib/data/                Typed read queries per table
 src/lib/validation/          zod schemas used by every action and route handler (server only)
 src/lib/                     Pure helpers: time, dates, ethiopian, calendar, countdown-kinds/units, e2ee,
-                             key-store, image, media, memories, avatar, env, public-env
+                             key-store, image, media, memories, avatar, env, public-env, feedback, csv,
+                             admin-format, user-files
 src/components/              UI, grouped by feature (letters/, countdown/, calendar/, account/, ...)
 public/sw.js                 Service worker: caches photo files, offline page; never caches pages
 supabase/migrations/         The schema, in order; supabase/config.toml is the local stack config
@@ -100,7 +105,10 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `widget_tokens` | `id`, `user_id`, `countdown_id` (null = follow the starred one), `token_hash` | `(countdown_id, user_id)` FK → `countdowns(id, user_id)`; `token_hash` is never selectable. |
 | `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover` | Many per day; no future dates (in the owner's zone, from `user_settings`); paths must be in the user's folder; one cover per `(user_id, date)`. |
 | `profiles` | `user_id` (PK), `avatar` jsonb | Checked by `avatar_ok()`, which mirrors `AVATAR_PARTS` in `src/lib/avatar.ts`. |
-| `usage_daily` | `day`, `user_id`, `visits` | No grants at all. Written only by `record_visit()`, read only as totals by `public_stats()` (the public `/stats` page). |
+| `usage_daily` | `day`, `user_id`, `visits` | No grants at all. Written only by `record_visit()`, read only through `admin_stats()` / `admin_user_detail()` (admins). |
+| `feedback` | `kind`, `message`, `page`, `user_agent`, `status`, `reply`, `replied_at` | Users insert (`kind`, `message`, `page`, `user_agent` only) and read their own (not `user_agent`); no update/delete. Status and reply only via `admin_update_feedback`. 10 per person per day (trigger, `53400`). Kinds/statuses mirrored in `src/lib/feedback.ts`. |
+| `admins` | `user_id` (PK), `added_by` | No grants. `is_admin()` answers for the caller; changed only by `admin_set_admin` (can't remove yourself). First admin is inserted by hand (README). |
+| `admin_audit` | `admin_email`, `action`, `target_user`, `target_email`, `details` | No grants and **no FK cascade**: entries outlive both accounts. Written by `admin_log()`, read by `admin_audit_log()`. |
 | `user_settings` | `user_id` (PK), `time_zone` | The device's IANA zone, checked by `time_zone_ok()`. No row = Africa/Addis_Ababa. Written only by `setTimeZone`. |
 
 Storage: one private `photos` bucket, `<user_id>/...` folders, 5 MB per file, JPEG/WebP/MP4/WebM/MOV only.
@@ -158,7 +166,11 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   `LETTER_META_COLUMNS`, which never includes `body`.
 - **Mirrored rules:** when a Postgres rule has a TypeScript mirror, change both in the same commit:
   `countdown_details_ok` ↔ `src/lib/countdown-kinds.ts`, `countdown_units_ok` ↔ `src/lib/countdown-units.ts`,
-  `avatar_ok` ↔ `src/lib/avatar.ts`, bucket limits ↔ `src/lib/media.ts`.
+  `avatar_ok` ↔ `src/lib/avatar.ts`, bucket limits ↔ `src/lib/media.ts`, `feedback` checks ↔ `src/lib/feedback.ts`.
+- **Admin features:** every admin read/write is a `SECURITY DEFINER` `admin_*` function that starts with
+  `perform public.assert_admin()`; pages call `requireAdmin()` (a 404 for non-admins). Anything that needs the
+  service-role client (suspend, delete) calls `admin_log` *first*, so the database refuses non-admins before the
+  admin client is touched. Admins see counts, never letter bodies, photos or captions: keep it that way.
 - **Client components must not import zod** or anything that does (`src/lib/validation/*`, `src/lib/env.ts`). Use
   `src/lib/public-env.ts` in the browser.
 - **Time is per user.** Store `timestamptz` (UTC); a calendar day (`photos.date`) is a `date` in the user's own

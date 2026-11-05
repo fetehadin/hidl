@@ -9,7 +9,7 @@
 A small, private journal: letters that stay sealed until the day you choose, countdowns to exams, birthdays and
 trips, and a calendar you fill with a photo or a short video a day.
 
-[Live app](https://hidl.fetehadin.com) · [hidl in numbers](https://hidl.fetehadin.com/stats) ·
+[Live app](https://hidl.fetehadin.com) ·
 [Architecture](docs/architecture.md) · [Local setup](#local-setup)
 
 </div>
@@ -24,8 +24,8 @@ trips, and a calendar you fill with a photo or a short video a day.
 | **Today.** A greeting, your photo streak, every upcoming countdown, the next letter to open and today's picture. | **Memories.** Every past day as an island of photos on a board you drag and zoom, with clouds drifting by in the sky behind. |
 | ![The photo calendar for a month](docs/images/calendar.webp) | ![Countdowns of different kinds](docs/images/countdown.webp) |
 | **Photo calendar.** Any number of photos or short videos per day, a pinned "wallpaper" per day, and a year at a glance. | **Countdowns.** As many as you like, of eight kinds, in the units you pick. Star one, or put any on an Android home screen. |
-| ![A sealed letter](docs/images/letters.webp) | ![hidl in numbers, the public usage page](docs/images/stats.webp) |
-| **Time-locked letters.** End-to-end encrypted in your browser and sealed by the database until the opening day. | **hidl in numbers.** A public page of usage totals. Nothing on it is about one person. |
+| ![A sealed letter](docs/images/letters.webp) | ![Usage numbers on the admin overview](docs/images/stats.webp) |
+| **Time-locked letters.** End-to-end encrypted in your browser and sealed by the database until the opening day. | **Admin panel.** Usage numbers, accounts, a feedback inbox and an audit log, for admins only. |
 
 <p align="center">
   <img src="docs/images/phone.webp" alt="hidl on a phone: Today, the calendar, countdowns and Memories" />
@@ -54,8 +54,12 @@ trips, and a calendar you fill with a photo or a short video a day.
 - **Your own buddy.** Build a Hidi-style avatar on the Account page (color, eyes, mouth, ears or horns, an extra, a
   background). It becomes your icon and takes Hidi's place around the app.
 - **Gregorian or Ethiopian dates**, and your own time zone, picked up from your device (and updated when you travel).
-- **hidl in numbers.** A public [`/stats`](https://hidl.fetehadin.com/stats) page: how many people use hidl
-  each day and how much they've made, as totals only.
+- **Feedback.** Anyone signed in can report a bug or suggest an idea from `/feedback` (in the side nav and on
+  Account), and sees the status and any reply there.
+- **Admin panel.** `/admin`, for admins only: usage numbers and charts (these used to be the public `/stats` page),
+  accounts with search, details, suspend, delete, admin access and CSV export, the feedback inbox with replies, an
+  audit log of everything admins do, and a System tab showing which optional features are configured. Admins see
+  counts, never anyone's letters or photos.
 - **Installable as an app.** "Add to Home Screen" on Android or iOS gives a real app icon and a full-screen launch,
   using the same sign-in. `/install` walks through it for each kind of device.
 - **Yours to delete.** Anyone can permanently delete their own account and everything in it from `/account`.
@@ -86,7 +90,10 @@ plan; sign-in emails go out through Gmail SMTP and the optional unlock emails th
 | A sealed letter's body is never returned before `unlock_at` | Postgres column privileges: `authenticated` has no `SELECT` on `letters.body`. The only read path is `open_letter(id)` (`SECURITY DEFINER`), which checks ownership and `now() >= unlock_at` using the **database** clock. See `supabase/migrations/*_letters.sql`. |
 | Letter text is end-to-end encrypted: only the writer can read it, not the server or anyone with the database | The browser encrypts the body (AES-256-GCM, WebCrypto, `src/lib/e2ee.ts`) before sending it, with a per-user letter key stored only wrapped: by a key derived from the user's passphrase (PBKDF2-SHA256, 600k) and by a one-time recovery key. Neither secret is ever sent. `letter_keys` has no `DELETE` and its recovery copy can't be updated; `letters.encrypted` is immutable and `letters_body_check` requires the ciphertext shape. Letters written before this (2026-11-03) stay plain text. The time lock above still applies to the ciphertext. |
 | Sealed letters can't be edited; the opening date can move earlier or later, but only while sealed and only to a time still in the future | `letters_before_update` trigger plus column grants (only `unlock_at` is updatable). Since `..._letter_date_any_direction.sql`; before that it could only move later. |
-| Usage numbers are public, but never about one person | `usage_daily` (one row per person per day, a visit count) has no grants at all. Writes go only through `record_visit()` (counts the caller, database clock); reads only through `public_stats()`, which returns totals and a 30-day series. Shown on the public `/stats` page. Rows are deleted with the account. |
+| Usage numbers are for admins only | `usage_daily` (one row per person per day, a visit count) has no grants at all. Writes go only through `record_visit()` (counts the caller, database clock); reads only through `admin_stats()` / `admin_user_detail()`. Rows are deleted with the account. |
+| Only admins can use the admin panel, and only to see counts | `admins` has no grants; every admin read/write is a `SECURITY DEFINER` `admin_*` function starting with `assert_admin()` (42501 for anyone else). None of them selects letter bodies or captions. Suspending and deleting accounts go through the Auth admin API only after `admin_log()` (which is itself admin-only) has recorded them. An admin can't remove their own admin access, so one always remains. |
+| Every admin action is on record | `admin_audit` has no grants and no cascading foreign keys: written only by the admin functions, kept (with emails) after either account is deleted. Shown on `/admin/audit`. |
+| Feedback can't be faked or flooded | `feedback`: users may insert only `kind`, `message`, `page`, `user_agent` and read only their own rows (not `user_agent`); status, reply and timestamps are set by a trigger or `admin_update_feedback`. Check constraints on kind, length and `page`; at most 10 per person per day. |
 | `opened_at` is recorded on first open and can't be faked | Set inside `open_letter`; the client has no `UPDATE` grant on it |
 | Any number of photos per day, each owned by one user | No per-day limit — `photos.user_id`/`date` are just columns, RLS and the folder-path check constraint still scope every row to its owner |
 | No photos for future days | `photos_before_write` trigger, using the database clock in the owner's own time zone (`user_settings.time_zone`) |
@@ -139,7 +146,7 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
 | --- | --- |
 | `pnpm dev` | Dev server |
 | `pnpm test` | Unit tests (time zones, calendar math, validation) |
-| `pnpm test:integration` | Tests against the local Supabase: letter lock and encryption, multi-photo calendar, storage isolation, countdown rules, widget tokens, avatars, time zones, usage stats, account deletion, unlock emails. Needs `pnpm db:start`. Refuses to run against a non-local URL. |
+| `pnpm test:integration` | Tests against the local Supabase: letter lock and encryption, multi-photo calendar, storage isolation, countdown rules, widget tokens, avatars, time zones, usage stats, admin panel and feedback, account deletion, unlock emails. Needs `pnpm db:start`. Refuses to run against a non-local URL. |
 | `pnpm test:all` | Both |
 | `pnpm typecheck` / `pnpm lint` | Static checks |
 | `pnpm db:reset` | Recreate the local database from `supabase/migrations` |
@@ -202,6 +209,19 @@ restarts it over SSH. Server setup, the GitHub variables it needs, logs and roll
 Runtime settings live in `/opt/hidl/.env` on the server; `NEXT_PUBLIC_*` values are GitHub repository variables
 because they're built into the browser code.
 
+### Admin panel
+
+Admins are listed in the `public.admins` table. Add the first one in the Supabase dashboard's SQL editor (locally,
+Studio at http://127.0.0.1:54323), after that person has signed in once:
+
+```sql
+insert into public.admins (user_id)
+select id from auth.users where email = 'you@example.com';
+```
+
+They'll see **Admin** in the side nav (and on Account on a phone). From there, admins can make other people admins
+on a user's page. Nobody can remove their own admin access, so there's always at least one.
+
 ### Optional: email on unlock day
 
 The `cron` service in `deploy/docker-compose.yml` calls `/api/cron/unlock-emails` daily at 05:00 UTC (08:00 in
@@ -241,9 +261,10 @@ The email contains the letter's title and a link, never the body. Each letter is
 
 ```
 src/proxy.ts              Session refresh and optimistic redirect to /login
-src/app/(app)/            Signed-in pages: Today, letters, countdown, calendar (+ year), memories, account
+src/app/(app)/            Signed-in pages: Today, letters, countdown, calendar (+ year), memories, account, feedback,
+                         admin (overview, users, feedback, audit, system)
 src/app/(auth)/login      Sign-in (magic link or code, optional Google, optional Turnstile)
-src/app/(marketing)/      Public pages: /welcome, /install, /stats
+src/app/(marketing)/      Public pages: /welcome, /install
 src/app/api/              Unlock-email cron (behind a flag), widget feed, phone-app sign-in
 src/actions/              Server actions, including account deletion (src/actions/auth.ts)
 src/lib/supabase/         Server and browser clients; requireUser() re-checks auth and the allowlist;

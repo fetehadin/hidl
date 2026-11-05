@@ -204,3 +204,19 @@ export const SignOutIcon = (p: IconProps) => (
     <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10" />
   </svg>
 );
+
+/** A shield with a check: the admin panel. */
+export const ShieldIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M12 3 5 6v5.5c0 4.3 3 8 7 9.5 4-1.5 7-5.2 7-9.5V6z" />
+    <path d="m9 12 2 2 4-4" />
+  </svg>
+);
+
+/** A speech bubble: send feedback. */
+export const ChatIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5h-7l-4.5 3.5V16.5H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5Z" />
+    <path d="M8 9.5h8M8 12.5h5" />
+  </svg>
+);

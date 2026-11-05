@@ -2,9 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { isAllowedEmail, publicEnv } from "@/lib/env";
-import { PHOTO_BUCKET } from "@/lib/data/photos";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient, requireUser } from "@/lib/supabase/server";
+import { removeUserFiles } from "@/lib/user-files";
 import { loginSchema } from "@/lib/validation/auth";
 
 export type LoginState = { status: "idle" | "sent" | "error"; message?: string };
@@ -75,9 +75,12 @@ export async function signOut() {
 export async function deleteAccount() {
   const { supabase, user } = await requireUser();
 
-  const { data: files } = await supabase.storage.from(PHOTO_BUCKET).list(user.id);
-  if (files && files.length > 0) {
-    await supabase.storage.from(PHOTO_BUCKET).remove(files.map((f) => `${user.id}/${f.name}`));
+  // Pages through the folder (a plain list() stops at 100 files, which left the rest behind).
+  try {
+    await removeUserFiles(supabase, user.id);
+  } catch (error) {
+    console.error("deleteAccount files", error);
+    redirect("/account?error=delete-failed");
   }
 
   const admin = createAdminClient();

@@ -6,7 +6,7 @@ import { recordVisit } from "@/actions/usage";
 const KEY = "hidl-visit";
 
 /**
- * Counts a visit for the public /stats page: once per browser tab per day, after the page
+ * Counts a visit for the admin overview's usage numbers: once per browser tab per day, after the page
  * has settled (idle), so it never competes with what the user is looking at. Renders nothing.
  */
 export function UsagePing() {

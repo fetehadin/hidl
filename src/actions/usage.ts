@@ -3,7 +3,7 @@
 import { requireUser } from "@/lib/supabase/server";
 
 /**
- * Counts one visit for today (the public /stats page). Fire-and-forget from <UsagePing>.
+ * Counts one visit for today (the admin overview's usage numbers). Fire-and-forget from <UsagePing>.
  * Deliberately no revalidatePath: it changes nothing any page of the user's shows, so it
  * must not clear the client's page cache (see "Tab switching" in CLAUDE.md).
  */

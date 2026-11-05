@@ -158,10 +158,33 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   metadata; the root layout stays `noindex`). The QR codes are rendered server-side by `qrcode`
   (`src/components/marketing/qr-code.tsx`), so the library never ships to the browser. There is no native app:
   "the app" is the installable PWA.
-- **Usage stats:** `/stats` (`src/app/(marketing)/stats/page.tsx`, in `PUBLIC_PATHS`, linked from the marketing
-  footer and the bottom of `/account`) shows totals from `public_stats()` (`..._usage_stats.sql`). Visits are
-  counted by `<UsagePing>` in the `(app)` layout: once per browser tab per day, on idle, via `recordVisit` →
-  `record_visit()`. `usage_daily` has no grants; don't add any, and keep anything per-person out of `public_stats()`.
+- **Usage stats:** shown on the admin overview (`src/app/(app)/admin/page.tsx`) from `admin_stats()`
+  (`..._admin_and_feedback.sql`, which dropped the old public `public_stats()`; `/stats` now redirects to `/admin`
+  in `next.config.ts`). Visits are counted by `<UsagePing>` in the `(app)` layout: once per browser tab per day, on
+  idle, via `recordVisit` → `record_visit()`. `usage_daily` has no grants; don't add any.
+- **Admin panel** (`src/app/(app)/admin/`, migration `..._admin_and_feedback.sql`):
+  - *Who:* `public.admins` (no grants). `is_admin()` is the only way to ask; the `(app)` layout uses it to show the
+    side nav's Admin link, `/account` shows an Admin card (the phone way in). `requireAdmin()` in
+    `src/lib/supabase/server.ts` 404s everyone else. The first admin is added with SQL (README → Admin panel);
+    after that, from a user's page (`admin_set_admin`, which refuses removing yourself, so one always remains).
+  - *Reads:* `admin_stats`, `admin_users` (search, paging, per-user counts), `admin_user_detail`, `admin_feedback`,
+    `admin_audit_log`, all typed in `src/lib/data/admin.ts`. Each starts with `assert_admin()` (42501 otherwise).
+    Counts and dates only: no letter bodies, captions or files.
+  - *Writes* (`src/actions/admin.ts`): feedback status/reply (`admin_update_feedback`), admin access, and suspend /
+    lift / delete. The last three use the Auth admin API (service role); they write `admin_log` first, which is the
+    database's admin check, and refuse your own account and other admins. Suspend is a Supabase ban
+    (`ban_duration`); an already-issued access token keeps working until it expires (≤ 1 h). Delete removes photo
+    files with `removeUserFiles` (`src/lib/user-files.ts`, pages past Storage's 100-name list default; also used
+    by `deleteAccount`) and then the auth user (cascade).
+  - *Audit log:* `admin_audit` keeps the admin's and target's emails and has no cascading FK, so "who deleted
+    whom" survives the deletion. The CSV export route (`admin/users/export/route.ts`) logs `users.export`; CSV
+    fields are formula-escaped (`src/lib/csv.ts`).
+  - *System tab:* which optional features are on and whether their env vars are set (never their values), the
+    running commit (`HIDL_VERSION`, from the `GIT_SHA` build arg the deploy workflow passes), DB latency, uptime.
+- **Feedback** (`/feedback`, `src/components/feedback/feedback-form.tsx`, `sendFeedback`): kind + message; the
+  side nav's Feedback link passes `?from=<path>` so a report says which page, and the action adds the browser's
+  user agent. The page lists what you've sent with its status and any admin reply. The database sets
+  status/reply/timestamps (trigger) and caps it at 10 a day.
 - **Avatars:** each user can build a Hidi-style buddy on `/account` (`src/components/account/avatar-builder.tsx`):
   theme, eyes, mouth, top, accessory, background (option lists in `src/lib/avatar.ts`, drawn by
   `src/components/avatar.tsx`). Stored in `profiles.avatar` (`..._profiles_avatar.sql`, checked by `avatar_ok()`,
