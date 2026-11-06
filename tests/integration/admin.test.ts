@@ -21,6 +21,16 @@ describe("admin panel", () => {
     expect((await anon().rpc("is_admin")).error?.code).toBe("42501");
   });
 
+  it("the service role can grant admin idempotently (how ADMIN_EMAIL works)", async () => {
+    const grant = () => admin.from("admins").upsert({ user_id: me.id }, { onConflict: "user_id", ignoreDuplicates: true });
+    expect((await grant()).error).toBeNull();
+    expect((await grant()).error).toBeNull(); // a second visit must not fail
+    expect((await me.client.rpc("is_admin")).data).toBe(true);
+    // Leave `me` a plain user for the tests below.
+    expect((await admin.from("admins").delete().eq("user_id", me.id)).error).toBeNull();
+    expect((await me.client.rpc("is_admin")).data).toBe(false);
+  });
+
   it("nobody can read or write admins or the audit log directly", async () => {
     for (const client of [me.client, boss.client, anon()]) {
       expect((await client.from("admins").select("*")).error?.code).toBe("42501");
