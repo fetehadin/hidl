@@ -28,6 +28,27 @@ export async function setSignedIn(value: boolean) {
   else await AsyncStorage.removeItem(SIGNED_IN_KEY);
 }
 
+const PENDING_KEY = 'hidl.pendingCode';
+const PENDING_FOR_MS = 30 * 60 * 1000;
+
+/**
+ * The email a code was just sent to. Getting the code means leaving the app for the mail app, and
+ * Android may close the app meanwhile; remembering the address lets the code step come back
+ * instead of starting over.
+ */
+export async function rememberPendingCode(email: string | null) {
+  if (email) await AsyncStorage.setItem(PENDING_KEY, JSON.stringify({ email, at: Date.now() }));
+  else await AsyncStorage.removeItem(PENDING_KEY);
+}
+
+export async function pendingCodeEmail(): Promise<string | null> {
+  try {
+    const saved = JSON.parse((await AsyncStorage.getItem(PENDING_KEY)) ?? 'null') as { email?: string; at?: number } | null;
+    if (saved?.email && saved.at && Date.now() - saved.at < PENDING_FOR_MS) return saved.email;
+  } catch {}
+  return null;
+}
+
 async function post<T>(path: string, body: unknown, accessToken?: string): Promise<T> {
   let res: Response;
   try {

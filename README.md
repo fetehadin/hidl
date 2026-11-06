@@ -144,6 +144,7 @@ Fill `.env.local` from the `db:status` output:
 | `SUPABASE_SECRET_KEY` | `SECRET_KEY` (used by tests and the email cron, server-side only) |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` |
 | `ALLOWED_EMAIL` | the email you'll sign in with (comma-separate several, e.g. `a@x.com,b@y.com`, or `*` to let anyone sign up) |
+| `ADMIN_EMAIL` | optional: emails that become admins when they sign in (see "Admin panel") |
 
 ```bash
 pnpm dev
@@ -222,8 +223,13 @@ because they're built into the browser code.
 
 ### Admin panel
 
-Admins are listed in the `public.admins` table. Add the first one in the Supabase dashboard's SQL editor (locally,
-Studio at http://127.0.0.1:54323), after that person has signed in once:
+The simplest way: set `ADMIN_EMAIL` (comma-separate several) in the server's environment. Whoever signs in with one
+of those emails is added to `public.admins` automatically and sees **Admin** straight away. Nobody else is affected,
+and the list is only a way in: the database still decides who is an admin. (An address on the list is re-added on its
+next visit even if another admin removed it; take it off `ADMIN_EMAIL` to remove it for good.)
+
+Without `ADMIN_EMAIL`, admins are listed in the `public.admins` table. Add the first one in the Supabase dashboard's
+SQL editor (locally, Studio at http://127.0.0.1:54323), after that person has signed in once:
 
 ```sql
 insert into public.admins (user_id)

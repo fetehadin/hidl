@@ -117,7 +117,7 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `leaderboard_releases`, `leaderboard_results` | `(period, period_start)`, `rank`, `streak`, `photo_days` | No grants. A finished week/month is snapshotted by `leaderboard(p, true)` the first time anyone asks for it. |
 | `usage_daily` | `day`, `user_id`, `visits` | No grants at all. Written only by `record_visit()`, read only through `admin_stats()` / `admin_user_detail()` (admins). |
 | `feedback` | `kind`, `message`, `page`, `user_agent`, `status`, `reply`, `replied_at` | Users insert (`kind`, `message`, `page`, `user_agent` only) and read their own (not `user_agent`); no update/delete. Status and reply only via `admin_update_feedback`. 10 per person per day (trigger, `53400`). Kinds/statuses mirrored in `src/lib/feedback.ts`. |
-| `admins` | `user_id` (PK), `added_by` | No grants. `is_admin()` answers for the caller; changed only by `admin_set_admin` (can't remove yourself). First admin is inserted by hand (README). |
+| `admins` | `user_id` (PK), `added_by` | No grants. `is_admin()` answers for the caller; changed only by `admin_set_admin` (can't remove yourself). First admin: an address in `ADMIN_EMAIL` is added on its next visit (`isAdmin(supabase, user)`), or insert by hand (README). |
 | `admin_audit` | `admin_email`, `action`, `target_user`, `target_email`, `details` | No grants and **no FK cascade**: entries outlive both accounts. Written by `admin_log()`, read by `admin_audit_log()`. |
 | `user_settings` | `user_id` (PK), `time_zone` | The device's IANA zone, checked by `time_zone_ok()`. No row = Africa/Addis_Ababa. Written only by `setTimeZone`. |
 

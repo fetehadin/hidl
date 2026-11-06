@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
-import { AuthError, fetchProviders, sendEmailCode, signInWithGoogle, verifyEmailCode, type AppSession } from '../auth';
+import { AuthError, fetchProviders, pendingCodeEmail, rememberPendingCode, sendEmailCode, signInWithGoogle, verifyEmailCode, type AppSession } from '../auth';
 import { colors } from '../theme';
 
 const RESEND_AFTER_S = 30;
@@ -39,6 +39,10 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
 
   useEffect(() => {
     fetchProviders().then((p) => setGoogleOn(p.google));
+    // Back from the mail app after Android closed us: pick up at the code step.
+    pendingCodeEmail().then((pending) => {
+      if (pending) setStep((now) => (now.name === 'email' ? { name: 'code', email: pending } : now));
+    });
   }, []);
 
   useEffect(() => {
@@ -77,11 +81,13 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
     });
     if (sent) {
       Haptics.selectionAsync().catch(() => {});
+      rememberPendingCode(address).catch(() => {});
       setStep({ name: 'code', email: address });
     }
   }
 
   function succeed(session: AppSession) {
+    rememberPendingCode(null).catch(() => {});
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     onSignedIn(session);
   }
@@ -156,6 +162,7 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
                 }}
                 onResend={() => run('email', () => sendEmailCode(step.email))}
                 onBack={() => {
+                  rememberPendingCode(null).catch(() => {});
                   setError(null);
                   setStep({ name: 'email' });
                 }}

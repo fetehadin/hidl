@@ -19,3 +19,13 @@ export function isAllowedEmail(email: string | null | undefined) {
   if (allowed.includes("*")) return true;
   return allowed.includes(email.toLowerCase());
 }
+
+/**
+ * Emails that are admins the moment they sign in (ADMIN_EMAIL, comma-separated, optional).
+ * Read straight from the environment: it's a plain list, and the app must still start without it.
+ */
+export function isAdminEmail(email: string | null | undefined) {
+  if (!email) return false;
+  const list = (process.env.ADMIN_EMAIL ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return list.includes(email.toLowerCase());
+}

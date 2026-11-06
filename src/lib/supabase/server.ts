@@ -3,7 +3,8 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { calendarPref } from "@/lib/dates";
-import { isAllowedEmail, publicEnv } from "@/lib/env";
+import { isAdminEmail, isAllowedEmail, publicEnv } from "@/lib/env";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { TZ_COOKIE, resolveTimeZone } from "@/lib/time";
 
 export async function createClient() {
@@ -68,13 +69,36 @@ export async function requireUser() {
  */
 export async function requireAdmin() {
   const ctx = await requireUser();
-  if (!(await isAdmin(ctx.supabase))) notFound();
+  if (!(await isAdmin(ctx.supabase, ctx.user))) notFound();
   return ctx;
 }
 
-/** Whether the signed-in user is an admin. False on any error (fails closed). */
-export async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
+/**
+ * Whether the signed-in user is an admin. False on any error (fails closed).
+ *
+ * Pass `user` to also honor ADMIN_EMAIL: an address on that list is added to public.admins the
+ * first time it asks (the email on a session is already verified by the code or Google), so the
+ * first admin needs no SQL. The database stays the single source of truth for who is an admin.
+ */
+export async function isAdmin(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  user?: { id: string; email: string },
+) {
   const { data, error } = await supabase.rpc("is_admin");
-  if (error) console.error("isAdmin", error);
-  return data === true;
+  if (error) {
+    console.error("isAdmin", error);
+    return false;
+  }
+  if (data === true) return true;
+  if (!user || !isAdminEmail(user.email)) return false;
+
+  // Service role: admins has no grants for anyone else. Only reached for addresses on the list.
+  const { error: grantError } = await createAdminClient()
+    .from("admins")
+    .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
+  if (grantError) {
+    console.error("isAdmin: granting ADMIN_EMAIL", grantError);
+    return false;
+  }
+  return true;
 }

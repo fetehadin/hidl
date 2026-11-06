@@ -44,6 +44,13 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
     return () => sub.remove();
   }, [canGoBack]);
 
+  // Nothing loaded after a long wait (a stuck connection): offer a retry rather than a forever splash.
+  useEffect(() => {
+    if (ready) return;
+    const t = setTimeout(() => setFailed(true), 30000);
+    return () => clearTimeout(t);
+  }, [ready]);
+
   useEffect(() => {
     if (ready) Animated.timing(splash, { toValue: 0, duration: 260, useNativeDriver: true }).start();
   }, [ready, splash]);
@@ -87,6 +94,9 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
         onLoadProgress={(e: WebViewProgressEvent) => setProgress(e.nativeEvent.progress)}
         onLoadEnd={() => setReady(true)}
         onError={() => setFailed(true)}
+        // Android can kill the web view's renderer (low memory); without this the screen goes blank for good.
+        onRenderProcessGone={() => web.current?.reload()}
+        onContentProcessDidTerminate={() => web.current?.reload()}
         onHttpError={(e: WebViewHttpErrorEvent) => {
           if (e.nativeEvent.statusCode >= 500) setFailed(true);
         }}
