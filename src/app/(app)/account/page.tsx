@@ -21,7 +21,7 @@ export const metadata: Metadata = { title: "Account" };
 
 export default async function AccountPage() {
   const { supabase, user, calendar, timeZone } = await requireUser();
-  const [bundle, profile, admin] = await Promise.all([getKeyBundle(supabase), getProfile(supabase), isAdmin(supabase)]);
+  const [bundle, profile, admin] = await Promise.all([getKeyBundle(supabase), getProfile(supabase), isAdmin(supabase, user)]);
   const buddy = profile.avatar;
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
 

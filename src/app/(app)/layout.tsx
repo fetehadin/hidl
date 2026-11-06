@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const [{ supabase, user, calendar, timeZone }, cookieStore] = await Promise.all([requireUser(), cookies()]);
   // Read fresh on every request (not from the login token), so a new buddy shows up at once.
   // is_admin() only decides whether the nav shows the Admin link; /admin checks again itself.
-  const [profile, admin] = await Promise.all([getProfile(supabase), isAdmin(supabase)]);
+  const [profile, admin] = await Promise.all([getProfile(supabase), isAdmin(supabase, user)]);
   const buddy = profile.avatar;
   const pictureSrc = profile.picturePath ? pictureUrl(publicEnv.NEXT_PUBLIC_SUPABASE_URL, profile.picturePath) : null;
   const navCollapsed = cookieStore.get(NAV_COOKIE)?.value === "collapsed";

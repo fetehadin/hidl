@@ -48,6 +48,12 @@ export default async function AdminSystemPage() {
       value: allowed.includes("*") ? "Anyone" : `${allowed.length} allowed ${allowed.length === 1 ? "email" : "emails"}`,
       hint: "ALLOWED_EMAIL",
     },
+    {
+      label: "Admin emails",
+      ok: has("ADMIN_EMAIL") ? true : null,
+      value: has("ADMIN_EMAIL") ? "Set" : "Not set",
+      hint: "ADMIN_EMAIL: these addresses become admins when they sign in",
+    },
     { label: "Google sign-in", ok: google ? true : null, value: google ? "On" : "Off", hint: "Switched on in deploy/supabase-prod/config.toml" },
     { label: "CAPTCHA on sign-in", ok: publicEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? true : null, value: publicEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? "On" : "Off", hint: "NEXT_PUBLIC_TURNSTILE_SITE_KEY" },
     { label: "Service key (account deletion)", ok: has("SUPABASE_SECRET_KEY"), value: has("SUPABASE_SECRET_KEY") ? "Set" : "Missing", hint: "SUPABASE_SECRET_KEY" },

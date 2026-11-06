@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 
 /** Every account as CSV: email, dates and counts (never content). Logged in the audit log. */
 export async function GET() {
-  const { supabase, timeZone } = await requireUser();
-  if (!(await isAdmin(supabase))) return new NextResponse("Not found", { status: 404 });
+  const { supabase, user, timeZone } = await requireUser();
+  if (!(await isAdmin(supabase, user))) return new NextResponse("Not found", { status: 404 });
 
   const rows = [];
   for (let offset = 0; ; offset += 1000) {

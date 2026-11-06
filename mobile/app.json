@@ -4,7 +4,7 @@
     "slug": "hidl",
     "owner": "fetebuild",
     "scheme": "hidl",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

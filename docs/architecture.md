@@ -165,8 +165,9 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
 - **Admin panel** (`src/app/(app)/admin/`, migration `..._admin_and_feedback.sql`):
   - *Who:* `public.admins` (no grants). `is_admin()` is the only way to ask; the `(app)` layout uses it to show the
     side nav's Admin link, `/account` shows an Admin card (the phone way in). `requireAdmin()` in
-    `src/lib/supabase/server.ts` 404s everyone else. The first admin is added with SQL (README → Admin panel);
-    after that, from a user's page (`admin_set_admin`, which refuses removing yourself, so one always remains).
+    `src/lib/supabase/server.ts` 404s everyone else. The first admin comes from the `ADMIN_EMAIL` list (`isAdmin(supabase,
+    user)` adds a listed, signed-in address to `admins` with the service-role client; the database stays the source of
+    truth) or from SQL (README → Admin panel); after that, from a user's page (`admin_set_admin`, which refuses removing yourself, so one always remains).
   - *Reads:* `admin_stats`, `admin_users` (search, paging, per-user counts), `admin_user_detail`, `admin_feedback`,
     `admin_audit_log`, all typed in `src/lib/data/admin.ts`. Each starts with `assert_admin()` (42501 otherwise).
     Counts and dates only: no letter bodies, captions or files.

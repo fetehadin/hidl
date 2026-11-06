@@ -9,7 +9,8 @@ website, because they come from the same place. Native screens can replace web o
 1. **Sign in (native, `src/screens/SignInScreen.tsx`):** "Continue with Google" (only shown once the site says the
    provider is on), or an email address and the 6-digit code from the sign-in email. The code step reads the
    clipboard when it opens and whenever the app comes back to the foreground, and submits a copied code by itself
-   (plus a "Paste code" button). The app never talks to Supabase itself. The website's `/api/app/*` routes do every
+   (plus a "Paste code" button). If Android closes the app while the person fetches the code from their mail app, the
+   code step comes back on reopening (the address is remembered for 30 minutes). The app never talks to Supabase itself. The website's `/api/app/*` routes do every
    check (allowlist, codes, Google) and return a session (`src/auth.ts`).
    - **Google** runs in a secure browser tab. The session comes back through the `hidl://auth` redirect sealed with
      a one-off secret only this app holds (`sealForApp` in the web app's `src/lib/app-auth.ts`), so another app
