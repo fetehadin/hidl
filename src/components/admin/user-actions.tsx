@@ -88,7 +88,7 @@ export function UserActions({
           <p className="font-semibold text-wax">Delete account</p>
           <p className="text-sm text-ink-soft">Removes the account, every letter, photo and countdown. No undo.</p>
         </div>
-        <button type="button" className="btn shrink-0 bg-wax text-white hover:opacity-90" disabled={isPending || isAdmin} onClick={() => setDialog("delete")}>
+        <button type="button" className="btn shrink-0 bg-wax text-wax-ink hover:opacity-90" disabled={isPending || isAdmin} onClick={() => setDialog("delete")}>
           Delete…
         </button>
       </div>

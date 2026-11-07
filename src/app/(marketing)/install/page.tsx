@@ -37,7 +37,7 @@ export default async function InstallPage() {
   return (
     <div className="mx-auto max-w-3xl pt-10">
       <p className="eyebrow mb-2">get the app</p>
-      <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">Put hidl on your home screen</h1>
+      <h1 className="font-title text-4xl font-medium tracking-tight sm:text-5xl">Put hidl on your home screen</h1>
       <p className="mt-4 text-lg text-ink-soft">
         hidl installs straight from your web browser: no app store, no download to wait for. Once it&apos;s on your
         home screen it opens full screen with its own icon, just like any other app. You stay signed in.
@@ -122,13 +122,13 @@ function Section({ platform, yours, siteUrl }: { platform: Platform; yours: bool
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="font-display text-2xl font-semibold">{s.title}</h2>
         <span className="rounded-full bg-mint px-2.5 py-0.5 text-sm font-bold text-ocean">{s.browser}</span>
-        {yours && <span className="rounded-full bg-teal px-2.5 py-0.5 text-sm font-bold text-white">Your device</span>}
+        {yours && <span className="rounded-full bg-teal px-2.5 py-0.5 text-sm font-bold text-accent-ink">Your device</span>}
       </div>
       <div className={platform === "computer" ? "mt-4 grid items-start gap-6 sm:grid-cols-[1fr_auto]" : "mt-4"}>
         <ol className="space-y-3">
           {s.steps.map((step, i) => (
             <li key={i} className="flex gap-3 text-ink-soft">
-              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-teal font-display font-bold text-white">
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-teal font-display font-bold text-accent-ink">
                 {i + 1}
               </span>
               <span className="pt-0.5">{step}</span>

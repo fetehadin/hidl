@@ -59,7 +59,7 @@ export function CountdownCard({
   }
 
   return (
-    <div className={`card relative p-5 sm:p-6 ${featured ? "card-interactive surface-hero" : ""}`}>
+    <div className={`card relative p-5 sm:p-6 ${featured ? "card-interactive" : ""}`}>
       <button
         type="button"
         onClick={star}

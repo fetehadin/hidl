@@ -44,7 +44,7 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
             <Envelope state="sealed" initial={initial} className="mx-auto max-w-md">
               <div className="text-center">
                 <p className="font-hand text-xl text-accent">for {letter.recipient}</p>
-                <h1 className="mt-1 font-display text-2xl font-semibold">{letter.title}</h1>
+                <h1 className="mt-1 font-title text-2xl font-medium">{letter.title}</h1>
                 {letter.occasion && <p className="text-ink-soft">{letter.occasion}</p>}
                 <p className="mt-5 font-display text-xl">
                   <LiveRelative target={letter.unlock_at} />

@@ -24,8 +24,9 @@ README's "How the important rules are enforced" table (every hard rule and the P
   `/leaderboard` ranks photo streaks weekly and monthly (everyone unless they opt out), with last period's results
   frozen ("released").
 - **App lock:** an optional per-device PIN or pattern lock screen (`/account`), kept in the browser only.
-- **Two themes:** the original bright teal and a bright modern blue, switched per device with the half-circle
-  button (side nav, phone header, landing page) or on Account. Hidi and the default buddy change color with it.
+- **Two themes:** Teal Paper (light, default) and Graphite (dark), both in the brand teal, switched per device with
+  the half-circle button (side nav, phone header, landing page) or on Account. The phone app's own screens use the
+  same palette (`mobile/src/theme.ts`) and follow the page's theme.
 - **Admin panel** (`/admin`, admins only): usage numbers (formerly the public `/stats`), accounts (search, details,
   suspend, delete, admin access, CSV export), the feedback inbox with replies, an audit log, and a System tab.
 
@@ -199,10 +200,14 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   column grants (`revoke all` then grant per column), `on delete cascade` to `auth.users`, and
   `set search_path = ''` on functions. Functions aren't executable by `anon` by default; grant execute explicitly.
 - **Lazy-load the heavy calendar pieces** through `src/components/calendar/lazy.tsx`, not by direct import.
-- **Style:** two light-only themes, teal (default, `:root`) and blue (`:root[data-theme="blue"]`) in
-  `src/app/globals.css`; follow the color rules in `docs/architecture.md` (Visual language). Use the tokens
-  (`bg-mint`, `text-heading`, `var(--teal)`, `rgb(var(--shadow)/…)`, `--hidi-*` for the mascot), never raw hex,
-  or a color won't follow the theme. Check new UI in both themes.
+- **Style:** two themes, Teal Paper (light, default, `:root`) and Graphite (dark, `:root[data-theme="graphite"]`)
+  in `src/app/globals.css`; follow the color rules in `docs/architecture.md` (Visual language). Use the tokens
+  (`bg-white` = the card surface, `bg-mint`, `text-heading`, `var(--teal)`, `rgb(var(--shadow)/…)`, `--hidi-*` for
+  the mascot), never raw hex, or a color won't follow the theme. `text-white` is the card color too, so it is
+  wrong for text: use `text-snow` on photos, `text-accent-ink` on `bg-teal`, `text-wax-ink` on `bg-wax`. Fonts:
+  `font-title` (Newsreader) for page titles, `font-display`/body (Plus Jakarta Sans), `font-brand` (Fredoka) only
+  for the "hidl" wordmark. Check new UI in both themes. The phone app's palette (`mobile/src/theme.ts`) copies
+  the tokens: change both.
   kebab-case file names, named exports, comments that explain *why*.
 - **Tests:** pure logic gets a unit test in `tests/unit/`; database rules get an integration test in
   `tests/integration/`.

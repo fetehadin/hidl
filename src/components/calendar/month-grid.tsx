@@ -94,21 +94,20 @@ export function MonthGrid({
     <>
       {/*
         Sized to the viewport: as tall as the screen allows (minus the app header, month row
-        and tab bar, which is --chrome), so the cells stretch tall on a phone and wide on a
-        laptop and the pictures get as much room as possible. A tall screen with a four-week
-        month is capped at cells 1.8x taller than wide. --rows is the month's number of weeks
-        (4 to 6). --chrome also leaves room below the grid for Hidi's corner menu (above the
-        tab bar on phones), so it never covers a day.
+        and tab bar, which is --chrome), so the photos get as much room as possible. Cells are
+        never more than 1.8x taller than wide; on wide screens the page wrapper (calendar/page.tsx)
+        narrows the grid so cells stay portrait, like photos. --rows is the month's number of
+        weeks (4 to 6), set by the page. --chrome also leaves room below the grid for Hidi's
+        corner menu (above the tab bar on phones), so it never covers a day.
       */}
       <div
-        className="calendar-grid grid h-[max(14rem,min(calc(100dvh-var(--chrome)),calc(100cqw*var(--rows)/7*1.8)))] grid-cols-7 grid-rows-[auto_repeat(var(--rows),minmax(0,1fr))] gap-1 px-1 text-center [--chrome:21.5rem] sm:gap-1.5 sm:px-0 sm:[--chrome:16.5rem]"
-        style={{ "--rows": Math.ceil((leadingBlanks(month) + days.length) / 7) } as React.CSSProperties}
+        className="calendar-grid grid h-[max(14rem,min(calc(100dvh-var(--chrome)),calc(100cqw*var(--rows)/7*1.8)))] grid-cols-7 grid-rows-[auto_repeat(var(--rows),minmax(0,1fr))] gap-[3px] px-[3px] [--chrome:21.5rem] sm:gap-1.5 sm:px-0 sm:[--chrome:16.5rem]"
         role="grid"
         aria-label="Days of the month"
       >
         <div role="row" className="contents">
           {WEEKDAYS.map((d) => (
-            <div key={d} role="columnheader" className="pb-1 text-[11px] font-semibold tracking-wider text-muted uppercase">
+            <div key={d} role="columnheader" className="pb-1 text-center text-[11px] font-semibold tracking-wider text-muted uppercase">
               <span className="sm:hidden">{d.charAt(0)}</span>
               <span className="hidden sm:inline">{d}</span>
             </div>
@@ -125,6 +124,8 @@ export function MonthGrid({
             const isFuture = date > today;
             const tabIndex = i === focusedIndex ? 0 : -1;
             const ring = isToday ? "ring-2 ring-accent ring-offset-2 ring-offset-paper" : "";
+            const cell = "relative min-h-0 overflow-hidden rounded-[7px] sm:rounded-control";
+            const number = "absolute top-1 left-1.5 text-[12px] leading-none font-extrabold tabular-nums sm:top-1.5 sm:left-2 sm:text-sm";
 
             if (dayPhotos && dayPhotos.length > 0) {
               // The pinned "wallpaper" if the day has one, else its first photo.
@@ -141,18 +142,18 @@ export function MonthGrid({
                   onFocus={() => setFocusedIndex(i)}
                   onKeyDown={(e) => onGridKeyDown(e, i)}
                   onClick={(e) => openLightbox(photos.indexOf(cover), e.currentTarget)}
-                  className={`group relative min-h-0 overflow-hidden rounded-control bg-paper-deep ${ring}`}
+                  className={`group ${cell} bg-paper-deep ${ring}`}
                   aria-label={`${date}${cover.caption ? `: ${cover.caption}` : ""}. ${dayPhotos.length > 1 ? `${dayPhotos.length} photos and videos. ` : ""}Open ${cover.isVideo ? "video" : "photo"}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={cover.thumbUrl} alt="" loading="lazy" decoding="async"
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  {/* A soft shade under the date so it reads on bright photos. */}
+                  <span aria-hidden className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-scrim/45 to-transparent" />
                   {cover.isVideo && <VideoBadge className="absolute bottom-1 left-1 scale-75 sm:scale-100" />}
-                  <span className="absolute top-0.5 left-1 text-[11px] font-bold text-white [text-shadow:0_1px_2px_rgb(0_0_0/0.7)] sm:text-xs">
-                    {day}
-                  </span>
+                  <span className={`${number} text-snow [text-shadow:0_1px_3px_rgb(0_0_0/0.6)]`}>{day}</span>
                   {dayPhotos.length > 1 && (
-                    <span className="absolute right-1 bottom-1 rounded-full bg-ocean/85 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    <span className="absolute right-1 bottom-1 rounded-full bg-scrim/70 px-1.5 py-0.5 text-[10px] leading-none font-bold text-snow tabular-nums sm:text-xs">
                       +{dayPhotos.length - 1}
                     </span>
                   )}
@@ -172,9 +173,9 @@ export function MonthGrid({
                   tabIndex={tabIndex}
                   onFocus={() => setFocusedIndex(i)}
                   onKeyDown={(e) => onGridKeyDown(e, i)}
-                  className="min-h-0 rounded-control p-1.5 text-left text-[11px] font-semibold text-muted/60 sm:text-xs"
+                  className={`${cell} text-muted/50`}
                 >
-                  {day}
+                  <span className={number}>{day}</span>
                 </div>
               );
             }
@@ -192,14 +193,14 @@ export function MonthGrid({
                 onKeyDown={(e) => onGridKeyDown(e, i)}
                 onClick={(e) => openUpload({ kind: "add", date }, e.currentTarget)}
                 aria-label={`${date}. Add a photo`}
-                className={`relative flex min-h-0 items-start rounded-control p-1.5 text-left text-[11px] font-semibold transition-colors sm:text-xs ${
+                className={`${cell} transition-colors ${
                   isToday
-                    ? `border-2 border-accent bg-accent-soft text-accent ${ring}`
-                    : "border border-line/70 bg-card/40 text-ink-soft hover:border-accent hover:bg-accent-soft hover:text-accent"
+                    ? "border-2 border-dashed border-accent bg-accent-soft text-accent"
+                    : "bg-paper-deep text-muted hover:bg-accent-soft hover:text-accent"
                 }`}
               >
-                {day}
-                {isToday && <span className="absolute inset-0 grid place-items-center text-2xl leading-none font-bold">+</span>}
+                <span className={number}>{day}</span>
+                {isToday && <span className="absolute inset-0 grid place-items-center text-2xl leading-none font-semibold">+</span>}
               </button>
             );
           })}

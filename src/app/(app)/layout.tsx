@@ -36,7 +36,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <AppShell initialCollapsed={navCollapsed} avatar={buddy} pictureSrc={pictureSrc} isAdmin={admin} theme={theme}>
         {/* Positioned so it floats above full-screen pages like the memories board. */}
         <header className="relative z-20 mx-auto flex max-w-[70rem] items-center justify-between gap-3 px-5 pt-4 pb-2 sm:pt-6">
-          <Link href="/" className="group flex items-center gap-2 font-display text-[1.9rem] leading-none font-semibold tracking-tight">
+          <Link href="/" className="group flex items-center gap-2 font-brand text-[1.9rem] leading-none font-semibold tracking-tight">
             <Mascot brand size={46} float={false} className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
             hidl
           </Link>

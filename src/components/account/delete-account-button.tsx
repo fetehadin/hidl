@@ -16,7 +16,7 @@ export function DeleteAccountButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="btn bg-wax text-white hover:opacity-90"
+        className="btn bg-wax text-wax-ink hover:opacity-90"
       >
         Delete my account
       </button>

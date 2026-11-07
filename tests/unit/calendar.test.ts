@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMonths, daysInMonth, leadingBlanks, monthDays } from "@/lib/calendar";
+import { addMonths, daysInMonth, leadingBlanks, monthDays, weekOf } from "@/lib/calendar";
 import { isoDate, photoPathPattern, uploadPathsOk } from "@/lib/validation/photos";
 
 describe("calendar helpers", () => {
@@ -46,5 +46,20 @@ describe("photo validation", () => {
     expect(uploadPathsOk("u1", d, "video", p(".mp4"), p("-thumb.mp4"))).toBe(false);
     expect(uploadPathsOk("u1", d, "video", p("-thumb.mp4"), p("-thumb.webp"))).toBe(false);
     expect(uploadPathsOk("u2", d, "video", p(".mp4"), p("-thumb.webp"))).toBe(false);
+  });
+});
+
+describe("weekOf", () => {
+  it("returns Monday to Sunday around the day", () => {
+    // 2026-11-07 is a Saturday.
+    expect(weekOf("2026-11-07")).toEqual(["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-07", "2026-11-08"]);
+  });
+  it("starts on the day itself for a Monday and crosses months and years", () => {
+    expect(weekOf("2026-11-02")[0]).toBe("2026-11-02");
+    expect(weekOf("2027-01-01")).toEqual(["2026-12-28", "2026-12-29", "2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02", "2027-01-03"]);
+  });
+  it("ends on the day itself for a Sunday", () => {
+    expect(weekOf("2026-11-08").at(-1)).toBe("2026-11-08");
+    expect(weekOf("2026-11-08")[0]).toBe("2026-11-02");
   });
 });

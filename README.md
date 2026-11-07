@@ -59,8 +59,8 @@ trips, and a calendar you fill with a photo or a short video a day.
 - **Leaderboard.** `/leaderboard` ranks the longest photo streak this week and this month, counting only photos added
   on the day itself. Last week's and last month's final results are shown too. Everyone is on it unless they switch
   it off on Account.
-- **Two looks.** The original bright teal, or a bright, modern blue (white, light cyan and steel blue, with a
-  cleaner font). Switch any time with the half-circle button; Hidi and your buddy change color with it.
+- **Two looks.** Teal Paper (light) or Graphite (dark), both in hidl's teal. Switch any time with the half-circle
+  button; the phone app follows.
 - **App lock.** Optionally ask for a PIN or a pattern whenever hidl opens on a device, and again after it's been in
   the background a while. Set per device; forgetting it just means signing out and back in.
 - **Feedback.** Anyone signed in can report a bug or suggest an idea from `/feedback` (in the side nav and on

@@ -96,12 +96,12 @@ export function BuddyFigure({
       <Extra kind={config.extra} />
 
       {mood === "sleepy" && (
-        <text className="mascot-zz" x="90" y="36" fontSize="15" fontWeight="800" fill={t.shade} fontFamily="var(--font-display), sans-serif">
+        <text className="mascot-zz" x="90" y="36" fontSize="15" fontWeight="800" fill={t.shade} fontFamily="var(--font-body), sans-serif">
           z
         </text>
       )}
       {mood === "curious" && (
-        <text x="96" y="36" fontSize="18" fontWeight="800" fill={t.shade} fontFamily="var(--font-display), sans-serif">
+        <text x="96" y="36" fontSize="18" fontWeight="800" fill={t.shade} fontFamily="var(--font-body), sans-serif">
           ?
         </text>
       )}

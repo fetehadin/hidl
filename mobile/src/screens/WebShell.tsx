@@ -1,16 +1,31 @@
 import type React from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, BackHandler, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView as RNWebView } from 'react-native-webview';
 import type { WebViewProps } from 'react-native-webview/lib/WebView';
-import type { WebViewNavigation, WebViewProgressEvent, WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
+import type { WebViewMessageEvent, WebViewNavigation, WebViewProgressEvent, WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
 
 /** The methods we call on the web view. The package types it as a function component without a ref. */
 type WebViewHandle = { goBack(): void; reload(): void };
 const WebView = RNWebView as unknown as React.ComponentType<WebViewProps & { ref?: React.Ref<WebViewHandle> }>;
 import { APP_UA, SITE_ORIGIN } from '../config';
-import { colors } from '../theme';
+import { type Palette, type ThemeName, palettes, parseTheme } from '../theme';
+
+const THEME_KEY = 'hidl.theme';
+
+// Tells the app which theme the page shows (the <html data-theme> attribute), now and whenever it
+// changes, so the strips around the page and the splash match it.
+const REPORT_THEME = `(function () {
+  function send() {
+    try { window.ReactNativeWebView.postMessage(JSON.stringify({ theme: document.documentElement.dataset.theme || 'teal' })); } catch (e) {}
+  }
+  send();
+  new MutationObserver(send).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+})();
+true;`;
 
 /**
  * The journal itself: the hidl website in a native shell, so letters, countdowns and photos are
@@ -31,6 +46,24 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
   const opened = useRef(false);
   const [handoffFailed, setHandoffFailed] = useState(false);
   const splash = useRef(new Animated.Value(1)).current;
+  const [theme, setTheme] = useState<ThemeName>('teal');
+  const p = palettes[theme];
+  const styles = useMemo(() => makeStyles(p), [p]);
+
+  // Start in the theme the page showed last time, so the splash doesn't flash the wrong color.
+  useEffect(() => {
+    AsyncStorage.getItem(THEME_KEY)
+      .then((t) => t && setTheme(parseTheme(t)))
+      .catch(() => {});
+  }, []);
+
+  function onMessage(e: WebViewMessageEvent) {
+    try {
+      const next = parseTheme((JSON.parse(e.nativeEvent.data) as { theme?: unknown }).theme);
+      setTheme(next);
+      AsyncStorage.setItem(THEME_KEY, next).catch(() => {});
+    } catch {}
+  }
 
   // Android's back button walks back through the journal before leaving the app.
   useEffect(() => {
@@ -90,6 +123,8 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
         style={styles.web}
         applicationNameForUserAgent={APP_UA}
         onNavigationStateChange={onNavigation}
+        injectedJavaScript={REPORT_THEME}
+        onMessage={onMessage}
         onShouldStartLoadWithRequest={shouldLoad}
         onLoadProgress={(e: WebViewProgressEvent) => setProgress(e.nativeEvent.progress)}
         onLoadEnd={() => setReady(true)}
@@ -113,7 +148,8 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
         decelerationRate="normal"
         bounces={false}
       />
-      <View style={{ height: insets.bottom, backgroundColor: colors.white }} />
+      <View style={{ height: insets.bottom, backgroundColor: p.card }} />
+      <StatusBar style={p.statusBar} />
 
       {progress > 0 && progress < 1 && ready && (
         <View style={[styles.progressTrack, { top: insets.top }]} pointerEvents="none">
@@ -159,28 +195,28 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
 }
 
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.mint },
-  web: { flex: 1, backgroundColor: colors.mint },
-  progressTrack: { position: 'absolute', left: 0, right: 0, height: 3 },
-  progressBar: { height: 3, backgroundColor: colors.teal, borderTopRightRadius: 3, borderBottomRightRadius: 3 },
-  splash: { ...StyleSheet.absoluteFill, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  splashIcon: { width: 120, height: 120, borderRadius: 30 },
-  splashText: { fontSize: 17, fontWeight: '700', color: colors.ocean },
-  offline: { ...StyleSheet.absoluteFill, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  offlineIcon: { width: 96, height: 96, borderRadius: 24, opacity: 0.9 },
-  offlineTitle: { fontSize: 24, fontWeight: '800', color: colors.ocean },
-  offlineBody: { fontSize: 15, lineHeight: 22, color: colors.ink, textAlign: 'center', maxWidth: 320 },
-  retry: {
-    marginTop: 8,
-    paddingHorizontal: 28,
-    minHeight: 52,
-    justifyContent: 'center',
-    borderRadius: 16,
-    backgroundColor: colors.teal,
-    borderBottomWidth: 5,
-    borderBottomColor: colors.ocean,
-  },
-  retryPressed: { borderBottomWidth: 1, marginTop: 12 },
-  retryText: { color: colors.white, fontSize: 18, fontWeight: '800' },
-});
+function makeStyles(p: Palette) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: p.paper },
+    web: { flex: 1, backgroundColor: p.paper },
+    progressTrack: { position: 'absolute', left: 0, right: 0, height: 3 },
+    progressBar: { height: 3, backgroundColor: p.teal, borderTopRightRadius: 3, borderBottomRightRadius: 3 },
+    splash: { ...StyleSheet.absoluteFill, backgroundColor: p.paper, alignItems: 'center', justifyContent: 'center', gap: 16 },
+    splashIcon: { width: 120, height: 120, borderRadius: 30 },
+    splashText: { fontSize: 17, fontWeight: '700', color: p.heading },
+    offline: { ...StyleSheet.absoluteFill, backgroundColor: p.paper, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
+    offlineIcon: { width: 96, height: 96, borderRadius: 24, opacity: 0.9 },
+    offlineTitle: { fontSize: 24, fontWeight: '800', color: p.heading },
+    offlineBody: { fontSize: 15, lineHeight: 22, color: p.ink, textAlign: 'center', maxWidth: 320 },
+    retry: {
+      marginTop: 8,
+      paddingHorizontal: 28,
+      minHeight: 52,
+      justifyContent: 'center',
+      borderRadius: 14,
+      backgroundColor: p.button,
+    },
+    retryPressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
+    retryText: { color: p.buttonInk, fontSize: 17, fontWeight: '700' },
+  });
+}

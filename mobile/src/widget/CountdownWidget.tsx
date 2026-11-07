@@ -21,10 +21,10 @@ export function CountdownWidget(props: Props) {
       style={{
         height: 'match_parent',
         width: 'match_parent',
-        backgroundColor: colors.white,
+        backgroundColor: colors.card,
         borderRadius: 24,
         borderWidth: 2,
-        borderColor: colors.aqua,
+        borderColor: colors.line,
         padding: 14,
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -40,7 +40,7 @@ function Ready({ cached, stale }: { cached: CachedFeed; stale?: string }) {
   const { feed, fetchedAt } = cached;
   return (
     <FlexWidget style={{ width: 'match_parent', flexDirection: 'column' }}>
-      <TextWidget text={feed.title} maxLines={1} truncate="END" style={{ fontSize: 15, fontWeight: 'bold', color: colors.ocean }} />
+      <TextWidget text={feed.title} maxLines={1} truncate="END" style={{ fontSize: 15, fontWeight: 'bold', color: colors.heading }} />
       <TextWidget
         text={remainingText(feed)}
         maxLines={1}
@@ -52,5 +52,5 @@ function Ready({ cached, stale }: { cached: CachedFeed; stale?: string }) {
 }
 
 function Message({ text }: { text: string }) {
-  return <TextWidget text={text} maxLines={3} style={{ fontSize: 14, fontWeight: '600', color: colors.ocean }} />;
+  return <TextWidget text={text} maxLines={3} style={{ fontSize: 14, fontWeight: '600', color: colors.heading }} />;
 }

@@ -47,7 +47,7 @@ export default function WelcomePage() {
       <section className="grid items-center gap-10 pt-12 pb-24 lg:grid-cols-[1.05fr_1fr] lg:pt-20 lg:pb-32">
         <div>
           <p className="eyebrow mb-3">your journal, for later</p>
-          <h1 className="font-display text-5xl leading-[1.05] font-semibold tracking-tight text-heading lg:text-6xl">
+          <h1 className="font-title text-5xl leading-[1.05] font-medium tracking-tight text-heading lg:text-6xl">
             Write to future you.
             <br />
             Count down to what matters.
@@ -133,7 +133,7 @@ export default function WelcomePage() {
           </Feature>
         </div>
 
-        <div className="card tint-aqua surface-cyan mt-5 grid items-center gap-6 p-6 md:grid-cols-[1fr_auto] md:p-8">
+        <div className="card tint-aqua mt-5 grid items-center gap-6 p-6 md:grid-cols-[1fr_auto] md:p-8">
           <div>
             <p className="eyebrow mb-1">and a buddy that&apos;s yours</p>
             <h3 className="font-display text-2xl font-semibold">Make your own character</h3>
@@ -183,7 +183,7 @@ export default function WelcomePage() {
 
       {/* Get the app */}
       <section id="app" className="scroll-mt-8 py-6">
-        <div className="card surface-feature grid items-center gap-8 overflow-hidden p-6 md:grid-cols-[1fr_auto] md:p-10">
+        <div className="card grid items-center gap-8 overflow-hidden p-6 md:grid-cols-[1fr_auto] md:p-10">
           <div>
             <p className="eyebrow mb-2">on your phone</p>
             <h2 className="font-display text-4xl font-semibold tracking-tight">Get hidl on your phone</h2>
@@ -368,7 +368,7 @@ function Point({ title, children }: { title: string; children: React.ReactNode }
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
     <li className="flex gap-3">
-      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-teal font-display font-bold text-white">{n}</span>
+      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-teal font-display font-bold text-accent-ink">{n}</span>
       <span className="pt-0.5">{children}</span>
     </li>
   );

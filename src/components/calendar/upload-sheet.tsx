@@ -251,7 +251,7 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
                   onClick={() => removeItem(item.key)}
                   disabled={busy}
                   aria-label={item.media.mediaType === "video" ? "Remove this video" : "Remove this photo"}
-                  className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-ocean/85 text-xs text-white hover:bg-ocean"
+                  className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-scrim/70 text-xs text-snow hover:bg-scrim"
                 >
                   ✕
                 </button>
