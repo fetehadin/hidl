@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useEffect, useId, useRef, useState } from "react";
 import { addPhoto, discardUpload, prepareUpload, replacePhoto } from "@/actions/photos";
 import { dayLabel } from "@/lib/calendar";
@@ -157,6 +158,12 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
         if (!result.ok) throw new Error(result.message);
         removeItem(item.key, true);
       }
+      posthog.capture("media_saved", {
+        operation: mode.kind,
+        media_count: count,
+        photo_count: items.filter((item) => item.media.mediaType === "photo").length,
+        video_count: items.filter((item) => item.media.mediaType === "video").length,
+      });
       router.refresh();
       onClose();
     } catch (e) {

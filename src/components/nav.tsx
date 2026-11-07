@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import posthog from "posthog-js";
+import { useEffect, useState, type ReactNode } from "react";
 import { signOut } from "@/actions/auth";
 import type { AvatarConfig } from "@/lib/avatar";
 import { NAV_COOKIE } from "@/lib/nav-cookie";
@@ -54,6 +55,8 @@ export function AppShell({
   pictureSrc,
   isAdmin,
   theme,
+  userId,
+  email,
   children,
 }: {
   initialCollapsed: boolean;
@@ -61,9 +64,15 @@ export function AppShell({
   pictureSrc: string | null;
   isAdmin: boolean;
   theme: Theme;
+  userId: string;
+  email: string;
   children: ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+
+  useEffect(() => {
+    posthog.identify(userId, { email });
+  }, [userId, email]);
 
   function toggle() {
     const next = !collapsed;
@@ -186,7 +195,12 @@ function SideNav({
             <ProfileImage pictureSrc={pictureSrc} avatar={avatar} size={28} className="-mx-1 ring-2 ring-aqua" />
             <Label collapsed={collapsed}>Account</Label>
           </Link>
-          <form action={signOut}>
+          <form
+            action={signOut}
+            onSubmit={() => {
+              posthog.reset();
+            }}
+          >
             <button
               type="submit"
               title={collapsed ? "Sign out" : undefined}

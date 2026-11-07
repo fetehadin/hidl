@@ -1,6 +1,7 @@
 "use client";
 
 import Script from "next/script";
+import posthog from "posthog-js";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { type LoginState, sendMagicLink, signInWithGoogle } from "@/actions/auth";
@@ -58,7 +59,12 @@ export function LoginForm({ turnstileSiteKey, google = false }: { turnstileSiteK
           </div>
         </>
       )}
-      <form action={action} className="space-y-4" noValidate>
+      <form
+        action={action}
+        className="space-y-4"
+        noValidate
+        onSubmit={() => posthog.capture("magic_link_requested")}
+      >
         <div className="space-y-1.5">
           <label htmlFor="email" className="block text-sm font-semibold text-ink-soft">
             Email
@@ -110,6 +116,7 @@ function GoogleButton() {
     <button
       type="submit"
       disabled={pending}
+      onClick={() => posthog.capture("google_sign_in_requested")}
       className="flex min-h-12 w-full items-center justify-center gap-3 rounded-control border-2 border-aqua bg-white px-4 text-[17px] font-bold text-ink shadow-[0_3px_0_var(--aqua)] transition-[transform,box-shadow,border-color] hover:border-teal active:translate-y-[3px] active:shadow-none disabled:opacity-70"
     >
       {pending ? (

@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useActionState } from "react";
 import { type CountdownFormState, saveActualScore } from "@/actions/countdowns";
 
@@ -8,7 +9,11 @@ export function ScoreForm({ countdownId, max, current }: { countdownId: string; 
   const error = state.fieldErrors?.actual_score?.[0] ?? (state.status === "error" ? state.message : undefined);
 
   return (
-    <form action={action} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+    <form
+      action={action}
+      className="flex flex-col gap-2 sm:flex-row sm:items-end"
+      onSubmit={() => posthog.capture("exam_score_save_submitted")}
+    >
       <input type="hidden" name="countdown_id" value={countdownId} />
       <div className="flex-1">
         <label htmlFor="actual_score" className="mb-1.5 block text-sm font-semibold text-ink-soft">

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useActionState, useRef, useState, useTransition } from "react";
 import { type ProfileFormState, preparePictureUpload, removeProfilePicture, saveProfile, setProfilePicture } from "@/actions/profile";
 import type { AvatarConfig } from "@/lib/avatar";
@@ -48,6 +49,7 @@ export function ProfileEditor({
         const saved = await setProfilePicture(ticket.path);
         if (!saved.ok) return setPictureMessage({ tone: "error", text: saved.message });
         setPictureMessage({ tone: "ok", text: "New picture saved." });
+        posthog.capture("profile_picture_saved");
         router.refresh();
       } catch (e) {
         setPictureMessage({ tone: "error", text: e instanceof Error ? e.message : "Couldn't use that picture." });
@@ -63,6 +65,7 @@ export function ProfileEditor({
       const result = await removeProfilePicture();
       if (!result.ok) return setPictureMessage({ tone: "error", text: result.message });
       setPictureMessage({ tone: "ok", text: "Your buddy is your picture now." });
+      posthog.capture("profile_picture_removed");
       router.refresh();
     });
   }
@@ -98,7 +101,16 @@ export function ProfileEditor({
         )}
       </div>
 
-      <form action={action} className="flex flex-col gap-4">
+      <form
+        action={action}
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          const formData = new FormData(event.currentTarget);
+          posthog.capture("profile_save_submitted", {
+            show_on_leaderboard: formData.get("show_on_leaderboard") === "on",
+          });
+        }}
+      >
         <div>
           <label htmlFor="display_name" className="mb-1.5 block text-sm font-semibold text-ink-soft">
             Display name

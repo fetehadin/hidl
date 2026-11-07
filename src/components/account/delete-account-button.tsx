@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useRef, useState } from "react";
 import { deleteAccount } from "@/actions/auth";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -32,6 +33,7 @@ export function DeleteAccountButton() {
           setConfirmText("");
         }}
         onConfirm={() => {
+          posthog.capture("account_deletion_confirmed");
           setPending(true);
           formRef.current?.requestSubmit();
         }}

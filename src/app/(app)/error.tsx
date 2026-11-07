@@ -1,6 +1,13 @@
 "use client";
 
-export default function AppError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+import posthog from "posthog-js";
+import { useEffect } from "react";
+
+export default function AppError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => {
+    posthog.captureException(error);
+  }, [error]);
+
   return (
     <div className="card mt-6 p-6 text-center">
       <p className="font-display text-2xl">Something smudged the ink.</p>
