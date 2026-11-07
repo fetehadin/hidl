@@ -126,12 +126,12 @@ function SideNav({
           <SidebarIcon open={!collapsed} width={22} height={22} />
         </button>
 
-        <ul className="nav-main relative flex flex-col gap-1.5">
+        <ul className="relative flex flex-col gap-1.5">
           {/* The sliding "you are here" pill. Each item is 3rem tall with a 0.375rem gap. */}
           {activeIndex >= 0 && (
             <li
               aria-hidden
-              className="nav-pill pointer-events-none absolute inset-x-0 top-0 h-12 rounded-2xl bg-mint shadow-[inset_0_0_0_2px_var(--teal)] transition-transform duration-300 ease-[cubic-bezier(.34,1.4,.64,1)]"
+              className="pointer-events-none absolute inset-x-0 top-0 h-12 rounded-2xl bg-mint transition-transform duration-300 ease-[cubic-bezier(.34,1.4,.64,1)]"
               style={{ transform: `translateY(calc(${activeIndex} * 3.375rem))` }}
             />
           )}
@@ -144,11 +144,11 @@ function SideNav({
                   prefetch
                   aria-current={active ? "page" : undefined}
                   title={collapsed ? label : undefined}
-                  className={`flex h-12 items-center gap-3 rounded-2xl px-3.5 text-[15px] font-bold text-ocean transition-[background-color,transform] duration-150 active:scale-95 ${
-                    active ? "" : "hover:bg-mint/70"
+                  className={`flex h-12 items-center gap-3 rounded-2xl px-3.5 text-[15px] font-semibold transition-[background-color,transform] duration-150 active:scale-95 ${
+                    active ? "text-accent" : "text-ink-soft hover:bg-mint/70"
                   }`}
                 >
-                  <Icon width={22} height={22} strokeWidth={active ? 2.4 : 2} className={`shrink-0 ${active ? "text-teal" : ""}`} />
+                  <Icon width={22} height={22} strokeWidth={active ? 2.3 : 1.9} className="shrink-0" />
                   <Label collapsed={collapsed}>{label}</Label>
                 </Link>
               </li>
@@ -156,7 +156,7 @@ function SideNav({
           })}
         </ul>
 
-        <div className="mt-auto flex flex-col gap-1.5 border-t-2 border-mint pt-3">
+        <div className="mt-auto flex flex-col gap-1.5 border-t border-line pt-3">
           {isAdmin && (
             <FooterLink href="/admin" label="Admin" Icon={ShieldIcon} collapsed={collapsed} active={isActive(pathname, "/admin")} />
           )}
@@ -254,10 +254,10 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-line bg-white sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 backdrop-blur sm:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="tabbar mx-auto grid max-w-md grid-cols-5 px-2 pt-1.5 pb-1">
+      <ul className="mx-auto grid max-w-md grid-cols-5 px-2 pt-1.5 pb-1">
         {MOBILE_LINKS.map(({ href, label, Icon }) => {
           const active = isActive(pathname, href);
           return (
@@ -266,11 +266,13 @@ export function MobileTabBar() {
                 href={href}
                 prefetch
                 aria-current={active ? "page" : undefined}
-                className={`mx-auto flex min-h-12 max-w-[4.5rem] flex-col items-center justify-center gap-0.5 rounded-2xl border-2 py-1.5 text-[11px] font-extrabold tracking-wide transition-transform duration-150 active:scale-90 ${
-                  active ? "border-teal bg-mint text-ocean" : "border-transparent text-muted"
+                className={`mx-auto flex min-h-12 max-w-[4.5rem] flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-bold transition-transform duration-150 active:scale-90 ${
+                  active ? "text-accent" : "text-muted"
                 }`}
               >
-                <Icon width={24} height={24} strokeWidth={active ? 2.4 : 2} className={active ? "text-teal" : ""} />
+                <span className={`grid h-7 w-12 place-items-center rounded-full transition-colors ${active ? "bg-mint" : ""}`}>
+                  <Icon width={22} height={22} strokeWidth={active ? 2.3 : 1.9} />
+                </span>
                 {label}
               </Link>
             </li>

@@ -172,12 +172,12 @@ export function Mascot({
         )}
 
         {mood === "sleepy" && (
-          <text className="mascot-zz" x="90" y="36" fontSize="15" fontWeight="800" style={{ fill: "var(--hidi-shade)" }} fontFamily="var(--font-display), sans-serif">
+          <text className="mascot-zz" x="90" y="36" fontSize="15" fontWeight="800" style={{ fill: "var(--hidi-shade)" }} fontFamily="var(--font-body), sans-serif">
             z
           </text>
         )}
         {mood === "curious" && (
-          <text x="92" y="38" fontSize="18" fontWeight="800" style={{ fill: "var(--hidi-shade)" }} fontFamily="var(--font-display), sans-serif">
+          <text x="92" y="38" fontSize="18" fontWeight="800" style={{ fill: "var(--hidi-shade)" }} fontFamily="var(--font-body), sans-serif">
             ?
           </text>
         )}

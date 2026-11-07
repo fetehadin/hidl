@@ -141,7 +141,7 @@ function LockScreen({ userId, config, onUnlock }: { userId: string; config: Lock
     >
       <Mascot mood="sleepy" size={84} float={false} />
       <div className="text-center">
-        <h1 id="lock-title" className="font-display text-2xl font-semibold">hidl is locked</h1>
+        <h1 id="lock-title" className="font-title text-2xl font-medium">hidl is locked</h1>
         <p className="mt-1 text-sm text-ink-soft" aria-live="polite">
           {!config
             ? "One moment…"

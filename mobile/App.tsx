@@ -46,5 +46,5 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
+  loading: { flex: 1, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },
 });

@@ -52,6 +52,12 @@ export function addDays(dateISO: string, delta: number) {
   return d.toISOString().slice(0, 10);
 }
 
+/** The Monday-to-Sunday week that contains a day, as seven "YYYY-MM-DD" strings. */
+export function weekOf(dateISO: string) {
+  const back = (new Date(`${dateISO}T00:00:00Z`).getUTCDay() + 6) % 7;
+  return Array.from({ length: 7 }, (_, i) => addDays(dateISO, i - back));
+}
+
 /**
  * Consecutive days with at least one photo, ending today. Like any daily
  * streak, it isn't broken yet if today simply hasn't been captured: it then

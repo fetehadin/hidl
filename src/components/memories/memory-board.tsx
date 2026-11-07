@@ -468,7 +468,7 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
       <div className="pointer-events-none fixed inset-x-0 top-[4.75rem] z-10 mx-auto flex max-w-[70rem] justify-between px-5 sm:top-[5.5rem] sm:left-[var(--nav-w,0px)]">
         <div className="clay pointer-events-auto px-4 py-2.5 sm:py-3">
           <p className="eyebrow">memory lane</p>
-          <h1 className="font-display text-xl leading-tight font-semibold sm:text-2xl">Memories</h1>
+          <h1 className="font-title text-xl leading-tight font-medium sm:text-2xl">Memories</h1>
           <p className="text-sm text-muted">
             {photos.length} {photos.length === 1 ? "photo" : "photos"} · {totalDays} {totalDays === 1 ? "day" : "days"}
           </p>
@@ -504,7 +504,7 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
           <button type="button" className="rounded-full px-3 py-2 text-sm font-bold text-ink-soft hover:bg-paper-deep" onClick={fitAll}>
             All
           </button>
-          <button type="button" className="rounded-full bg-teal px-3.5 py-2 text-[15px] font-bold text-white hover:bg-ocean" onClick={() => flyTo(0, 0, 1)}>
+          <button type="button" className="rounded-full bg-teal px-3.5 py-2 text-[15px] font-bold text-accent-ink hover:opacity-90" onClick={() => flyTo(0, 0, 1)}>
             Latest
           </button>
         </div>

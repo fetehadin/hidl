@@ -27,13 +27,13 @@ export function CountdownStat({ items }: { items: StatCountdown[] }) {
 
   return (
     <li
-      className="clay stat-chip tint-white relative flex flex-col items-center gap-1 px-2 py-3 text-center sm:flex-row sm:gap-3 sm:px-5 sm:text-left"
+      className="clay tint-white relative flex flex-col items-center gap-1 px-2 py-3 text-center sm:flex-row sm:gap-3 sm:px-5 sm:text-left"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
     >
-      <span className="stat-icon grid size-11 shrink-0 place-items-center rounded-full bg-mint">
+      <span className="grid size-11 shrink-0 place-items-center rounded-full bg-mint">
         <HourglassIcon width={26} height={26} className="text-teal" />
       </span>
       {item ? (

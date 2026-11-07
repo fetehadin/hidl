@@ -11,11 +11,12 @@ import { Envelope } from "@/components/envelope";
 import { sealInitial } from "@/components/letters/letter-card";
 import { Mascot, type MascotMood } from "@/components/mascot";
 import { LiveRelative } from "@/components/live-relative";
+import { WeekStrip } from "@/components/week-strip";
 import { listCountdowns, pickPrimaryCountdown } from "@/lib/data/countdowns";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { letterSummary } from "@/lib/data/letters";
-import { addDays, photoStreak } from "@/lib/calendar";
-import { listPhotoDates, listPhotosForDate, signPhotos } from "@/lib/data/photos";
+import { addDays, photoStreak, weekOf } from "@/lib/calendar";
+import { type PhotoRow, listPhotoDates, listPhotos, signPhotos } from "@/lib/data/photos";
 import { requireUser } from "@/lib/supabase/server";
 import { daysUntil, formatInTz, greeting, nowInTz, requestNow, todayISO } from "@/lib/time";
 
@@ -23,11 +24,12 @@ export default async function DashboardPage() {
   const { supabase, calendar, timeZone } = await requireUser();
   const now = requestNow();
   const today = todayISO(timeZone, new Date(now));
+  const week = weekOf(today);
 
-  const [countdowns, letters, todaysPhotos, recentDates] = await Promise.all([
+  const [countdowns, letters, weekPhotos, recentDates] = await Promise.all([
     listCountdowns(supabase),
     letterSummary(supabase),
-    listPhotosForDate(supabase, today),
+    listPhotos(supabase, week[0], today),
     listPhotoDates(supabase, addDays(today, -400), today),
   ]);
   const streak = photoStreak(recentDates, today);
@@ -39,8 +41,11 @@ export default async function DashboardPage() {
     .filter((c) => new Date(c.target_at).getTime() > now)
     .map((c) => ({ ...c, days: daysUntil(c.target_at, timeZone, new Date(now)) }));
   const comingUp = upcoming.filter((c) => c.id !== countdown?.id);
-  const latestPhotoRow = todaysPhotos.find((p) => p.is_cover) ?? todaysPhotos.at(-1);
-  const [photo] = latestPhotoRow ? await signPhotos(supabase, [latestPhotoRow]) : [];
+  // One picture per day this week: the pinned one, else the latest.
+  const coverRows = new Map<string, PhotoRow>();
+  for (const p of weekPhotos) if (!coverRows.get(p.date)?.is_cover) coverRows.set(p.date, p);
+  const weekCovers = new Map((await signPhotos(supabase, [...coverRows.values()])).map((p) => [p.date, p]));
+  const photo = weekCovers.get(today);
   const countdownDone = countdown ? new Date(countdown.target_at).getTime() <= now : false;
   const hidi = companionLine({
     hour: nowInTz(timeZone, new Date(now)).getHours(),
@@ -56,7 +61,7 @@ export default async function DashboardPage() {
           <p className="eyebrow mb-1">
             {calendar === "ethiopian" ? formatEthiopian(new Date(now), timeZone) : formatInTz(new Date(now), "EEEE", timeZone)}
           </p>
-          <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">{greeting(timeZone, new Date(now))}!</h1>
+          <h1 className="font-title text-4xl font-medium tracking-tight sm:text-5xl">{greeting(timeZone, new Date(now))}!</h1>
           <p className="mt-1 text-sm font-semibold text-muted">
             {formatInTz(new Date(now), calendar === "ethiopian" ? "EEEE, MMMM d" : "MMMM d, yyyy", timeZone)}
           </p>
@@ -67,6 +72,8 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      <WeekStrip days={week} today={today} covers={weekCovers} />
+
       {/* Micro-dashboard: always the same three stats, in the same places. */}
       <ul className="mb-5 grid grid-cols-3 gap-2.5 sm:gap-4" aria-label="Your stats">
         <StatChip
@@ -76,7 +83,7 @@ export default async function DashboardPage() {
           label="day streak"
         />
         <StatChip
-          tint="tint-white stat-alt"
+          tint="tint-white"
           icon={<CalendarIcon width={26} height={26} className="text-teal" />}
           value={monthDays}
           label="days this month"
@@ -92,12 +99,12 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* Primary countdown: a real hero, not a stacked card */}
         {!countdown ? (
-          <DashboardCard eyebrow="deadlines" href="/countdown/new" linkLabel="Add a countdown" className="surface-hero sm:col-span-2">
+          <DashboardCard eyebrow="deadlines" href="/countdown/new" linkLabel="Add a countdown" className="sm:col-span-2">
             <p className="font-display text-xl">No countdowns yet.</p>
             <p className="text-ink-soft">An exam, a birthday, a trip: anything you&apos;re counting down to.</p>
           </DashboardCard>
         ) : (
-          <div className="card card-interactive surface-hero animate-fade-up p-6 sm:col-span-2 sm:p-8">
+          <div className="card card-interactive animate-fade-up p-6 sm:col-span-2 sm:p-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
                 <p className="eyebrow mb-1">{countdownDone ? "it's over" : (KIND_INFO[countdown.kind] ?? KIND_INFO.deadline).eyebrow}</p>
@@ -147,7 +154,7 @@ export default async function DashboardPage() {
                     <li key={c.id}>
                       <Link
                         href="/countdown"
-                        className="coming-up flex items-center gap-3 rounded-2xl bg-mint/60 px-3 py-2.5 transition-colors hover:bg-mint"
+                        className="flex items-center gap-3 rounded-2xl bg-mint/60 px-3 py-2.5 transition-colors hover:bg-mint"
                       >
                         <KindBadge kind={c.kind} size={36} />
                         <span className="min-w-0 flex-1">
@@ -184,7 +191,7 @@ export default async function DashboardPage() {
 
         {/* Next letter */}
         {letters.readyCount > 0 ? (
-          <DashboardCard eyebrow="a letter is waiting" href="/letters" linkLabel="Open it" className="surface-feature">
+          <DashboardCard eyebrow="a letter is waiting" href="/letters" linkLabel="Open it">
             <Envelope state="ready" initial="✶" className="pointer-events-none">
               <p className="font-display text-xl">
                 {letters.readyCount === 1 ? "One letter is" : `${letters.readyCount} letters are`} ready to open.
@@ -192,7 +199,7 @@ export default async function DashboardPage() {
             </Envelope>
           </DashboardCard>
         ) : letters.next ? (
-          <DashboardCard eyebrow="next letter" href={`/letters/${letters.next.id}`} linkLabel="See all letters" className="surface-feature">
+          <DashboardCard eyebrow="next letter" href={`/letters/${letters.next.id}`} linkLabel="See all letters">
             <Envelope state="sealed" initial={sealInitial(letters.next.recipient)}>
               <p className="font-hand text-lg leading-none text-accent">for {letters.next.recipient}</p>
               <p className="mt-1 font-display text-xl font-semibold">{letters.next.title}</p>
@@ -202,7 +209,7 @@ export default async function DashboardPage() {
             </Envelope>
           </DashboardCard>
         ) : (
-          <DashboardCard eyebrow="next letter" href="/letters/new" linkLabel="Write a letter" className="surface-feature">
+          <DashboardCard eyebrow="next letter" href="/letters/new" linkLabel="Write a letter">
             <p className="font-display text-xl">Nothing sealed yet.</p>
             <p className="text-ink-soft">Write something for future you to open later.</p>
           </DashboardCard>
@@ -213,7 +220,7 @@ export default async function DashboardPage() {
           eyebrow="today's picture"
           href={photo ? "/memories" : "/calendar"}
           linkLabel={photo ? "Wander your memories" : "See the calendar"}
-          className="tint-aqua surface-cyan"
+          className="tint-aqua"
         >
           <DashboardTodayPhoto photo={photo ?? null} today={today} />
         </DashboardCard>
@@ -224,8 +231,8 @@ export default async function DashboardPage() {
 
 function StatChip({ tint, icon, value, label }: { tint: string; icon: ReactNode; value: number | string; label: string }) {
   return (
-    <li className={`clay stat-chip ${tint} flex flex-col items-center gap-1 px-2 py-3 text-center sm:flex-row sm:gap-3 sm:px-5 sm:text-left`}>
-      <span className="stat-icon grid size-11 shrink-0 place-items-center rounded-full bg-mint">{icon}</span>
+    <li className={`clay ${tint} flex flex-col items-center gap-1 px-2 py-3 text-center sm:flex-row sm:gap-3 sm:px-5 sm:text-left`}>
+      <span className="grid size-11 shrink-0 place-items-center rounded-full bg-mint">{icon}</span>
       <span>
         <span className="block font-display text-2xl leading-none font-semibold tabular-nums sm:text-3xl">{value}</span>
         <span className="block text-[11px] font-extrabold tracking-wide text-muted uppercase sm:text-xs">{label}</span>

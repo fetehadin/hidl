@@ -1,66 +1,71 @@
 @import "tailwindcss";
 
 /*
-  Bright teal palette, LIGHT ONLY (there is deliberately no dark mode: the app
-  renders the same light theme whatever the OS prefers).
+  Two themes, picked per device (src/lib/theme.ts) and kept in sync with the phone app's own
+  screens (mobile/src/theme.ts). Both keep the brand: teal accents, Hidi, the Fredoka wordmark.
 
-  Target share of visible surface: ~40% white, ~30% light mint, ~15% soft aqua,
-  ~10% fresh teal, ~5% deep/dark teal. In practice:
-    page background ............ #c8e6e2 mint (with a soft white glow at the top)
-    cards, nav, fields ......... #ffffff white, light-teal (#9ed5d1) borders
-    a few feature cards/islands  #9ed5d1 aqua
-    highlights, progress, deco . #63c1bb fresh
-    buttons, icons, active ..... #3a9295 teal
-    headings, important text ... #105f68 ocean
+  Teal Paper (default, :root): calm and editorial. Warm off-white paper, white cards with hairline
+  borders, teal used sparingly for actions and highlights, deep ocean for headings.
+    page background ............ #f5f3ee paper
+    cards, nav, fields ......... #ffffff with #e6e2da hairlines
+    soft highlights, chips ..... #e2f0ee mint
+    icons, progress, decoration  #3a9295 teal / #63c1bb fresh
+    primary buttons ............ #2e7c7f (white label 4.9:1)
+    headings / body text ....... #105f68 ocean / #1b2a2c ink
+
+  Graphite (:root[data-theme="graphite"]): the dark one. Charcoal surfaces, the same teal, lit.
+
+  Naming: `--white` is "the card surface" (white in Teal Paper, charcoal in Graphite), so
+  `bg-white` follows the theme. For text or icons that must stay white whatever the theme
+  (on photos, on the red danger button), use `--snow` (`text-snow`). On a teal fill, use
+  `text-accent-ink`; on `bg-wax`, `text-wax-ink`; for dark see-through badges on photos, `bg-scrim`.
 */
 :root {
   --white: #ffffff;
-  --mint: #c8e6e2;
-  --aqua: #9ed5d1;
+  --snow: #ffffff;
+  --scrim: #0e1415;
+  --mint: #e2f0ee;
+  --aqua: #b9dfdb;
   --fresh: #63c1bb;
   --teal: #3a9295;
   --ocean: #105f68;
 
-  /* Surface tints for cards and memory islands */
-  --sky-top: #9fd2ee; /* memories board sky */
-  --sky-mid: #c9e9f3;
+  --sky-top: #cfe8ec; /* memories board sky */
+  --sky-mid: #eef6f6;
   --tint-white: var(--white);
-  --tint-aqua: var(--aqua);
+  --tint-aqua: var(--mint);
 
-  --paper: var(--mint); /* page background */
-  --paper-deep: var(--mint); /* hover/inset areas inside white cards */
+  --paper: #f5f3ee; /* page background */
+  --paper-deep: #ebe8e1; /* empty days, insets */
   --card: var(--white);
-  --heading: var(--ocean); /* 7.3:1 on white, 5.5:1 on mint, 4.5:1 on aqua */
-  --ink: #1f3b3f; /* body text: dark neutral teal, 12:1 white / 9:1 mint / 7.3:1 aqua */
-  --ink-soft: #35555a;
-  --muted: #34595c; /* medium-dark teal: 7.7:1 white / 5.8:1 mint / 4.7:1 aqua */
-  --line: var(--aqua); /* light teal borders */
+  --heading: var(--ocean); /* 6.6:1 on paper */
+  --ink: #1b2a2c; /* 13:1 on paper */
+  --ink-soft: #3c4c4f;
+  --muted: #5e6f72; /* 4.7:1 on paper, 5.3:1 on white */
+  --line: #e6e2da;
+  --line-strong: #d6d1c6;
   --accent: var(--ocean); /* small teal text (links, labels) must clear 4.5:1 */
-  --accent-ink: var(--white);
+  --accent-ink: #ffffff; /* text on a teal fill */
   --accent-soft: var(--mint);
   --sage: var(--ocean);
   --sage-soft: var(--mint);
-  --wax: #9c2f3d; /* destructive actions only: 5.5:1 on mint */
+  --wax: #9c2f3d; /* destructive actions only: 6.6:1 on paper */
+  --wax-ink: #ffffff;
   --seal: var(--teal); /* letter wax seals */
   --envelope: var(--white);
   --envelope-flap: var(--mint);
   --letter-paper: var(--white);
 
-  /* Primary buttons: teal face, white label, darkens to ocean on hover.
-     White on #3a9295 is 3.7:1, so the label is large + bold (WCAG AA large text). */
-  --btn-face: var(--teal);
+  --btn-face: #2e7c7f;
   --btn-face-hover: var(--ocean);
-  --btn-edge: var(--ocean);
-  --btn-ink: var(--white);
-  --btn-text: 1.1875rem;
+  --btn-ink: #ffffff;
 
-  /* Secondary ("ghost") buttons */
-  --ghost-face: var(--mint);
+  --ghost-face: var(--white);
   --ghost-ink: var(--ocean);
-  --ghost-hover: var(--aqua);
-  --ghost-edge: var(--aqua);
+  --ghost-hover: var(--mint);
+  --ghost-edge: var(--line-strong);
 
-  /* Hidi (the mascot) and the default "mint" buddy: they follow the theme. */
+  /* Hidi (the mascot) and the default "mint" buddy: the same teal in both themes. */
   --hidi-light: #f0faf8;
   --hidi-mid: #9ed5d1;
   --hidi-dark: #63c1bb;
@@ -73,271 +78,56 @@
   --hidi-ink: #0f3f45;
   --hidi-mail-line: #c8e6e2;
 
-  /* Shadows: subtle and teal-tinted */
-  --shadow: 16 95 104;
+  /* Shadows: soft and neutral-teal */
+  --shadow: 27 42 44;
   --highlight: 255 255 255;
-  --highlight-a: 0.7;
-  /* The page wash at the top of the body background (none in the blue theme). */
-  --page-wash: radial-gradient(60rem 26rem at 50% -8rem, var(--white), transparent 70%),
-    radial-gradient(36rem 28rem at 105% 105%, color-mix(in oklab, var(--white) 55%, transparent), transparent 70%);
+  --highlight-a: 0;
+  --page-wash: none;
   color-scheme: light;
 }
 
-/*
-  The second theme: bright, modern blue (picked per device, see src/lib/theme.ts). Light only,
-  but layered rather than white-on-white: ~30% white, ~25% light blue/cyan surfaces, ~20% medium
-  blue surfaces and accents, ~15% steel blue, ~10% deep navy.
+:root[data-theme="graphite"] {
+  --white: #1c2123; /* card surface */
+  --mint: #1d3434; /* soft teal surface */
+  --aqua: #2b4a4a;
+  --fresh: #5cbdb6;
+  --teal: #5cbdb6;
+  --ocean: #9fdcd7; /* "ocean" text (headings, icons) turns light teal */
 
-    page background ............ #e8f7f9 with soft cyan/ocean radial glows
-    nav, standard cards, fields  #ffffff with #c6e8ef borders and navy-tinted shadows
-    highlighted cards .......... light cyan gradients (.surface-cyan, the countdown .surface-hero)
-    feature sections ........... steel blue → deep navy gradients (.surface-feature), sparingly
-    secondary buttons, chips ... #a7ebf2 light cyan
-    highlights, icon discs ..... #54acbf ocean blue
-    primary buttons, active nav  #26658c steel blue (white label 6.5:1)
-    headings / body text ....... #011c40 midnight / #023859 deep navy
+  --sky-top: #0f1b1d;
+  --sky-mid: #16292a;
+  --tint-aqua: var(--mint);
 
-  The .surface-*, .stat-*, .cd-tile*, .nav-* classes are hooks on components: they do nothing
-  in the teal theme and are only styled under :root[data-theme="blue"] below.
-*/
-:root[data-theme="blue"] {
-  --mint: #dcf3f7;
-  --aqua: #a7ebf2;
-  --fresh: #54acbf;
-  --teal: #26658c;
-  --ocean: #023859;
+  --paper: #121516;
+  --paper-deep: #232a2c; /* empty days: visible on both the page and cards */
+  --heading: #f3f6f6; /* 17:1 on paper */
+  --ink: #e8eded; /* 14:1 on cards */
+  --ink-soft: #c2cbcc;
+  --muted: #8f9b9c; /* 5.7:1 on cards */
+  --line: #2a3133;
+  --line-strong: #3a4446;
+  --accent: #5cbdb6; /* 7.3:1 on cards */
+  --accent-ink: #0e1415;
+  --wax: #e07a86; /* 5.6:1 on cards */
+  --wax-ink: #1a0b0e;
+  --seal: #3a9295;
+  --envelope-flap: #222a2c;
 
-  --sky-top: #bfe7f2;
-  --sky-mid: #e6f7fb;
-  --tint-white: var(--white);
-  --tint-aqua: #e3f7fa;
+  --btn-face: #5cbdb6;
+  --btn-face-hover: #7ccdc7;
+  --btn-ink: #0e1415; /* 8.3:1 */
 
-  --paper: #e8f7f9;
-  --paper-deep: #dff3f6;
-  --card: var(--white);
-  --heading: #011c40; /* 17:1 on white */
-  --ink: #023859; /* 12:1 on white */
-  --ink-soft: #2b4d66; /* 8.9:1 on white */
-  --muted: #456579; /* 6:1 on white, 5.2:1 on #dcf3f7 */
-  --line: #c6e8ef;
-  --accent: var(--teal); /* links: 6.5:1 on white */
-  --accent-soft: var(--mint);
-  --sage: var(--ocean);
-  --sage-soft: var(--mint);
-  --seal: var(--teal);
-  --envelope-flap: var(--mint);
+  --ghost-face: #1c2123;
+  --ghost-ink: #e8eded;
+  --ghost-hover: #242b2d;
+  --ghost-edge: #3a4446;
 
-  --btn-face: var(--teal);
-  --btn-face-hover: var(--ocean);
-  --btn-edge: var(--ocean);
-  --btn-ink: var(--white);
-  --btn-text: 1.0625rem; /* 6.5:1, so no need for oversized labels */
+  --hidi-bg: #1d3434;
+  --hidi-belly: #dff2ef;
 
-  --ghost-face: var(--aqua);
-  --ghost-ink: #011c40;
-  --ghost-hover: var(--fresh);
-  --ghost-edge: #7fd3df;
-
-  --hidi-light: #f3fcfe;
-  --hidi-mid: #a7ebf2;
-  --hidi-dark: #54acbf;
-  --hidi-limb: #7fcfdc;
-  --hidi-foot: #3f8faa;
-  --hidi-shade: #26658c;
-  --hidi-belly: #e3f7fa;
-  --hidi-bg: #e9f8fb;
-  --hidi-pattern: #c4eff5;
-  --hidi-ink: #011c40;
-  --hidi-mail-line: #a7ebf2;
-
-  --shadow: 2 56 89;
-  --highlight-a: 0.6;
-  --page-wash: radial-gradient(70rem 30rem at 50% -12rem, #ffffff 0%, transparent 70%),
-    radial-gradient(42rem 30rem at 100% 0%, rgb(167 235 242 / 0.55), transparent 70%),
-    radial-gradient(44rem 34rem at 0% 100%, rgb(84 172 191 / 0.16), transparent 70%);
-
-  /* Cleaner, more grown-up type than the rounded teal faces. */
-  --font-display: var(--font-modern);
-  --font-body: var(--font-modern);
-}
-
-/* ---------- Blue theme: controls, depth and surfaces ---------- */
-:root[data-theme="blue"] .btn {
-  --edge: 2px;
-  letter-spacing: 0;
-}
-:root[data-theme="blue"] .btn-primary {
-  font-weight: 600;
-  background: linear-gradient(180deg, #2c72a0 0%, var(--btn-face) 100%);
-}
-:root[data-theme="blue"] .btn-primary:hover {
-  background: linear-gradient(180deg, #0a4a72 0%, var(--btn-face-hover) 100%);
-}
-
-/* Standard surfaces: white, a visible blue border, a soft navy shadow with some lift. */
-:root[data-theme="blue"] :is(.card, .clay) {
-  border-color: var(--line);
-  box-shadow:
-    0 1px 2px rgb(var(--shadow) / 0.06),
-    0 14px 30px -20px rgb(var(--shadow) / 0.32),
-    inset 0 1px 0 rgb(255 255 255 / 0.8);
-}
-:root[data-theme="blue"] .card-interactive:hover {
-  border-color: var(--fresh);
-  box-shadow:
-    0 1px 2px rgb(var(--shadow) / 0.06),
-    0 20px 36px -22px rgb(var(--shadow) / 0.42);
-}
-
-/* Highlighted cards: light cyan with a gentle top-to-bottom deepening. */
-:root[data-theme="blue"] .surface-cyan {
-  background: linear-gradient(165deg, #f2fcfd 0%, #d6f3f7 55%, #bfecf3 100%);
-  border-color: var(--aqua);
-}
-
-/* The dashboard's centerpiece (the countdown) and other hero cards: cyan atmosphere with an
-   ocean-blue glow and a pair of soft rings in the corner. */
-:root[data-theme="blue"] .surface-hero {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border-color: #8fdbe6;
-  background:
-    radial-gradient(55% 90% at 100% 0%, rgb(84 172 191 / 0.3), transparent 65%),
-    radial-gradient(45% 70% at 0% 100%, rgb(167 235 242 / 0.6), transparent 70%),
-    linear-gradient(140deg, #f5fcfd 0%, #e2f6f9 50%, #ccf0f5 100%);
-  box-shadow:
-    0 2px 4px rgb(var(--shadow) / 0.06),
-    0 22px 44px -26px rgb(var(--shadow) / 0.5),
-    inset 0 1px 0 rgb(255 255 255 / 0.9);
-}
-:root[data-theme="blue"] .surface-hero::before,
-:root[data-theme="blue"] .surface-hero::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  border-radius: 9999px;
-  pointer-events: none;
-}
-:root[data-theme="blue"] .surface-hero::before {
-  width: 18rem;
-  height: 18rem;
-  top: -9rem;
-  right: -6rem;
-  border: 2.5rem solid rgb(84 172 191 / 0.1);
-}
-:root[data-theme="blue"] .surface-hero::after {
-  width: 9rem;
-  height: 9rem;
-  top: -3rem;
-  right: 3rem;
-  background: radial-gradient(circle, rgb(38 101 140 / 0.14), transparent 70%);
-}
-
-/* Feature sections: steel blue into deep navy. The text tokens are re-pointed inside, so
-   every child (eyebrows, links, headings, muted text) turns light without extra classes. */
-:root[data-theme="blue"] .surface-feature {
-  --heading: #ffffff;
-  --ink: #eaf9fb;
-  --ink-soft: #cfeff5;
-  --muted: #a7ebf2;
-  --accent: #a7ebf2;
-  --line: rgb(167 235 242 / 0.28);
-  --mint: rgb(167 235 242 / 0.14);
-  --aqua: rgb(167 235 242 / 0.45);
-  --teal: #a7ebf2;
-  color: var(--ink);
-  border-color: #1d5a80;
-  background:
-    radial-gradient(70% 90% at 100% 0%, rgb(84 172 191 / 0.45), transparent 60%),
-    radial-gradient(60% 80% at 0% 110%, rgb(1 28 64 / 0.6), transparent 70%),
-    linear-gradient(150deg, #26658c 0%, #023859 65%, #011c40 100%);
-  box-shadow:
-    0 2px 4px rgb(var(--shadow) / 0.1),
-    0 24px 44px -24px rgb(1 28 64 / 0.6);
-}
-/* Badges filled with the accent turn light cyan here, so their label turns navy. */
-:root[data-theme="blue"] .surface-feature .bg-teal.text-white {
-  color: #011c40;
-}
-/* Light things placed on a feature surface keep the normal dark-on-light tokens. */
-:root[data-theme="blue"] .surface-feature :is(.envelope, .card, .clay, .field, .bg-white) {
-  --heading: #011c40;
-  --ink: #023859;
-  --ink-soft: #2b4d66;
-  --muted: #456579;
-  --accent: #26658c;
-  --line: #c6e8ef;
-  --mint: #dcf3f7;
-  --aqua: #a7ebf2;
-  --teal: #26658c;
-  color: var(--ink);
-}
-
-/* Statistics: white and light cyan chips side by side, each icon in a blue disc. */
-:root[data-theme="blue"] .stat-chip {
-  background: #ffffff;
-}
-:root[data-theme="blue"] .stat-chip.stat-alt {
-  background: linear-gradient(165deg, #f2fcfd 0%, #cdeff5 100%);
-  border-color: var(--aqua);
-}
-:root[data-theme="blue"] .stat-icon {
-  background: linear-gradient(145deg, var(--fresh) 0%, var(--teal) 100%);
-  box-shadow: 0 6px 12px -6px rgb(38 101 140 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.35);
-}
-:root[data-theme="blue"] .stat-icon svg {
-  color: #ffffff;
-}
-
-/* Countdown tiles: white, the leading unit in light cyan with an ocean edge; navy numbers. */
-:root[data-theme="blue"] .cd-tile {
-  background: rgb(255 255 255 / 0.85);
-  border-color: var(--aqua);
-  box-shadow: 0 6px 16px -12px rgb(var(--shadow) / 0.45);
-}
-:root[data-theme="blue"] .cd-tile-lead {
-  background: linear-gradient(170deg, #ffffff 0%, #c9eef4 100%);
-  border-color: var(--fresh);
-}
-:root[data-theme="blue"] .coming-up {
-  background: rgb(255 255 255 / 0.7);
-  border: 1px solid var(--line);
-}
-:root[data-theme="blue"] .coming-up:hover {
-  background: #ffffff;
-}
-
-/* Navigation: bright panel, steel blue active item with white label and icon. */
-:root[data-theme="blue"] .nav-pill {
-  background: linear-gradient(135deg, #2f79a8 0%, var(--teal) 100%);
-  box-shadow: 0 8px 16px -10px rgb(38 101 140 / 0.8);
-}
-:root[data-theme="blue"] :is(.nav-main, .tabbar) a[aria-current="page"],
-:root[data-theme="blue"] :is(.nav-main, .tabbar) a[aria-current="page"] svg {
-  color: #ffffff;
-}
-:root[data-theme="blue"] .tabbar a[aria-current="page"] {
-  background: linear-gradient(160deg, #2f79a8 0%, var(--teal) 100%);
-  border-color: var(--teal);
-  box-shadow: 0 6px 14px -8px rgb(38 101 140 / 0.8);
-}
-
-/* Letters: sealed ones carry a steel blue edge, ready ones glow cyan, opened ones step back. */
-:root[data-theme="blue"] .envelope[data-state="sealed"] {
-  box-shadow:
-    inset 4px 0 0 var(--teal),
-    0 14px 30px -16px rgb(var(--shadow) / 0.45);
-}
-:root[data-theme="blue"] .envelope[data-state="ready"] {
-  background: linear-gradient(165deg, #ffffff 0%, #d3f3f8 100%);
-  box-shadow:
-    0 0 0 2px var(--fresh),
-    0 16px 34px -14px rgb(84 172 191 / 0.6);
-}
-:root[data-theme="blue"] .envelope[data-state="opened"] {
-  background: #f1f8fa;
-  box-shadow: 0 8px 20px -16px rgb(var(--shadow) / 0.35);
+  --shadow: 0 0 0;
+  --highlight-a: 0;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -361,19 +151,26 @@
   --color-teal: var(--teal);
   --color-ocean: var(--ocean);
   --color-white: var(--white);
+  --color-snow: var(--snow);
+  --color-scrim: var(--scrim);
+  --color-line-strong: var(--line-strong);
+  --color-wax-ink: var(--wax-ink);
   --color-tint-white: var(--tint-white);
   --color-tint-aqua: var(--tint-aqua);
 
-  /* `font-serif` is the body face (kept under its old name so nothing else had to change). */
-  --font-serif: var(--font-body), ui-rounded, system-ui, sans-serif;
-  --font-display: var(--font-display), ui-rounded, system-ui, sans-serif;
+  /* Type: Plus Jakarta Sans for everything you read and tap (`font-serif` is the body face,
+     kept under its old name; `font-display` is the same face for numbers and labels),
+     Newsreader for page titles and letters, Fredoka only for the "hidl" wordmark. */
+  --font-serif: var(--font-body), system-ui, sans-serif;
+  --font-display: var(--font-body), system-ui, sans-serif;
+  --font-title: var(--font-letter), ui-serif, Georgia, serif;
+  --font-brand: var(--font-brand), ui-rounded, system-ui, sans-serif;
   --font-hand: var(--font-hand), ui-rounded, cursive;
   --font-letter: var(--font-letter), ui-serif, Georgia, serif;
 
-  /* Two radii app-wide (plus `rounded-full`). Big and soft on purpose: squircle-ish
-     where `corner-shape` isn't supported, true squircles where it is (see below). */
-  --radius-control: 1rem; /* 16px */
-  --radius-card: 1.75rem; /* 28px */
+  /* Two radii app-wide (plus `rounded-full`). */
+  --radius-control: 0.875rem; /* 14px */
+  --radius-card: 1.25rem; /* 20px */
 }
 
 @layer base {
@@ -382,18 +179,10 @@
     scrollbar-gutter: stable;
   }
 
-  html,
-  body {
-    color-scheme: light;
-  }
-
   body {
     background-color: var(--paper);
-    /* A soft white wash at the top keeps the page bright; mint below. No dark stops. */
-    background-image: var(--page-wash);
-    background-attachment: fixed;
     color: var(--ink);
-    font-family: var(--font-serif);
+    font-family: var(--font-body), system-ui, sans-serif;
   }
 
   h1,
@@ -404,40 +193,32 @@
   }
 
   :focus-visible {
-    outline: 3px solid var(--ocean); /* teal is only 2.8:1 on mint; ocean is 5.5:1 */
+    outline: 3px solid var(--accent);
     outline-offset: 3px;
   }
 
   ::selection {
     background: var(--fresh);
-    color: #0f2426;
+    color: var(--scrim);
   }
 }
 
 @layer components {
-  /* Clay: a puffy surface with a tinted drop shadow, a light top-left inner
-     highlight and a soft inner shade at the bottom-right. */
+  /* Cards: a flat surface with a hairline border and a barely-there shadow. */
   .card,
   .clay {
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: var(--radius-card);
-    box-shadow:
-      0 1px 2px rgb(var(--shadow) / 0.05),
-      0 10px 24px -16px rgb(var(--shadow) / 0.22),
-      inset 0 2px 4px rgb(var(--highlight) / var(--highlight-a));
+    box-shadow: 0 1px 2px rgb(var(--shadow) / 0.04);
     transition:
       transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
       box-shadow 220ms ease,
       border-color 220ms ease;
   }
   .card-interactive:hover {
-    transform: translateY(-2px);
-    border-color: var(--aqua);
-    box-shadow:
-      0 1px 2px rgb(var(--shadow) / 0.05),
-      0 16px 32px -18px rgb(var(--shadow) / 0.3),
-      inset 0 2px 4px rgb(var(--highlight) / var(--highlight-a));
+    border-color: var(--line-strong);
+    box-shadow: 0 8px 20px -14px rgb(var(--shadow) / 0.25);
   }
   .card-interactive:active {
     transform: translateY(0) scale(0.99);
@@ -452,7 +233,7 @@
   }
 
   .eyebrow {
-    font-family: var(--font-serif);
+    font-family: var(--font-body), system-ui, sans-serif;
     font-size: 0.78rem;
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -461,10 +242,8 @@
     color: var(--accent);
   }
 
-  /* Squishy arcade button: the darker bottom edge is a hard shadow that
-     collapses (and the face drops onto it) when pressed. */
+  /* Buttons: flat, solid, a small press. */
   .btn {
-    --edge: 3px;
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -473,20 +252,17 @@
     min-height: 3rem;
     padding: 0 1.4rem;
     border-radius: var(--radius-control);
-    font-family: var(--font-display);
-    font-size: 1.02rem;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    transform: translateY(0);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 700;
     transition:
       transform 90ms ease,
-      box-shadow 90ms ease,
       background-color 140ms ease,
-      filter 140ms ease;
+      border-color 140ms ease;
     user-select: none;
   }
   .btn:active {
-    transform: translateY(var(--edge));
+    transform: scale(0.98);
   }
   .btn:disabled,
   .btn[aria-disabled="true"] {
@@ -496,34 +272,17 @@
   .btn-primary {
     background: var(--btn-face);
     color: var(--btn-ink);
-    font-size: var(--btn-text);
-    font-weight: 700;
-    box-shadow:
-      0 var(--edge) 0 var(--btn-edge),
-      0 calc(var(--edge) + 6px) 14px -8px rgb(var(--shadow) / 0.35),
-      inset 0 1px 0 rgb(255 255 255 / 0.25);
   }
   .btn-primary:hover {
     background: var(--btn-face-hover);
   }
-  .btn-primary:active {
-    box-shadow:
-      0 0 0 var(--btn-edge),
-      0 2px 6px -2px rgb(var(--shadow) / 0.3),
-      inset 0 1px 0 rgb(255 255 255 / 0.2);
-  }
-  /* Secondary: mint face, dark teal label (5.5:1), aqua edge. */
   .btn-ghost {
     background: var(--ghost-face);
     color: var(--ghost-ink);
-    border: 2px solid var(--ghost-edge);
-    box-shadow: 0 var(--edge) 0 var(--ghost-edge);
+    border: 1px solid var(--ghost-edge);
   }
   .btn-ghost:hover {
     background: var(--ghost-hover);
-  }
-  .btn-ghost:active {
-    box-shadow: 0 0 0 var(--ghost-edge);
   }
 
   /* Fields are "pressed into" the clay. */
@@ -532,10 +291,9 @@
     min-height: 3rem;
     padding: 0.75rem 1rem;
     border-radius: var(--radius-control);
-    border: 2px solid var(--line);
+    border: 1px solid var(--line-strong);
     background: var(--white);
     color: var(--ink);
-    box-shadow: inset 0 2px 4px rgb(var(--shadow) / 0.06);
     transition:
       border-color 140ms ease,
       background-color 140ms ease;
@@ -555,8 +313,7 @@
     border-radius: var(--radius-control);
     background: var(--card);
     padding: 0.7rem 1rem;
-    border: 2px solid var(--line);
-    box-shadow: 0 4px 0 var(--line);
+    border: 1px solid var(--line-strong);
   }
   .bubble::before {
     content: "";
@@ -567,8 +324,8 @@
     height: 16px;
     margin-top: -8px;
     background: inherit;
-    border-left: 2px solid var(--line);
-    border-bottom: 2px solid var(--line);
+    border-left: 1px solid var(--line-strong);
+    border-bottom: 1px solid var(--line-strong);
     transform: rotate(45deg);
     border-bottom-left-radius: 4px;
   }
@@ -588,8 +345,8 @@
     corner-shape: squircle;
   }
   :root {
-    --radius-control: 1.6rem;
-    --radius-card: 2.75rem;
+    --radius-control: 1.25rem;
+    --radius-card: 1.9rem;
   }
 }
 
@@ -840,7 +597,7 @@
     border-radius: 9999px;
     background: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--seal) 70%, white), var(--seal) 55%);
     color: color-mix(in oklab, var(--seal) 35%, white);
-    font-family: var(--font-display);
+    font-family: var(--font-body);
     font-weight: 700;
     box-shadow: 0 2px 0 rgb(0 0 0 / 0.15), inset 0 -2px 4px rgb(0 0 0 / 0.25);
     z-index: 2;
@@ -882,7 +639,7 @@
   .prose-letter h1,
   .prose-letter h2,
   .prose-letter h3 {
-    font-family: var(--font-display);
+    font-family: var(--font-body);
     font-weight: 600;
     line-height: 1.85rem;
   }

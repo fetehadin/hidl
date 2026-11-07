@@ -28,7 +28,7 @@ export default async function AccountPage() {
   return (
     <>
       <PageHeader eyebrow="account" title="Your account" />
-      <div className="card surface-cyan p-5 sm:p-6">
+      <div className="card p-5 sm:p-6">
         <p className="text-sm text-ink-soft">Signed in as</p>
         <p className="font-display text-xl">{user.email}</p>
         <form action={signOut} className="mt-4">

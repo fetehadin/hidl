@@ -61,7 +61,7 @@ export function LetterReveal(props: Props & { decrypt?: (body: string) => Promis
         <Envelope state={phase === "idle" ? "ready" : "opened"} initial={props.initial} className="mx-auto max-w-md">
           <div className="text-center">
             <p className="font-hand text-xl text-accent">for {props.recipient}</p>
-            <h1 className="mt-1 font-display text-2xl font-semibold">{props.title}</h1>
+            <h1 className="mt-1 font-title text-2xl font-medium">{props.title}</h1>
             {props.occasion && <p className="text-ink-soft">{props.occasion}</p>}
             <p className="mt-4 text-ink-soft">It&apos;s time. This letter has been waiting for you.</p>
             <button type="button" onClick={open} disabled={pending || phase !== "idle"} className="btn btn-primary mt-5">

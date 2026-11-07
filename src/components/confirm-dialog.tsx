@@ -54,7 +54,7 @@ export function ConfirmDialog({
           </button>
           <button
             type="button"
-            className={`btn ${tone === "danger" ? "bg-wax text-white hover:opacity-90" : "btn-primary"}`}
+            className={`btn ${tone === "danger" ? "bg-wax text-wax-ink hover:opacity-90" : "btn-primary"}`}
             onClick={onConfirm}
             disabled={pending || confirmDisabled}
             autoFocus

@@ -29,7 +29,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <div className="mb-8 flex flex-col items-center text-center">
         <Mascot mood="wave" size={128} label="Hidi, the hidl mascot, waving hello" />
         <p className="eyebrow mt-3 mb-1">your journal</p>
-        <h1 className="font-display text-5xl font-semibold tracking-tight">hidl</h1>
+        <h1 className="font-brand text-5xl font-semibold tracking-tight">hidl</h1>
         <p className="mt-3 text-ink-soft">Letters, a countdown, and a year in pictures.</p>
       </div>
 

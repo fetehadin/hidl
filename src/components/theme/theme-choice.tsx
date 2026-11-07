@@ -16,13 +16,10 @@ export function ThemeChoice({ serverTheme }: { serverTheme: Theme }) {
           return (
             <label
               key={t}
-              className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-4 transition-colors ${on ? "border-teal bg-mint" : "border-line bg-white hover:border-fresh"}`}
+              className={`flex cursor-pointer items-center gap-3 rounded-control border p-4 transition-colors ${on ? "border-teal bg-mint" : "border-line bg-white hover:border-fresh"}`}
             >
               <input type="radio" name="theme" value={t} checked={on} onChange={() => applyTheme(t)} className="size-5 accent-[var(--teal)]" />
-              <span className="min-w-0 flex-1">
-                <span className="block font-semibold text-heading">{info.label}</span>
-                <span className="block text-sm text-ink-soft">{info.description}</span>
-              </span>
+              <span className="min-w-0 flex-1 font-semibold text-heading">{info.label}</span>
               <span aria-hidden className="flex overflow-hidden rounded-full border border-line">
                 {info.swatches.map((c) => (
                   <span key={c} className="size-5" style={{ background: c }} />

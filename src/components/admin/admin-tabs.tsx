@@ -30,7 +30,7 @@ export function AdminTabs({ newFeedback }: { newFeedback: number }) {
               >
                 {label}
                 {href === "/admin/feedback" && newFeedback > 0 && (
-                  <span className="grid min-w-5 place-items-center rounded-full bg-wax px-1.5 text-xs text-white tabular-nums">
+                  <span className="grid min-w-5 place-items-center rounded-full bg-wax px-1.5 text-xs text-wax-ink tabular-nums">
                     <span className="sr-only">, </span>
                     {newFeedback > 99 ? "99+" : newFeedback}
                     <span className="sr-only"> new</span>

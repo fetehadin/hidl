@@ -205,21 +205,17 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   background after the chosen timeout (sessionStorage "seen" stamp). The `hidl-lock` cookie lists user ids with a
   lock on this device, so the server renders the page hidden from the first byte. Five wrong tries, then waits from
   30 s doubling to 15 min. "Forgot it?" clears the lock and signs out. It's a privacy screen, not encryption.
-- **Themes** (`src/lib/theme.ts`, `src/components/theme/`): `teal` (the original, default) and `blue` (bright modern
-  blue: white page, light cyan `#a7ebf2` surfaces, ocean `#54acbf` highlights, steel `#26658c` buttons/icons, navy
-  `#023859`/`#011c40` text only; Plus Jakarta Sans instead of Fredoka/Nunito, flatter buttons, quieter shadows). Both
-  are light only; the OS dark mode never applies. The `hidl-theme` cookie is read by the root layout, which sets
-  `<html data-theme>` and the browser `theme-color`, so the first paint is right. `applyTheme()` flips the attribute
-  and cookie in place (no reload); `useTheme()` watches the attribute so every switch on the page agrees. The blue
-  theme overrides the CSS variables in `globals.css` and adds depth through class hooks on components, which
-  are inert in teal: `.surface-hero` (cyan gradient + soft rings: the dashboard countdown, featured countdowns,
-  this week's leaderboard), `.surface-cyan` (highlighted cards), `.surface-feature` (steel blue → navy; it
-  re-points the text tokens to light values inside, and restores them on cards/envelopes/fields placed on it),
-  `.stat-chip`/`.stat-alt`/`.stat-icon` (white and cyan stat chips with blue icon discs), `.cd-tile`/`.cd-tile-lead`,
-  `.nav-main`/`.nav-pill`/`.tabbar` (steel blue active item), and envelope `data-state` (sealed: steel edge,
-  ready: cyan glow, opened: muted). Its page is `#e8f7f9` with soft cyan/ocean glows. Hidi (`mascot.tsx`) and the
-  `mint` buddy theme (shown as "Hidi" in the builder) draw with `--hidi-*` variables; other buddy colors stay as
-  chosen. Device-local on purpose, like the nav's collapsed state.
+- **Themes** (`src/lib/theme.ts`, `src/components/theme/`): `teal` ("Teal Paper", the default, light) and
+  `graphite` (dark). The old `blue` cookie value is read as `graphite`. The `hidl-theme` cookie is read by the root
+  layout, which sets `<html data-theme>`, the browser `theme-color` and `color-scheme`, so the first paint is right;
+  the OS dark mode is never used on its own. `applyTheme()` flips the attribute, the cookie and both meta tags in
+  place (no reload); `useTheme()` watches the attribute so every switch on the page agrees. Graphite only overrides
+  CSS variables in `globals.css`: `--white` becomes the charcoal card surface (so `bg-white` follows), `--ocean`
+  turns light teal for headings and icons, and the button, text and line tokens are set explicitly. Hidi
+  (`mascot.tsx`) and the `mint` buddy theme draw with `--hidi-*` variables and keep their teal in both themes;
+  other buddy colors stay as chosen. Device-local on purpose, like the nav's collapsed state. The phone app copies
+  both palettes in `mobile/src/theme.ts`; its web view page reports its theme (`REPORT_THEME` in `WebShell.tsx`)
+  so the strips around the page, the status bar and the splash match.
 - **Feedback** (`/feedback`, `src/components/feedback/feedback-form.tsx`, `sendFeedback`): kind + message; the
   side nav's Feedback link passes `?from=<path>` so a report says which page, and the action adds the browser's
   user agent. The page lists what you've sent with its status and any admin reply. The database sets
@@ -314,14 +310,15 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   the grid for Hidi's corner menu, and the page's negative bottom margin cancels `main`'s bottom padding.
 - "New" on `/countdown` opens a kind picker dialog (`new-countdown-button.tsx`, `kind-picker.tsx`) that links to
   `/countdown/new?kind=…`; without `?kind` that page shows the same picker inline.
-- Visual language: a bright, **light-only** teal theme in `globals.css` (no dark mode on purpose: it renders light
-  even when the OS prefers dark; `color-scheme: light` + `viewport.colorScheme`). Page is `--mint` with a white
-  glow, cards/nav/fields are white with `--aqua` borders, a few feature cards are aqua (the memories board is the
-  exception: a light sky, `--sky-top`/`--sky-mid`, with clouds),
-  `--fresh` is for highlights/progress, `--teal` for buttons/icons/active, `--ocean` for headings and small
-  important text. Never put large surfaces in teal/ocean or black (the photo viewer and dialog backdrops are light
-  too). White on `--teal` is only 3.7:1, so primary button labels are large+bold (AA large text) and small teal
-  text (`text-accent`, focus rings) uses `--ocean`. `.btn` is a chunky "arcade" button whose bottom edge collapses
-  on press. The mascot, Hidi, is `src/components/mascot.tsx`
+- Visual language ("editorial calm"): warm paper `--paper` (#f5f3ee) pages, white cards with hairline `--line`
+  borders and almost no shadow, teal used sparingly (`--teal` icons/progress, `--btn-face` #2e7c7f buttons with a
+  4.9:1 white label), `--ocean` headings, `--mint` (#e2f0ee) for soft highlights and the active nav item. Graphite
+  is the same layout on charcoal (#121516 page, #1c2123 cards, #5cbdb6 teal with dark labels). Type: Newsreader
+  page titles (`font-title`), Plus Jakarta Sans everywhere else, Fredoka only for the "hidl" wordmark
+  (`font-brand`). Photos carry their own overlays: white `text-snow` with a `--scrim` shade, never theme colors.
+  `.btn` is flat with a small press. The memories board keeps its sky (`--sky-top`/`--sky-mid`, night-toned in
+  Graphite). The calendar is a dense photo grid: portrait cells (narrowed on wide screens so they stay ~4:5), the
+  date over each photo, "+N" for extra photos, plain numbers on empty days and a dashed "+" for today. Today shows
+  the week as seven tiles (`week-strip.tsx`, `weekOf()` in `src/lib/calendar.ts`). The mascot, Hidi, is `src/components/mascot.tsx`
   (moods: happy, wave, cheer, sleepy, curious); `src/app/icon.svg`, `public/icon-*.png` and `apple-touch-icon.png` are the full character on a mint tile (the
   PNGs are full-bleed with Hidi inside the maskable safe zone).

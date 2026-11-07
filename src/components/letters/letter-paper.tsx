@@ -23,7 +23,7 @@ export function LetterPaper({
   return (
     <article className={`letter-paper px-5 pt-6 pb-8 sm:px-8 ${className}`}>
       <p className="font-hand text-xl text-accent">for {recipient}</p>
-      <h1 className="mt-1 mb-6 font-display text-2xl font-semibold leading-tight sm:text-3xl">{title}</h1>
+      <h1 className="mt-1 mb-6 font-title text-2xl font-medium leading-tight sm:text-3xl">{title}</h1>
       <Markdown>{body}</Markdown>
       <p className="mt-10 text-sm text-muted">
         Written {formatDay(createdAt, calendar, timeZone)} · sealed until {formatDay(unlockAt, calendar, timeZone)}

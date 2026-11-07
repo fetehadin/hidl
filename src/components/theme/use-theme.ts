@@ -26,4 +26,5 @@ export function applyTheme(theme: Theme) {
   const secure = location.protocol === "https:" ? "; secure" : "";
   document.cookie = `${THEME_COOKIE}=${theme}; path=/; max-age=31536000; samesite=lax${secure}`;
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_INFO[theme].color);
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", THEME_INFO[theme].scheme);
 }

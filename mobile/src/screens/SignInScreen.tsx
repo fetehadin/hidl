@@ -118,7 +118,7 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
                       style={({ pressed }) => [styles.google, pressed && styles.pressed, busy !== null && styles.dim]}
                       accessibilityRole="button"
                     >
-                      {busy === 'google' ? <ActivityIndicator color={colors.ocean} /> : <GoogleLogo />}
+                      {busy === 'google' ? <ActivityIndicator color={colors.heading} /> : <GoogleLogo />}
                       <Text style={styles.googleText}>Continue with Google</Text>
                     </Pressable>
 
@@ -310,13 +310,13 @@ function CodeStep({
   );
 }
 
-/** The website's chunky button: teal face, darker bottom edge that collapses when pressed. */
+/** The website's primary button: a flat teal face that dips slightly when pressed. */
 function ArcadeButton({ label, busy, disabled, onPress }: { label: string; busy: boolean; disabled: boolean; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button">
       {({ pressed }) => (
         <View style={[styles.arcade, pressed && styles.arcadePressed, disabled && !busy && styles.dim]}>
-          {busy ? <ActivityIndicator color={colors.white} /> : <Text style={styles.arcadeText}>{label}</Text>}
+          {busy ? <ActivityIndicator color={colors.buttonInk} /> : <Text style={styles.arcadeText}>{label}</Text>}
         </View>
       )}
     </Pressable>
@@ -335,27 +335,27 @@ function GoogleLogo() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.mint },
+  screen: { flex: 1, backgroundColor: colors.paper },
   flex: { flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', padding: 20, gap: 28 },
   hero: { alignItems: 'center', gap: 6 },
   mascot: { width: 104, height: 104, borderRadius: 28, marginBottom: 6 },
-  wordmark: { fontSize: 38, lineHeight: 44, fontWeight: '800', color: colors.ocean, letterSpacing: -0.5, textAlign: 'center' },
+  wordmark: { fontSize: 38, lineHeight: 44, fontWeight: '800', color: colors.heading, letterSpacing: -0.5, textAlign: 'center' },
   tagline: { fontSize: 15, lineHeight: 22, color: colors.ink, textAlign: 'center', maxWidth: 280 },
   card: {
-    backgroundColor: colors.white,
-    borderColor: colors.aqua,
-    borderWidth: 2,
-    borderRadius: 28,
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 20,
     padding: 22,
     gap: 14,
-    shadowColor: colors.ocean,
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  title: { fontSize: 24, fontWeight: '800', color: colors.ocean },
+  title: { fontSize: 24, fontWeight: '800', color: colors.heading },
   subtitle: { marginTop: -6, fontSize: 15, lineHeight: 21, color: colors.muted },
   bold: { fontWeight: '700', color: colors.ink },
   google: {
@@ -364,53 +364,51 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     minHeight: 54,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: colors.aqua,
-    backgroundColor: colors.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.card,
   },
   googleText: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  pressed: { transform: [{ scale: 0.98 }], backgroundColor: '#f3fbfa' },
+  pressed: { transform: [{ scale: 0.98 }], backgroundColor: colors.soft },
   dim: { opacity: 0.6 },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  rule: { flex: 1, height: 1, backgroundColor: colors.aqua },
+  rule: { flex: 1, height: 1, backgroundColor: colors.line },
   dividerText: { fontSize: 13, color: colors.muted },
   input: {
     minHeight: 54,
-    borderColor: colors.aqua,
-    borderWidth: 2,
-    borderRadius: 16,
+    borderColor: colors.lineStrong,
+    borderWidth: 1,
+    borderRadius: 14,
     paddingHorizontal: 16,
     fontSize: 17,
     color: colors.ink,
-    backgroundColor: '#fbfefd',
+    backgroundColor: colors.card,
   },
   inputError: { borderColor: colors.danger },
   arcade: {
-    minHeight: 56,
-    borderRadius: 16,
-    backgroundColor: colors.teal,
-    borderBottomWidth: 5,
-    borderBottomColor: colors.ocean,
+    minHeight: 54,
+    borderRadius: 14,
+    backgroundColor: colors.button,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  arcadePressed: { borderBottomWidth: 1, marginTop: 4 },
-  arcadeText: { color: colors.white, fontSize: 19, fontWeight: '800' },
+  arcadePressed: { transform: [{ scale: 0.98 }], backgroundColor: colors.heading },
+  arcadeText: { color: colors.buttonInk, fontSize: 17, fontWeight: '700' },
   codeRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginVertical: 4 },
   codeBox: {
     flex: 1,
     aspectRatio: 0.82,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: colors.aqua,
-    backgroundColor: '#fbfefd',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  codeBoxActive: { borderColor: colors.teal, borderWidth: 3 },
-  codeBoxFilled: { backgroundColor: colors.white, borderColor: colors.fresh },
-  codeDigit: { fontSize: 26, fontWeight: '800', color: colors.ocean },
+  codeBoxActive: { borderColor: colors.teal, borderWidth: 2 },
+  codeBoxFilled: { backgroundColor: colors.card, borderColor: colors.fresh },
+  codeDigit: { fontSize: 26, fontWeight: '800', color: colors.heading },
   hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
   paste: {
     alignSelf: 'center',
@@ -418,14 +416,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     justifyContent: 'center',
     borderRadius: 14,
-    borderWidth: 2,
-    borderColor: colors.aqua,
-    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.card,
   },
-  pasteText: { fontSize: 15, fontWeight: '700', color: colors.ocean },
+  pasteText: { fontSize: 15, fontWeight: '700', color: colors.heading },
   verifying: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 44 },
   codeActions: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, minHeight: 36, alignItems: 'center' },
-  link: { color: colors.ocean, fontSize: 15, fontWeight: '700', textDecorationLine: 'underline' },
+  link: { color: colors.heading, fontSize: 15, fontWeight: '700', textDecorationLine: 'underline' },
   linkMuted: { color: colors.muted, textDecorationLine: 'none', fontWeight: '600' },
   error: { color: colors.danger, fontSize: 15, lineHeight: 21 },
   footnote: { textAlign: 'center', fontSize: 13, color: colors.muted },
