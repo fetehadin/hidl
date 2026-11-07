@@ -2,6 +2,7 @@
 
 import { addMonths, addYears } from "date-fns";
 import { TZDate } from "@date-fns/tz";
+import posthog from "posthog-js";
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { createLetter, type FormState } from "@/actions/letters";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -87,6 +88,7 @@ export function LetterForm() {
     try {
       const fd = new FormData(form);
       fd.set("body", await encryptBody(letterKey, draft.body.trim()));
+      posthog.capture("letter_seal_confirmed");
       startTransition(() => action(fd));
     } catch {
       setEncryptError("Couldn't encrypt the letter on this device. Try again.");

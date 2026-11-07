@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import posthog from "posthog-js";
 import { useActionState, useState } from "react";
 import type { ReactNode } from "react";
 import { type CountdownFormState, saveCountdown } from "@/actions/countdowns";
@@ -38,7 +39,16 @@ export function CountdownForm({ defaults, locked }: { defaults: Defaults; locked
   const noteField = info.fields.find((f) => f.type === "note");
 
   return (
-    <form action={action} className="space-y-5">
+    <form
+      action={action}
+      className="space-y-5"
+      onSubmit={() => {
+        posthog.capture("countdown_save_submitted", {
+          countdown_kind: kind,
+          operation: defaults.id ? "update" : "create",
+        });
+      }}
+    >
       {defaults.id && <input type="hidden" name="id" value={defaults.id} />}
       {state.message && <p role="alert" className="rounded-control bg-accent-soft px-4 py-3">{state.message}</p>}
 

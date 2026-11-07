@@ -33,7 +33,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <CalendarPrefProvider value={calendar} timeZone={timeZone}>
       <BuddyProvider value={buddy}>
       <AppLockGate userId={user.id} initiallyLocked={lockedHere}>
-      <AppShell initialCollapsed={navCollapsed} avatar={buddy} pictureSrc={pictureSrc} isAdmin={admin} theme={theme}>
+      <AppShell
+        initialCollapsed={navCollapsed}
+        avatar={buddy}
+        pictureSrc={pictureSrc}
+        isAdmin={admin}
+        theme={theme}
+        userId={user.id}
+        email={user.email}
+      >
         {/* Positioned so it floats above full-screen pages like the memories board. */}
         <header className="relative z-20 mx-auto flex max-w-[70rem] items-center justify-between gap-3 px-5 pt-4 pb-2 sm:pt-6">
           <Link href="/" className="group flex items-center gap-2 font-display text-[1.9rem] leading-none font-semibold tracking-tight">

@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useActionState, useState } from "react";
 import { type FeedbackFormState, sendFeedback } from "@/actions/feedback";
 import { FEEDBACK_KINDS, FEEDBACK_KIND_LABEL, FEEDBACK_MESSAGE_MAX, type FeedbackKind } from "@/lib/feedback";
@@ -34,7 +35,11 @@ function Form({ from, onAgain }: { from?: string; onAgain: () => void }) {
   }
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form
+      action={action}
+      className="flex flex-col gap-4"
+      onSubmit={() => posthog.capture("feedback_submit_requested", { feedback_kind: kind })}
+    >
       <input type="hidden" name="page" value={from ?? ""} />
       <fieldset>
         <legend className="mb-2 text-sm font-semibold text-ink-soft">What is it about?</legend>
