@@ -131,7 +131,7 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
                 )}
 
                 <TextInput
-                  style={[styles.input, error && styles.inputError]}
+                  style={[styles.input, !email && styles.empty, error && styles.inputError]}
                   value={email}
                   onChangeText={(t) => {
                     setEmail(t);
@@ -232,7 +232,7 @@ function HandoffStep({ busy, onSubmit, onBack }: { busy: boolean; onSubmit: (cod
         On the website, open <Text style={styles.bold}>Account</Text> and tap <Text style={styles.bold}>Get a code</Text>. Type it here.
       </Text>
       <TextInput
-        style={[styles.input, styles.handoffInput]}
+        style={[styles.input, styles.handoffInput, !code && styles.empty]}
         value={code}
         onChangeText={(t) => setCode(formatHandoff(t))}
         placeholder="K7M2-Q9XP"
@@ -464,6 +464,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   inputError: { borderColor: colors.danger },
+  // Empty: the placeholder shows, in italic and regular weight, so an example never reads as typed text (as on the website).
+  empty: { fontStyle: 'italic', fontWeight: '400' },
   arcade: {
     minHeight: 54,
     borderRadius: 14,
