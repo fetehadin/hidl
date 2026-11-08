@@ -197,6 +197,14 @@
     outline-offset: 3px;
   }
 
+  ::placeholder {
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: color-mix(in oklab, var(--muted) 78%, transparent);
+    opacity: 1;
+  }
+
   ::selection {
     background: var(--fresh);
     color: var(--scrim);
@@ -298,8 +306,10 @@
       border-color 140ms ease,
       background-color 140ms ease;
   }
+  /* Placeholders are examples, not answers: italic, regular weight and fainter than typed text,
+     everywhere (not only .field), so nobody mistakes one for something already filled in. */
   .field::placeholder {
-    color: var(--muted);
+    color: color-mix(in oklab, var(--muted) 78%, transparent);
   }
   .field:focus {
     outline: none;

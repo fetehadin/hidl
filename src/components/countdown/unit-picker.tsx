@@ -44,7 +44,7 @@ export function UnitPicker({
       <legend className="mb-1.5 block text-sm font-semibold text-ink-soft">
         Count down in <span className="font-normal text-muted">· pick any mix</span>
       </legend>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 min-[480px]:grid-cols-4">
         {COUNTDOWN_UNITS.map((unit) => {
           const on = units.includes(unit);
           const last = on && units.length === 1;
@@ -52,8 +52,8 @@ export function UnitPicker({
             <label
               key={unit}
               title={last ? "Keep at least one" : undefined}
-              className={`relative flex min-h-12 cursor-pointer items-center justify-center gap-1.5 rounded-2xl border-2 px-2 text-[15px] font-bold transition-[background-color,border-color,transform] duration-150 select-none active:scale-95 has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-ocean ${
-                on ? "border-teal bg-mint text-ocean" : "border-line bg-white text-muted hover:border-fresh hover:text-ocean"
+              className={`relative flex min-h-11 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-control border px-3 text-[15px] font-semibold transition-[background-color,border-color,transform] duration-150 select-none active:scale-95 has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-ocean ${
+                on ? "border-teal bg-mint text-heading" : "border-line-strong bg-white text-ink-soft hover:border-fresh hover:text-heading"
               }`}
             >
               <input
@@ -72,12 +72,12 @@ export function UnitPicker({
                 }`}
               >
                 {on && (
-                  <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="var(--accent-ink)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m2.5 6.2 2.3 2.3 4.7-4.9" />
                   </svg>
                 )}
               </span>
-              <span className="capitalize">{UNIT_LABEL[unit].many}</span>
+              <span className="truncate capitalize">{UNIT_LABEL[unit].many}</span>
             </label>
           );
         })}
@@ -87,7 +87,7 @@ export function UnitPicker({
         <span className="mr-1 text-xs font-extrabold tracking-wide text-muted uppercase">Shows as</span>
         {preview ? (
           preview.map((p) => (
-            <span key={p.unit} className="rounded-full bg-white px-2.5 py-1 text-sm font-bold text-ink shadow-[0_1px_0_var(--aqua)]">
+            <span key={p.unit} className="rounded-full border border-line bg-white px-2.5 py-1 text-sm font-semibold text-ink">
               <span className="font-display text-heading tabular-nums">{p.value}</span> {unitLabel(p)}
             </span>
           ))
