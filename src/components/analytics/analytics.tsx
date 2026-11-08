@@ -17,7 +17,13 @@ function posthog() {
       api_host: publicEnv.NEXT_PUBLIC_POSTHOG_HOST,
       capture_pageview: "history_change",
       capture_pageleave: true,
+      // Off here, not just in PostHog's settings: its remote config switched dead clicks and
+      // heatmaps on by default, and both record what was clicked.
       autocapture: false,
+      capture_dead_clicks: false,
+      capture_heatmaps: false,
+      rageclick: false,
+      capture_exceptions: false,
       disable_session_recording: true,
       disable_surveys: true,
       person_profiles: "identified_only",
