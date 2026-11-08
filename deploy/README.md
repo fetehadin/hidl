@@ -51,3 +51,5 @@ After editing that Caddyfile: `docker exec tajstore-caddy-1 caddy reload --confi
 - **Logs:** `docker compose logs -f web`
 - **Health:** `curl https://<HIDL_DOMAIN>/api/health`
 - **Roll back:** `HIDL_TAG=<older commit sha> docker compose up -d web`
+- **After editing `.env`:** `docker compose up -d web cron` (recreates the containers so they read it). Each deploy
+  tags the image it started as `latest` on the server, so this keeps the deployed version.

@@ -260,6 +260,9 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
 - **The widget feed is a public contract.** `mobile/` reads the JSON from `/api/widget/countdown` (type
   `CountdownFeed` in `mobile/src/feed.ts`). Add fields freely, but renaming or removing one breaks widgets already on
   people's phones.
+- **Restarting on the server:** the deploy starts `ghcr.io/fetehadin/hidl:<sha>` and then tags it `latest` there, so a
+  plain `docker compose up -d` in `/opt/hidl` (needed after editing `.env`) runs the deployed version. Before that
+  tag existed, it silently brought back an old image.
 - `next dev` may rewrite `AGENTS.md`. Commit that block as it is instead of fighting it.
 
 ## 8. Open questions

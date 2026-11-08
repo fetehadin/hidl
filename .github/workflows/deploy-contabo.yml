@@ -58,4 +58,4 @@ jobs:
           mkdir -p ~/.ssh
           install -m 600 /dev/null ~/key && printf '%s\n' "$SSH_KEY" > ~/key
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
-          printf '%s' "$REGISTRY_TOKEN" | ssh -i ~/key "$USER@$HOST" "docker login ghcr.io -u ${{ github.actor }} --password-stdin >/dev/null && cd /opt/hidl && HIDL_TAG=$SHA docker compose pull web; rc=\$?; docker logout ghcr.io >/dev/null; [ \$rc -eq 0 ] && HIDL_TAG=$SHA docker compose up -d --remove-orphans && docker image prune -f"
+          printf '%s' "$REGISTRY_TOKEN" | ssh -i ~/key "$USER@$HOST" "docker login ghcr.io -u ${{ github.actor }} --password-stdin >/dev/null && cd /opt/hidl && HIDL_TAG=$SHA docker compose pull web; rc=\$?; docker logout ghcr.io >/dev/null; [ \$rc -eq 0 ] && HIDL_TAG=$SHA docker compose up -d --remove-orphans && docker tag ${{ env.IMAGE }}:$SHA ${{ env.IMAGE }}:latest && docker image prune -f"
