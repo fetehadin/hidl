@@ -145,6 +145,10 @@ Fill `.env.local` from the `db:status` output:
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` |
 | `ALLOWED_EMAIL` | the email you'll sign in with (comma-separate several, e.g. `a@x.com,b@y.com`, or `*` to let anyone sign up) |
 | `ADMIN_EMAIL` | optional: emails that become admins when they sign in (see "Admin panel") |
+| `NEXT_PUBLIC_POSTHOG_KEY` | optional: PostHog project token (public, write-only); unset turns analytics off. Production: a GitHub repository variable, since it's inlined at build time |
+| `NEXT_PUBLIC_POSTHOG_HOST` | optional: PostHog ingestion host, default `https://us.i.posthog.com` (EU: `https://eu.i.posthog.com`) |
+| `POSTHOG_PERSONAL_API_KEY` | optional, server only: a PostHog personal API key with the `query:read` scope, for the admin Analytics tab |
+| `POSTHOG_PROJECT_ID` | optional: the PostHog project id the Analytics tab reads (with the key above) |
 
 ```bash
 pnpm dev

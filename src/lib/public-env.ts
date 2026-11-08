@@ -26,4 +26,7 @@ export const publicEnv = {
   // Cloudflare Turnstile site key for the login form. Unset in local dev skips the widget
   // entirely; Supabase only enforces the captcha when its own captcha setting is turned on.
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || undefined,
+  // PostHog project token (public, write-only). Unset turns analytics off.
+  NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY || undefined,
+  NEXT_PUBLIC_POSTHOG_HOST: url("NEXT_PUBLIC_POSTHOG_HOST", process.env.NEXT_PUBLIC_POSTHOG_HOST, "https://us.i.posthog.com"),
 } as const;

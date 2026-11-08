@@ -27,8 +27,11 @@ README's "How the important rules are enforced" table (every hard rule and the P
 - **Two themes:** Teal Paper (light, default) and Graphite (dark), both in the brand teal, switched per device with
   the half-circle button (side nav, phone header, landing page) or on Account. The phone app's own screens use the
   same palette (`mobile/src/theme.ts`) and follow the page's theme.
-- **Admin panel** (`/admin`, admins only): usage numbers (formerly the public `/stats`), accounts (search, details,
-  suspend, delete, admin access, CSV export), the feedback inbox with replies, an audit log, and a System tab.
+- **Admin panel** (`/admin`, admins only): usage numbers (formerly the public `/stats`) with returning people and
+  week-1 retention, an Analytics tab (visitors, countries, devices, top pages from PostHog), accounts (search,
+  details, suspend, delete, admin access, CSV export), the feedback inbox with replies, an audit log, and a System tab.
+- **Product analytics** (optional, PostHog): page views only, identified by account id, no autocapture or recordings
+  (`src/components/analytics/analytics.tsx`).
 
 Who it's for: one person or a short allowlist (`ALLOWED_EMAIL=a@x.com,b@y.com`), or anyone (`ALLOWED_EMAIL=*`).
 Every account's data is isolated by Postgres RLS either way. It runs on a Contabo VPS (Docker) with free tiers for the rest
@@ -77,7 +80,7 @@ direct upload → `addPhoto`/`replacePhoto`).
 src/proxy.ts                 Next 16 proxy: session refresh + optimistic redirect
 src/app/(app)/               Signed-in pages: dashboard, letters, countdown, calendar (+year), memories, account, feedback,
                              leaderboard
-src/app/(app)/admin/         Admin panel: overview, users (+[id], export), feedback, audit, system
+src/app/(app)/admin/         Admin panel: overview, analytics, users (+[id], export), feedback, audit, system
 src/app/(auth)/login/        Sign-in (magic link, optional Google, optional Turnstile)
 src/app/(marketing)/         Public /welcome and /install (the only indexable pages); /stats redirects to /admin
 src/app/auth/confirm/        Magic-link / OAuth callback

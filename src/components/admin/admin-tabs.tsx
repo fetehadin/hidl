@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/admin", label: "Overview" },
+  { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/feedback", label: "Feedback" },
   { href: "/admin/audit", label: "Audit log" },
@@ -16,7 +17,7 @@ export function AdminTabs({ newFeedback }: { newFeedback: number }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Admin" className="-mx-5 mb-6 overflow-x-auto px-5">
-      <ul className="flex w-max gap-1.5 rounded-2xl border-2 border-line bg-white p-1.5">
+      <ul className="flex w-max gap-1.5 rounded-2xl border border-line bg-white p-1.5">
         {TABS.map(({ href, label }) => {
           const active = href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
           return (
@@ -25,7 +26,7 @@ export function AdminTabs({ newFeedback }: { newFeedback: number }) {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={`flex h-10 items-center gap-2 rounded-xl px-3.5 text-sm font-bold whitespace-nowrap transition-colors ${
-                  active ? "bg-mint text-ocean shadow-[inset_0_0_0_2px_var(--teal)]" : "text-muted hover:bg-mint/70 hover:text-ocean"
+                  active ? "bg-mint text-accent" : "text-muted hover:bg-mint/70 hover:text-accent"
                 }`}
               >
                 {label}

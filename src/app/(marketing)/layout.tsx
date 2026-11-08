@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { Analytics } from "@/components/analytics/analytics";
 import Link from "next/link";
 import { Mascot } from "@/components/mascot";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -9,6 +10,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   return (
     <div className="min-h-dvh">
+      <Analytics />
       <header className="mx-auto flex max-w-[72rem] items-center justify-between gap-4 px-5 pt-5 sm:px-8 sm:pt-7">
         <Link href="/" className="group flex items-center gap-2 font-brand text-[1.9rem] leading-none font-semibold tracking-tight">
           <Mascot size={46} float={false} className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
