@@ -247,6 +247,10 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   enabled, as the website does), Google (`/auth/google` → `/auth/google/callback` → `hidl://auth?sealed=…` → `/auth/redeem`), and the widget feed
   (`/widget`, bearer token). Its web view takes the session once at `/auth/native`. The allowlist is checked here
   as on the website, so keep these in step with `src/actions/auth.ts` and `/auth/confirm`.
+- **No iOS-only props on the phone app's WebView.** Android passes them to the native view unconverted;
+  `decelerationRate="normal"` (a string where Android expects a number) crashed the app every time the journal
+  opened. JS-only fixes reach installed apps with `cd mobile && npm run update` (EAS Update, channel `preview`);
+  anything native needs a new APK (`npm run build:apk`).
 - **The widget feed is a public contract.** `mobile/` reads the JSON from `/api/widget/countdown` (type
   `CountdownFeed` in `mobile/src/feed.ts`). Add fields freely, but renaming or removing one breaks widgets already on
   people's phones.

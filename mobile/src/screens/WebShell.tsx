@@ -138,15 +138,15 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
         // Photo uploads: the calendar's file picker can use the camera.
         allowFileAccess
         mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
-        allowsBackForwardNavigationGestures
         setSupportMultipleWindows={false}
         javaScriptCanOpenWindowsAutomatically={false}
         domStorageEnabled
         thirdPartyCookiesEnabled={false}
         overScrollMode="never"
         textZoom={100}
-        decelerationRate="normal"
-        bounces={false}
+        // Android only. iOS-only props stay out: Android hands them to the native view unconverted,
+        // and `decelerationRate="normal"` (a string where it expects a number) crashed the app the
+        // moment the journal opened.
       />
       <View style={{ height: insets.bottom, backgroundColor: p.card }} />
       <StatusBar style={p.statusBar} />
