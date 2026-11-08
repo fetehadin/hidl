@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { publicEnv } from "@/lib/env";
 import { redirect } from "next/navigation";
 import { getCountdown } from "@/lib/data/countdowns";
 import { issueWidgetToken } from "@/lib/data/widget-token";
@@ -182,6 +183,32 @@ export async function generateWidgetToken(countdownId?: string | null): Promise<
 
   revalidate();
   return { ok: true, token: issued.token };
+}
+
+/**
+ * "Add to home screen" inside the phone app: stars the countdown (the app's widget shows the
+ * starred one) and issues a fresh "starred countdown" feed link for the app to save, so the widget
+ * works even if the app never got one at sign-in. Replacing that link stops any older copy of it
+ * (an earlier phone, or KWGT set up with the starred feed); per-countdown KWGT links are untouched.
+ */
+export async function prepareAppWidget(countdownId: string | null): Promise<{ ok: true; feedUrl: string } | Fail> {
+  const target = widgetTarget(countdownId);
+  if (!target.ok) return target;
+  const { supabase, user } = await requireUser();
+  if (target.id) {
+    const { error } = await supabase.rpc("set_widget_countdown", { countdown_id: target.id });
+    if (error) {
+      console.error("prepareAppWidget star", error);
+      return { ok: false, message: "Couldn't set up the widget. Try again." };
+    }
+  }
+  const issued = await issueWidgetToken(supabase, user.id, null);
+  if (!issued.ok) {
+    console.error("prepareAppWidget token", issued.error);
+    return { ok: false, message: "Couldn't set up the widget. Try again." };
+  }
+  revalidate();
+  return { ok: true, feedUrl: `${publicEnv.NEXT_PUBLIC_SITE_URL}/api/widget/countdown?token=${issued.token}` };
 }
 
 export async function revokeWidgetToken(countdownId?: string | null): Promise<{ ok: true } | Fail> {

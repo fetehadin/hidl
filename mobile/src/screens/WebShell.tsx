@@ -9,10 +9,22 @@ import type { WebViewProps } from 'react-native-webview/lib/WebView';
 import type { WebViewMessageEvent, WebViewNavigation, WebViewProgressEvent, WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
 
 /** The methods we call on the web view. The package types it as a function component without a ref. */
-type WebViewHandle = { goBack(): void; reload(): void };
+type WebViewHandle = { goBack(): void; reload(): void; injectJavaScript(script: string): void };
 const WebView = RNWebView as unknown as React.ComponentType<WebViewProps & { ref?: React.Ref<WebViewHandle> }>;
 import { APP_UA, SITE_ORIGIN } from '../config';
+import { requestPinWidget } from 'react-native-android-widget';
+import { fetchFeed, saveFeedUrl } from '../feed';
 import { type Palette, type ThemeName, palettes, parseTheme } from '../theme';
+import { refreshWidgets } from '../widget/connect';
+import { WIDGET_NAME } from '../widget/CountdownWidget';
+
+// Tells the page, before its own scripts run, what this app can do (read in app-widget-help.tsx).
+const ANNOUNCE = `window.hidlApp = { pinWidget: true }; true;`;
+
+/** Answers the page with a "hidl-app" event. */
+function answerScript(detail: Record<string, unknown>) {
+  return `window.dispatchEvent(new CustomEvent('hidl-app', { detail: ${JSON.stringify(detail)} })); true;`;
+}
 
 const THEME_KEY = 'hidl.theme';
 
@@ -58,11 +70,38 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
   }, []);
 
   function onMessage(e: WebViewMessageEvent) {
+    let msg: { type?: string; theme?: unknown; feedUrl?: unknown };
     try {
-      const next = parseTheme((JSON.parse(e.nativeEvent.data) as { theme?: unknown }).theme);
+      msg = JSON.parse(e.nativeEvent.data);
+    } catch {
+      return;
+    }
+    if (msg.theme !== undefined) {
+      const next = parseTheme(msg.theme);
       setTheme(next);
       AsyncStorage.setItem(THEME_KEY, next).catch(() => {});
+    }
+    if (msg.type === 'pin-widget' && typeof msg.feedUrl === 'string') pinWidget(msg.feedUrl);
+  }
+
+  /**
+   * "Add to home screen" on a countdown: save the feed link the site just made, then ask Android
+   * to place the widget (its own "Add to Home screen?" box). `supported` is false on launchers
+   * that don't allow it; the page then shows the manual steps.
+   */
+  async function pinWidget(feedUrl: string) {
+    let ok = false;
+    let supported = false;
+    try {
+      // Only links to this site: the page can't point the widget anywhere else.
+      if (new URL(feedUrl).origin !== SITE_ORIGIN) throw new Error('foreign feed');
+      const feed = await fetchFeed(feedUrl);
+      await saveFeedUrl(feedUrl, feed);
+      await refreshWidgets();
+      ok = true;
+      supported = await requestPinWidget({ widgetName: WIDGET_NAME }).catch(() => false);
     } catch {}
+    web.current?.injectJavaScript(answerScript({ type: 'pin-widget', ok, supported }));
   }
 
   // Android's back button walks back through the journal before leaving the app.
@@ -124,6 +163,7 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
         applicationNameForUserAgent={APP_UA}
         onNavigationStateChange={onNavigation}
         injectedJavaScript={REPORT_THEME}
+        injectedJavaScriptBeforeContentLoaded={ANNOUNCE}
         onMessage={onMessage}
         onShouldStartLoadWithRequest={shouldLoad}
         onLoadProgress={(e: WebViewProgressEvent) => setProgress(e.nativeEvent.progress)}

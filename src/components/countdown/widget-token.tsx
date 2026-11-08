@@ -58,10 +58,10 @@ export function WidgetToken({
         </>
       )}
       <div className={bare ? "" : "mt-3"}>
-        <AppWidgetHelp title={countdown?.title} />
+        <AppWidgetHelp title={countdown?.title} countdownId={countdown?.id} />
       </div>
 
-      <details className="mt-4" open={Boolean(createdAt || revealedToken)}>
+      <details className="mt-4" open={Boolean(revealedToken)}>
         <summary className="cursor-pointer text-sm font-semibold text-accent">Advanced: use KWGT or another widget app</summary>
         <p className="mt-2 text-ink-soft">
           A widget app like <strong>KWGT</strong> can show a countdown if you give it a feed URL to read. This makes that

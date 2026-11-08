@@ -26,6 +26,11 @@ website, because they come from the same place. Native screens can replace web o
    so nobody copies links or answers questions; this phone's widget replaces an older link (e.g. KWGT). Android
    redraws the widget every 30 minutes, headless. The time left is worked out on the phone from the countdown's date
    (`src/countdown-units.ts`, a copy of the website's), so it stays right offline and between refreshes.
+   - **One tap from a countdown:** the page learns the app can place widgets from `window.hidlApp` (set by
+     `WebShell.tsx` before the page loads). Its **Add to home screen** button calls `prepareAppWidget` (stars the
+     countdown, issues a fresh starred feed link) and posts `{ type: "pin-widget", feedUrl }`. The app saves the link
+     (same site only), then calls `requestPinWidget`, and answers with a `hidl-app` event. Launchers that don't allow
+     apps to place widgets get the manual steps instead.
 
 ```
 App.tsx                          loading → sign-in → journal
