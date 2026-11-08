@@ -351,7 +351,10 @@ email_optional = false
 # SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID / SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET, set enabled = true,
 # and restart with `pnpm db:stop && pnpm db:start`. Production is configured in the Supabase dashboard.
 [auth.external.google]
-enabled = false
+# On since 2026-11-08: Google Cloud project "hidl", web client "hidl web" (redirect URI
+# https://rwgvutoecjwypzoaexcy.supabase.co/auth/v1/callback). The phone app signs in through the
+# website, so this one web client covers both.
+enabled = true
 client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 redirect_uri = ""
