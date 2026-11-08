@@ -39,6 +39,18 @@ export default async function AdminOverviewPage() {
         </div>
       </section>
 
+      <section aria-labelledby="retention">
+        <h2 id="retention" className="font-display mb-3 text-xl font-semibold">Coming back</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="returning (30 days)" value={stats.returning_30d} sub="used it on 2+ days" />
+          <Stat
+            label="week-1 retention"
+            value={stats.retention_cohort > 0 ? `${Math.round((stats.retention_d7 / stats.retention_cohort) * 100)}%` : "–"}
+            sub={`${nf.format(stats.retention_d7)} of ${nf.format(stats.retention_cohort)} who joined 8–37 days ago`}
+          />
+        </div>
+      </section>
+
       <DailyChart
         id="daily-people"
         title="People using hidl each day"
@@ -63,7 +75,7 @@ export default async function AdminOverviewPage() {
           <Stat
             label={stats.letters === 1 ? "letter" : "letters"}
             value={stats.letters}
-            sub={`${nf.format(stats.letters_opened)} opened · ${nf.format(stats.letters_encrypted)} encrypted`}
+            sub={`${nf.format(stats.letters_sealed)} sealed · ${nf.format(stats.letters_opened)} opened`}
           />
           <Stat label={stats.photos === 1 ? "photo" : "photos"} value={stats.photos} />
           <Stat label={stats.videos === 1 ? "video" : "videos"} value={stats.videos} />

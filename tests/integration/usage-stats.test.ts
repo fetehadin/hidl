@@ -24,6 +24,19 @@ describe("usage stats", () => {
     expect(stats.daily.at(-1)!.signups).toBeGreaterThanOrEqual(2);
   });
 
+  it("counts sealed letters and keeps retention within its cohort", async () => {
+    const before = await getAdminStats(boss.client);
+    const { error } = await me.client
+      .from("letters")
+      .insert({ title: "Later", recipient: "Me", body: "hi", unlock_at: new Date(Date.now() + 864e5).toISOString() });
+    if (error) throw error;
+    const after = await getAdminStats(boss.client);
+    expect(after.letters_sealed).toBe(before.letters_sealed + 1);
+    expect(after.retention_d7).toBeGreaterThanOrEqual(0);
+    expect(after.retention_d7).toBeLessThanOrEqual(after.retention_cohort);
+    expect(after.returning_30d).toBeLessThanOrEqual(after.active_30d);
+  });
+
   it("signed out or not an admin, the totals are refused", async () => {
     expect((await anon().rpc("admin_stats")).error?.code).toBe("42501");
     expect((await me.client.rpc("admin_stats")).error?.code).toBe("42501");

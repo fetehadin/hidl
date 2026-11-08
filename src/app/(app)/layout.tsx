@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { Analytics } from "@/components/analytics/analytics";
 import Link from "next/link";
 import { CalendarPrefProvider } from "@/components/calendar-pref";
 import { HidiMenu } from "@/components/hidi-menu";
@@ -33,6 +34,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <CalendarPrefProvider value={calendar} timeZone={timeZone}>
       <BuddyProvider value={buddy}>
       <AppLockGate userId={user.id} initiallyLocked={lockedHere}>
+      <Analytics userId={user.id} />
       <AppShell initialCollapsed={navCollapsed} avatar={buddy} pictureSrc={pictureSrc} isAdmin={admin} theme={theme}>
         {/* Positioned so it floats above full-screen pages like the memories board. */}
         <header className="relative z-20 mx-auto flex max-w-[70rem] items-center justify-between gap-3 px-5 pt-4 pb-2 sm:pt-6">

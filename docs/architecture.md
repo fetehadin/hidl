@@ -182,6 +182,18 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
     fields are formula-escaped (`src/lib/csv.ts`).
   - *System tab:* which optional features are on and whether their env vars are set (never their values), the
     running commit (`HIDL_VERSION`, from the `GIT_SHA` build arg the deploy workflow passes), DB latency, uptime.
+  - *Retention* (`..._admin_retention.sql`): `admin_stats()` also returns `letters_sealed`, `returning_30d` (active on
+    2+ days of the last 30) and week-1 retention (`retention_d7` of `retention_cohort`: people who joined 8–37 days
+    ago and came back 7–13 days after joining), all from `usage_daily`.
+  - *Analytics tab* (`admin/analytics/page.tsx`): HogQL queries against PostHog's query API (`src/lib/posthog-api.ts`,
+    server only, `POSTHOG_PERSONAL_API_KEY` with `query:read` + `POSTHOG_PROJECT_ID`, cached 10 min); pure shaping
+    in `src/lib/analytics-format.ts`. Without the key it says what to set.
+- **Product analytics** (`src/components/analytics/analytics.tsx`): posthog-js, loaded lazily and only when
+  `NEXT_PUBLIC_POSTHOG_KEY` is set (a build-time GitHub variable in production). Page views on history changes,
+  `person_profiles: identified_only`, `respect_dnt`; **autocapture and session recording are off** because they'd read
+  what's on screen (letters, captions). Mounted in the `(app)` layout (identifies by account id, never email), the
+  marketing layout, and `/login` (resets, so the next person on the device starts fresh). PostHog adds country from
+  the visitor's IP itself.
 - **Profiles** (`..._profiles_leaderboard.sql`, `src/actions/profile.ts`, `src/components/profile/`): `profiles`
   gained `display_name` (unique ignoring case, rules in `display_name_ok()` ↔ `src/lib/profile-rules.ts`),
   `picture_path` and `show_on_leaderboard`; `avatar` is nullable so a row can hold only a name (`resetAvatar` now

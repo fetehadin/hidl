@@ -55,6 +55,14 @@ export default async function AdminSystemPage() {
       hint: "ADMIN_EMAIL: these addresses become admins when they sign in",
     },
     { label: "Google sign-in", ok: google ? true : null, value: google ? "On" : "Off", hint: "Switched on in deploy/supabase-prod/config.toml" },
+    {
+      label: "Analytics (PostHog)",
+      ok: publicEnv.NEXT_PUBLIC_POSTHOG_KEY ? true : null,
+      value: publicEnv.NEXT_PUBLIC_POSTHOG_KEY
+        ? has("POSTHOG_PERSONAL_API_KEY") && has("POSTHOG_PROJECT_ID") ? "Sending, readable here" : "Sending"
+        : "Off",
+      hint: "NEXT_PUBLIC_POSTHOG_KEY sends page views; POSTHOG_PERSONAL_API_KEY + POSTHOG_PROJECT_ID fill the Analytics tab",
+    },
     { label: "CAPTCHA on sign-in", ok: publicEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? true : null, value: publicEnv.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? "On" : "Off", hint: "NEXT_PUBLIC_TURNSTILE_SITE_KEY" },
     { label: "Service key (account deletion)", ok: has("SUPABASE_SECRET_KEY"), value: has("SUPABASE_SECRET_KEY") ? "Set" : "Missing", hint: "SUPABASE_SECRET_KEY" },
   ];

@@ -14,8 +14,15 @@ export type AdminStats = {
   active_7d: number;
   active_30d: number;
   visits_30d: number;
+  /** Active on at least two different days in the last 30. */
+  returning_30d: number;
+  /** People who signed up 8 to 37 days ago, and how many of them came back 7 to 13 days later. */
+  retention_cohort: number;
+  retention_d7: number;
   letters: number;
   letters_opened: number;
+  /** Not opened and not yet due. */
+  letters_sealed: number;
   letters_encrypted: number;
   photos: number;
   videos: number;
