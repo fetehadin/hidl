@@ -188,6 +188,14 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   - *Analytics tab* (`admin/analytics/page.tsx`): HogQL queries against PostHog's query API (`src/lib/posthog-api.ts`,
     server only, `POSTHOG_PERSONAL_API_KEY` with `query:read` + `POSTHOG_PROJECT_ID`, cached 10 min); pure shaping
     in `src/lib/analytics-format.ts`. Without the key it says what to set.
+- **App hand-off code** (`..._app_handoff.sql`, `src/lib/app-code.ts`, `src/actions/app-handoff.ts`,
+  `src/components/account/app-code-card.tsx`, `src/app/api/app/auth/code/route.ts`): Account → "Sign in on the phone
+  app" (hidden inside the app itself) shows an 8-character code like `K7M2-Q9XP` (31-letter alphabet without
+  0/O/1/I/L). Only its SHA-256 is stored (`app_handoffs`); it lives 10 minutes, works once, and a new one retires
+  the old. The app posts it to `/api/app/auth/code`, which spends it in one call (`redeem_app_handoff`, service role,
+  `FOR UPDATE`), re-checks the allowlist, then mints a session the way an emailed link would (`generateLink` +
+  `verifyOtp`, nothing is emailed). Wrong, used and expired codes each get their own message. The website tab
+  stays as it is.
 - **Product analytics** (`src/components/analytics/analytics.tsx`): posthog-js, loaded lazily and only when
   `NEXT_PUBLIC_POSTHOG_KEY` is set (a build-time GitHub variable in production). Page views on history changes,
   `person_profiles: identified_only`, `respect_dnt`; **autocapture and session recording are off** because they'd read

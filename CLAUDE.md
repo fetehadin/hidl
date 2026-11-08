@@ -123,6 +123,7 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `feedback` | `kind`, `message`, `page`, `user_agent`, `status`, `reply`, `replied_at` | Users insert (`kind`, `message`, `page`, `user_agent` only) and read their own (not `user_agent`); no update/delete. Status and reply only via `admin_update_feedback`. 10 per person per day (trigger, `53400`). Kinds/statuses mirrored in `src/lib/feedback.ts`. |
 | `admins` | `user_id` (PK), `added_by` | No grants. `is_admin()` answers for the caller; changed only by `admin_set_admin` (can't remove yourself). First admin: an address in `ADMIN_EMAIL` is added on its next visit (`isAdmin(supabase, user)`), or insert by hand (README). |
 | `admin_audit` | `admin_email`, `action`, `target_user`, `target_email`, `details` | No grants and **no FK cascade**: entries outlive both accounts. Written by `admin_log()`, read by `admin_audit_log()`. |
+| `app_handoffs` | `code_hash` (PK), `user_id`, `expires_at`, `used_at` | No grants. SHA-256 of the one-time "sign in on the phone app" code; 10 min, single use, a new code retires the old, 10 an hour. Made by `create_app_handoff()` (as the user), spent by `redeem_app_handoff()` (service role only). |
 | `user_settings` | `user_id` (PK), `time_zone` | The device's IANA zone, checked by `time_zone_ok()`. No row = Africa/Addis_Ababa. Written only by `setTimeZone`. |
 
 Storage: one private `photos` bucket, `<user_id>/...` folders, 5 MB per file, JPEG/WebP/MP4/WebM/MOV only. One
@@ -175,8 +176,9 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   `FormState` (`{ status, message?, fieldErrors?, values? }`); other actions return `{ ok: true } | { ok: false,
   message }`. Log failures with `console.error("<actionName>", error)` and show the user a short, friendly message.
 - **Every mutating action must call `revalidatePath`.** `experimental.staleTimes` keeps pages in the client cache,
-  and only revalidation clears it. The one exception is `recordVisit` (`src/actions/usage.ts`): it changes nothing a
-  page shows, and revalidating on every app open would throw that cache away.
+  and only revalidation clears it. The exceptions are `recordVisit` (`src/actions/usage.ts`): it changes nothing a
+  page shows, and revalidating on every app open would throw that cache away; and `createAppCode`
+  (`src/actions/app-handoff.ts`), whose code is shown from its return value only.
 - **Reads** go through `src/lib/data/*` (throw on error, return typed rows). Letter queries use
   `LETTER_META_COLUMNS`, which never includes `body`.
 - **Mirrored rules:** when a Postgres rule has a TypeScript mirror, change both in the same commit:
@@ -247,7 +249,8 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   database change.
 - **The phone app signs in through `/api/app/*`** (`src/lib/app-auth.ts`): email code (`/auth/email`, `/auth/verify`),
   which providers are on (`/auth/providers`, so the app hides "Continue with Google" until the Supabase provider is
-  enabled, as the website does), Google (`/auth/google` → `/auth/google/callback` → `hidl://auth?sealed=…` → `/auth/redeem`), and the widget feed
+  enabled, as the website does), Google (`/auth/google` → `/auth/google/callback` → `hidl://auth?sealed=…` → `/auth/redeem`), a one-time code
+  from an open website tab (`/auth/code`, codes made on Account by `createAppCode`; table `app_handoffs`), and the widget feed
   (`/widget`, bearer token). Its web view takes the session once at `/auth/native`. The allowlist is checked here
   as on the website, so keep these in step with `src/actions/auth.ts` and `/auth/confirm`.
 - **No iOS-only props on the phone app's WebView.** Android passes them to the native view unconverted;

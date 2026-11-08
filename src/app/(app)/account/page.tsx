@@ -1,7 +1,8 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { signOut } from "@/actions/auth";
+import { AppCodeCard } from "@/components/account/app-code-card";
 import { AvatarBuilder } from "@/components/account/avatar-builder";
 import { CalendarChoice } from "@/components/account/calendar-choice";
 import { DeleteAccountButton } from "@/components/account/delete-account-button";
@@ -24,6 +25,8 @@ export default async function AccountPage() {
   const [bundle, profile, admin] = await Promise.all([getKeyBundle(supabase), getProfile(supabase), isAdmin(supabase, user)]);
   const buddy = profile.avatar;
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+  // Inside the phone app there's nothing to hand over to.
+  const inApp = ((await headers()).get("user-agent") ?? "").includes("hidl-app");
 
   return (
     <>
@@ -37,6 +40,20 @@ export default async function AccountPage() {
           </button>
         </form>
       </div>
+
+      {!inApp && (
+        <div id="phone-app" className="card mt-4 scroll-mt-6 p-5 sm:p-6">
+          <p className="eyebrow mb-1">phone app</p>
+          <h2 className="font-display text-xl font-semibold">Sign in on the phone app</h2>
+          <p className="mt-1 mb-4 text-ink-soft">
+            Get a code here and type it on the app&apos;s sign-in screen. No email needed.{" "}
+            <Link href="/install" className="font-semibold text-accent hover:underline">
+              Get the app
+            </Link>
+          </p>
+          <AppCodeCard />
+        </div>
+      )}
 
       <div id="profile" className="card mt-4 scroll-mt-6 p-5 sm:p-6">
         <p className="eyebrow mb-1">profile</p>

@@ -19,19 +19,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
-import { AuthError, fetchProviders, pendingCodeEmail, rememberPendingCode, sendEmailCode, signInWithGoogle, verifyEmailCode, type AppSession } from '../auth';
+import { AuthError, fetchProviders, pendingCodeEmail, rememberPendingCode, sendEmailCode, signInWithAppCode, signInWithGoogle, verifyEmailCode, type AppSession } from '../auth';
 import { colors } from '../theme';
 
 const RESEND_AFTER_S = 30;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-type Step = { name: 'email' } | { name: 'code'; email: string };
+type Step = { name: 'email' } | { name: 'code'; email: string } | { name: 'handoff' };
 
 /** Native sign-in: Google in one tap, or email with a 6-digit code. */
 export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession) => void }) {
   const [step, setStep] = useState<Step>({ name: 'email' });
   const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState<null | 'google' | 'email' | 'code'>(null);
+  const [busy, setBusy] = useState<null | 'google' | 'email' | 'code' | 'handoff'>(null);
   const [error, setError] = useState<string | null>(null);
   // Google shows up only once the site says it's switched on, so it's never a button that fails.
   const [googleOn, setGoogleOn] = useState(false);
@@ -50,7 +50,7 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
     Animated.timing(appear, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [step.name, appear]);
 
-  async function run<T>(kind: 'google' | 'email' | 'code', task: () => Promise<T>) {
+  async function run<T>(kind: 'google' | 'email' | 'code' | 'handoff', task: () => Promise<T>) {
     setError(null);
     setBusy(kind);
     try {
@@ -150,7 +150,31 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
                   accessibilityLabel="Email address"
                 />
                 <ArcadeButton label="Email me a code" busy={busy === 'email'} disabled={busy !== null} onPress={sendCode} />
+                <Pressable
+                  onPress={() => {
+                    setError(null);
+                    setStep({ name: 'handoff' });
+                  }}
+                  disabled={busy !== null}
+                  hitSlop={8}
+                  style={styles.altLink}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.link}>Signed in on the website? Use a code</Text>
+                </Pressable>
               </>
+            ) : step.name === 'handoff' ? (
+              <HandoffStep
+                busy={busy === 'handoff'}
+                onSubmit={async (code) => {
+                  const session = await run('handoff', () => signInWithAppCode(code));
+                  if (session) succeed(session);
+                }}
+                onBack={() => {
+                  setError(null);
+                  setStep({ name: 'email' });
+                }}
+              />
             ) : (
               <CodeStep
                 email={step.email}
@@ -179,6 +203,60 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+const HANDOFF_ALPHABET = /[23456789ABCDEFGHJKMNPQRSTUVWXYZ]/g;
+
+/** "k7m2q9xp" or a pasted "K7M2-Q9XP" → "K7M2-Q9XP" as it's typed (same alphabet as src/lib/app-code.ts). */
+function formatHandoff(text: string) {
+  const chars = (text.toUpperCase().match(HANDOFF_ALPHABET) ?? []).join('').slice(0, 8);
+  return chars.length > 4 ? `${chars.slice(0, 4)}-${chars.slice(4)}` : chars;
+}
+
+/** The website's one-time code (Account → "Get a code"): 8 letters and numbers, works once, for 10 minutes. */
+function HandoffStep({ busy, onSubmit, onBack }: { busy: boolean; onSubmit: (code: string) => Promise<void>; onBack: () => void }) {
+  const [code, setCode] = useState('');
+  const complete = code.length === 9;
+
+  async function paste() {
+    const text = await Clipboard.getStringAsync().catch(() => '');
+    const found = text.toUpperCase().match(/[2-9A-Z]{4}-?[2-9A-Z]{4}/)?.[0];
+    if (found) setCode(formatHandoff(found));
+  }
+
+  return (
+    <>
+      <Text style={styles.title}>Use a code</Text>
+      <Text style={styles.subtitle}>
+        On the website, open <Text style={styles.bold}>Account</Text> and tap <Text style={styles.bold}>Get a code</Text>. Type it here.
+      </Text>
+      <TextInput
+        style={[styles.input, styles.handoffInput]}
+        value={code}
+        onChangeText={(t) => setCode(formatHandoff(t))}
+        placeholder="K7M2-Q9XP"
+        placeholderTextColor={colors.muted}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        autoComplete="off"
+        autoFocus
+        maxLength={9}
+        returnKeyType="go"
+        onSubmitEditing={() => complete && onSubmit(code)}
+        editable={!busy}
+        accessibilityLabel="Code from the website"
+      />
+      <ArcadeButton label="Sign in" busy={busy} disabled={busy || !complete} onPress={() => onSubmit(code)} />
+      <View style={styles.codeActions}>
+        <Pressable onPress={paste} hitSlop={8} disabled={busy}>
+          <Text style={styles.link}>Paste code</Text>
+        </Pressable>
+        <Pressable onPress={onBack} hitSlop={8} disabled={busy}>
+          <Text style={styles.link}>Use email instead</Text>
+        </Pressable>
+      </View>
+    </>
   );
 }
 
@@ -424,6 +502,8 @@ const styles = StyleSheet.create({
   verifying: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 44 },
   codeActions: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, minHeight: 36, alignItems: 'center' },
   link: { color: colors.heading, fontSize: 15, fontWeight: '700', textDecorationLine: 'underline' },
+  altLink: { alignSelf: 'center', paddingTop: 2 },
+  handoffInput: { fontSize: 24, fontWeight: '800', letterSpacing: 4, textAlign: 'center', color: colors.heading },
   linkMuted: { color: colors.muted, textDecorationLine: 'none', fontWeight: '600' },
   error: { color: colors.danger, fontSize: 15, lineHeight: 21 },
   footnote: { textAlign: 'center', fontSize: 13, color: colors.muted },

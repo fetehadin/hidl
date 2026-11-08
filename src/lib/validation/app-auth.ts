@@ -12,4 +12,6 @@ export const appRedeemSchema = z.object({
   secret: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
 });
 
+export const appCodeSchema = z.object({ code: z.string().max(40) });
+
 export const appWidgetSchema = z.object({ replace: z.boolean().default(false) });

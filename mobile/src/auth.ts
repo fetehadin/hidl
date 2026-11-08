@@ -84,6 +84,11 @@ export async function verifyEmailCode(email: string, code: string): Promise<AppS
   return (await post<{ session: AppSession }>('/api/app/auth/verify', { email, code })).session;
 }
 
+/** Signs in with the one-time code from the website (Account → "Get a code"). */
+export async function signInWithAppCode(code: string): Promise<AppSession> {
+  return (await post<{ session: AppSession }>('/api/app/auth/code', { code })).session;
+}
+
 function base64url(bytes: Uint8Array) {
   let bin = '';
   for (const b of bytes) bin += String.fromCharCode(b);
