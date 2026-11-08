@@ -54,6 +54,10 @@ npm run doctor                    # expo-doctor: dependency/config checks
 npm run build:apk                 # EAS cloud build → a downloadable .apk (needs a free Expo account: npx eas-cli login)
 npm run android                   # or build locally (needs the Android SDK, plus a phone or emulator)
 npm run update                    # ship a JS-only fix to installed apps over the air (EAS Update, "preview" channel)
+                                  # Killed while bundling (low memory)? Bundle with one worker, then upload it:
+                                  #   npx expo export --platform android --max-workers 1 --dump-sourcemap --dump-assetmap
+                                  #   npx eas-cli@latest update --channel preview --environment preview \
+                                  #     --platform android --skip-bundler --input-dir dist --message "..."
 ```
 
 **Publishing a build.** People download the app from the website (`/download/android`, linked from `/install` and the

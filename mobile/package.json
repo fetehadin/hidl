@@ -36,7 +36,7 @@
     "typecheck": "tsc --noEmit",
     "doctor": "expo-doctor",
     "build:apk": "npx eas-cli@latest build --platform android --profile preview",
-    "update": "npx eas-cli@latest update --channel preview --auto"
+    "update": "npx eas-cli@latest update --channel preview --environment preview --platform android --auto"
   },
   "private": true
 }
