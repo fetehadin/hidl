@@ -167,7 +167,12 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
     side nav's Admin link, `/account` shows an Admin card (the phone way in). `requireAdmin()` in
     `src/lib/supabase/server.ts` 404s everyone else. The first admin comes from the `ADMIN_EMAIL` list (`isAdmin(supabase,
     user)` adds a listed, signed-in address to `admins` with the service-role client; the database stays the source of
-    truth) or from SQL (README → Admin panel); after that, from a user's page (`admin_set_admin`, which refuses removing yourself, so one always remains).
+    truth) or from SQL (README → Admin panel); after that, from a user's page (`admin_set_role`, which refuses changing
+    your own role, so a super admin always remains).
+  - *Levels:* `admins.role` is `admin` or `super` (`my_admin_role()`, `getAdminRole()`). `SUPER_ADMIN_EMAIL` addresses
+    become `super`. Only `super` may suspend, unsuspend or delete accounts (`admin_log` refuses those actions for
+    anyone else, and the app logs before touching the Auth admin API) or change admins; the user page hides those
+    actions from regular admins.
   - *Reads:* `admin_stats`, `admin_users` (search, paging, per-user counts), `admin_user_detail`, `admin_feedback`,
     `admin_audit_log`, all typed in `src/lib/data/admin.ts`. Each starts with `assert_admin()` (42501 otherwise).
     Counts and dates only: no letter bodies, captions or files.

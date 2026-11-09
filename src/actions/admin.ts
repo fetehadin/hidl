@@ -61,9 +61,15 @@ export async function setFeedbackStatus(id: string, status: string): Promise<Res
   return { ok: true };
 }
 
-/** Loads the target and refuses the things no admin may do to an account from the panel. */
+const SUPER_ONLY = "Only a super admin can do that.";
+
+/**
+ * Loads the target and refuses the things no admin may do to an account from the panel. Account
+ * actions are for super admins (the database refuses anyone else too, in admin_log).
+ */
 async function guardTarget(userId: string, verb: string) {
   const ctx = await requireAdmin();
+  if (ctx.role !== "super") return { ...ctx, target: null, message: SUPER_ONLY } as const;
   if (userId === ctx.user.id) return { ...ctx, target: null, message: `You can't ${verb} your own account here.` } as const;
   const target = await getUserDetail(ctx.supabase, userId);
   if (!target) return { ...ctx, target: null, message: "That account doesn't exist anymore." } as const;
@@ -158,14 +164,17 @@ export async function deleteUser(userId: string, confirmEmail: string): Promise<
   return { ok: true };
 }
 
-export async function setUserAdmin(userId: string, makeAdmin: boolean): Promise<Result> {
+/** Gives admin access at a level ("admin" or "super"), changes it, or (null) takes it away. Super admins only. */
+export async function setAdminRole(userId: string, role: string | null): Promise<Result> {
   const parsed = userIdSchema.safeParse(userId);
-  if (!parsed.success) return { ok: false, message: "Invalid request." };
-  const { supabase } = await requireAdmin();
-  const { error } = await supabase.rpc("admin_set_admin", { p_user: parsed.data, p_admin: makeAdmin === true });
+  if (!parsed.success || (role !== null && role !== "admin" && role !== "super")) return { ok: false, message: "Invalid request." };
+  const { supabase, role: myRole } = await requireAdmin();
+  if (myRole !== "super") return { ok: false, message: SUPER_ONLY };
+  const { error } = await supabase.rpc("admin_set_role", { p_user: parsed.data, p_role: role });
   if (error) {
-    if (error.code === "22023") return { ok: false, message: "You can't remove your own admin access." };
-    console.error("setUserAdmin", error);
+    if (error.code === "22023") return { ok: false, message: "You can't change your own admin access." };
+    if (error.code === "42501") return { ok: false, message: SUPER_ONLY };
+    console.error("setAdminRole", error);
     return { ok: false, message: "Couldn't update. Try again." };
   }
   revalidateAdmin();

@@ -25,7 +25,16 @@ export function isAllowedEmail(email: string | null | undefined) {
  * Read straight from the environment: it's a plain list, and the app must still start without it.
  */
 export function isAdminEmail(email: string | null | undefined) {
+  return inEmailList(process.env.ADMIN_EMAIL, email);
+}
+
+/** Emails that are super admins the moment they sign in (SUPER_ADMIN_EMAIL, comma-separated, optional). */
+export function isSuperAdminEmail(email: string | null | undefined) {
+  return inEmailList(process.env.SUPER_ADMIN_EMAIL, email);
+}
+
+function inEmailList(raw: string | undefined, email: string | null | undefined) {
   if (!email) return false;
-  const list = (process.env.ADMIN_EMAIL ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const list = (raw ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
   return list.includes(email.toLowerCase());
 }

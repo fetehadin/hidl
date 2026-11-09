@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Account" };
 export default async function AdminUserPage({ params }: PageProps<"/admin/users/[id]">) {
   const { id } = await params;
   if (!userIdSchema.safeParse(id).success) notFound();
-  const { supabase, user: me, calendar, timeZone } = await requireAdmin();
+  const { supabase, user: me, calendar, timeZone, role: myRole } = await requireAdmin();
   const [u, feedback, audit] = await Promise.all([
     getUserDetail(supabase, id),
     listFeedback(supabase, { user: id, limit: 20 }),
@@ -35,7 +35,7 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
       <div className="card p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-display text-2xl font-semibold break-all">{u.email}</h2>
-          {u.is_admin && <Badge tone="teal">admin</Badge>}
+          {u.is_admin && <Badge tone="teal">{u.admin_role === "super" ? "super admin" : "admin"}</Badge>}
           {suspended && <Badge tone="wax">suspended</Badge>}
           {u.id === me.id && <Badge tone="plain">you</Badge>}
         </div>
@@ -68,8 +68,10 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
         <h2 className="font-display text-xl font-semibold">Actions</h2>
         {u.id === me.id ? (
           <p className="mt-2 text-ink-soft">This is your own account. Manage it from <Link href="/account" className="font-semibold text-accent">Account</Link>.</p>
+        ) : myRole === "super" ? (
+          <UserActions userId={u.id} email={u.email} role={u.admin_role} suspended={suspended} />
         ) : (
-          <UserActions userId={u.id} email={u.email} isAdmin={u.is_admin} suspended={suspended} />
+          <p className="mt-2 text-ink-soft">Only a super admin can suspend or delete accounts or change admin access.</p>
         )}
       </div>
 

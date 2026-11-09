@@ -77,6 +77,8 @@ export type AdminUserDetail = {
   calendar: string | null;
   time_zone: string | null;
   is_admin: boolean;
+  /** "super" or "admin" when is_admin. */
+  admin_role: "admin" | "super" | null;
   last_active: string | null;
   active_days_30d: number;
   visits_30d: number;
