@@ -68,7 +68,7 @@ it's instant. Paths never change (a replaced photo gets a new path), so a cached
     setup-disk.sh  setup-garage.sh  setup-backup.sh
     backup-media.sh  backup-db.sh  restore-test.sh  restore.sh  check-space.sh  run-tool.sh
     common.sh  crontab.txt
-    tools/                  copy-media, set-cors, orphan-report, remove-avatars-bucket (Node, run in Docker)
+    tools/                  copy-media, set-cors, orphan-report, live-check, remove-avatars-bucket (Node, run in Docker)
     backup.env              read-only Garage key + SUPABASE_DB_URL (600)
     backup-passwords.txt    the backup encryption passwords (600) — ALSO keep a copy in your password manager
     logs/
@@ -196,6 +196,7 @@ dashboard (Storage → photos).
 ## When something goes wrong
 
 **Photos don't load (broken images).**
+0. `cd /opt/hidl && media/run-tool.sh live-check.mjs` tests the whole path in a few seconds.
 1. `curl -sI https://media.fetehadin.com/` → expect `403` (alive, private). No answer → step 2.
 2. `cd /opt/hidl && docker compose ps garage` and `docker compose logs --tail 50 garage`.
    Not running: `docker compose up -d garage`.

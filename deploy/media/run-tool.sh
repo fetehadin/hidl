@@ -11,7 +11,8 @@ tool="${1:?which tool? e.g. copy-media.mjs}"
 shift
 [ -f "$HERE/tools/$tool" ] || { echo "No tool called $tool in $HERE/tools" >&2; exit 2; }
 
-docker run --rm --network hidl_default --env-file "$ENV_FILE" \
+# As the calling user (not root), so ./tools/node_modules stays theirs to update or delete.
+docker run --rm --network hidl_default --env-file "$ENV_FILE" --user "$(id -u):$(id -g)" -e HOME=/tmp \
   -e S3_ENDPOINT=http://garage:3900 \
   -v "$HERE/tools:/tools" -w /tools node:22-alpine \
   sh -c '[ -d node_modules ] || npm ci --omit=dev --no-audit --no-fund --ignore-scripts --loglevel=error >/dev/null; exec node "$@"' \
