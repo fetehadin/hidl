@@ -22,8 +22,9 @@ website, because they come from the same place. Native screens can replace web o
      and photo uploads can use the camera.
    - **Offline:** the app shows its own offline screen.
    - **Signing out:** signing out on the site brings back the native sign-in screen and unhooks the widget.
-3. **Widget (`src/widget/`):** one widget shows every countdown still to come (the account feed's `countdowns` list,
-   starred first), as a list you scroll; a single countdown gets a big hero card. Teal gradient or Graphite, following
+3. **Widget (`src/widget/`):** one widget holds every countdown still to come (the account feed's `countdowns` list,
+   starred first), one at a time and big; ‹ › in its header flip between them ("1 / 3"), redrawn from the saved copy
+   so it's instant. Each widget remembers its own page (`hidl.widgetPage.<id>`). Teal gradient or Graphite, following
    the app's theme, with Hidi (`src/widget/hidi.ts`). The app redraws it when you leave the app or save a countdown,
    and tells the page how many widgets are really placed (`getWidgetInfo`), so it never claims one that was removed.
    Widgets are built from the library's primitives only: no React Native views and **no fragments (`<>…</>`)**, which
