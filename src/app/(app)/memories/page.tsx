@@ -12,11 +12,11 @@ import { todayISO } from "@/lib/time";
 export const metadata: Metadata = { title: "Memories" };
 
 export default async function MemoriesPage() {
-  const { supabase, timeZone } = await requireUser();
+  const { supabase, user, timeZone } = await requireUser();
   const today = todayISO(timeZone);
   // Every photo ever (it's one person's journal), oldest → newest; the board
   // groups them by day itself. Thumbnails only load as islands come into view.
-  const photos = await signPhotos(supabase, await listPhotos(supabase, "1900-01-01", today));
+  const photos = await signPhotos(supabase, user.id, await listPhotos(supabase, "1900-01-01", today));
 
   if (photos.length === 0) {
     return (

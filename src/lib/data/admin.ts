@@ -28,6 +28,9 @@ export type AdminStats = {
   videos: number;
   countdowns: number;
   storage_bytes: number;
+  storage_files: number;
+  /** People at 90% or more of their photo space. */
+  storage_near_quota: number;
   feedback_new: number;
   feedback_open: number;
   last_unlock_email_at: string | null;
@@ -89,6 +92,7 @@ export type AdminUserDetail = {
   videos: number;
   countdowns: number;
   storage_bytes: number;
+  storage_quota: number;
   has_letter_key: boolean;
 };
 

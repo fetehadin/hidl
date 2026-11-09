@@ -8,6 +8,7 @@ import { CalendarChoice } from "@/components/account/calendar-choice";
 import { DeleteAccountButton } from "@/components/account/delete-account-button";
 import { LetterEncryption } from "@/components/account/letter-encryption";
 import { AppLockSettings } from "@/components/lock/app-lock-settings";
+import { PhotoSpaceNotice } from "@/components/photo-space-notice";
 import { ProfileEditor } from "@/components/profile/profile-editor";
 import { ThemeChoice } from "@/components/theme/theme-choice";
 import { THEME_COOKIE, parseTheme } from "@/lib/theme";
@@ -15,6 +16,7 @@ import { PageHeader } from "@/components/page-header";
 import { DEFAULT_AVATAR } from "@/lib/avatar";
 import { getKeyBundle } from "@/lib/data/letter-keys";
 import { getProfile } from "@/lib/data/profile";
+import { mediaUsage } from "@/lib/storage";
 import { isAdmin, requireUser } from "@/lib/supabase/server";
 import { requestNow, timeZoneCity } from "@/lib/time";
 
@@ -22,7 +24,12 @@ export const metadata: Metadata = { title: "Account" };
 
 export default async function AccountPage() {
   const { supabase, user, calendar, timeZone } = await requireUser();
-  const [bundle, profile, admin] = await Promise.all([getKeyBundle(supabase), getProfile(supabase), isAdmin(supabase, user)]);
+  const [bundle, profile, admin, space] = await Promise.all([
+    getKeyBundle(supabase),
+    getProfile(supabase),
+    isAdmin(supabase, user),
+    mediaUsage(supabase).catch(() => null),
+  ]);
   const buddy = profile.avatar;
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   // Inside the phone app there's nothing to hand over to.
@@ -40,6 +47,9 @@ export default async function AccountPage() {
           </button>
         </form>
       </div>
+
+      {/* Nothing below 90% of the photo space. */}
+      {space && <PhotoSpaceNotice used={space.used} quota={space.quota} showLink className="mt-4" />}
 
       {!inApp && (
         <div id="phone-app" className="card mt-4 scroll-mt-6 p-5 sm:p-6">

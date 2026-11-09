@@ -58,7 +58,7 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label={`${u.active_days_30d === 1 ? "day" : "days"} active (30 days)`} value={u.active_days_30d} sub={`${u.visits_30d} ${u.visits_30d === 1 ? "visit" : "visits"}`} />
           <Stat label={u.letters === 1 ? "letter" : "letters"} value={u.letters} sub={`${u.letters_sealed} still sealed · ${u.letters_encrypted} encrypted`} />
-          <Stat label="photos and videos" value={u.photos + u.videos} sub={`${formatBytes(u.storage_bytes)} stored`} />
+          <Stat label="photos and videos" value={u.photos + u.videos} sub={`${formatBytes(u.storage_bytes)} of ${formatBytes(u.storage_quota)} used`} />
           <Stat label={u.countdowns === 1 ? "countdown" : "countdowns"} value={u.countdowns} />
         </div>
         <p className="mt-2 text-xs text-muted">Counts only. Letters, photos and captions are never shown here.</p>
