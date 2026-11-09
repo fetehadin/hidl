@@ -1,12 +1,25 @@
 import Link from "next/link";
 import { WEEKDAYS } from "@/lib/calendar";
+import { monthKeyOf } from "@/lib/calendar-months";
+import type { CalendarPref } from "@/lib/dates";
 import type { PhotoView } from "@/lib/data/photos";
 
 /**
  * This week at a glance on Today: seven portrait tiles, Monday to Sunday. A day with a photo
  * shows it; today without one is the add button; later days are blank.
  */
-export function WeekStrip({ days, today, covers }: { days: string[]; today: string; covers: Map<string, PhotoView> }) {
+export function WeekStrip({
+  days,
+  today,
+  covers,
+  calendar,
+}: {
+  days: string[];
+  today: string;
+  covers: Map<string, PhotoView>;
+  /** Which calendar the month view uses, so a photo opens its own month there. */
+  calendar: CalendarPref;
+}) {
   const done = days.filter((d) => covers.has(d)).length;
   return (
     <section aria-label="This week" className="mb-5">
@@ -23,7 +36,7 @@ export function WeekStrip({ days, today, covers }: { days: string[]; today: stri
           if (photo) {
             return (
               <li key={date}>
-                <Link href={`/calendar?m=${date.slice(0, 7)}`} className={`${tile} bg-paper-deep`} aria-label={`${label}: open the calendar`}>
+                <Link href={`/calendar?m=${monthKeyOf(calendar, date)}`} className={`${tile} bg-paper-deep`} aria-label={`${label}: open the calendar`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={photo.thumbUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   <span aria-hidden className="absolute inset-x-0 top-0 h-7 bg-gradient-to-b from-scrim/45 to-transparent" />

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
-import { WEEKDAYS, leadingBlanks, monthDays, monthLabel } from "@/lib/calendar";
+import { WEEKDAYS } from "@/lib/calendar";
+import { calendarMonth, yearMonthKeys, yearOf } from "@/lib/calendar-months";
 import { listPhotoDates } from "@/lib/data/photos";
 import { requireUser } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/time";
@@ -11,19 +12,17 @@ export const metadata: Metadata = { title: "Year at a glance" };
 
 export default async function YearPage({ searchParams }: PageProps<"/calendar/year">) {
   const { y } = await searchParams;
-  const { supabase, timeZone } = await requireUser();
+  // A year in the calendar picked on Account: 12 Gregorian months, or 13 Ethiopian (Pagume last).
+  const { supabase, timeZone, calendar } = await requireUser();
   const today = todayISO(timeZone);
-  const thisYear = Number(today.slice(0, 4));
+  const thisYear = yearOf(calendar, today);
   const parsed = yearParam.parse(typeof y === "string" ? y : undefined);
   const year = parsed && parsed <= thisYear ? parsed : thisYear;
 
-  const filled = new Set(await listPhotoDates(supabase, `${year}-01-01`, `${year}-12-31`));
-
-  const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
-  const elapsedDays =
-    year < thisYear
-      ? months.reduce((n, m) => n + monthDays(m).length, 0)
-      : months.flatMap(monthDays).filter((d) => d <= today).length;
+  const months = yearMonthKeys(calendar, year).map((key) => calendarMonth(calendar, key));
+  const allDays = months.flatMap((m) => m.days);
+  const filled = new Set(await listPhotoDates(supabase, allDays[0], allDays[allDays.length - 1]));
+  const elapsedDays = year < thisYear ? allDays.length : allDays.filter((d) => d <= today).length;
   const pct = elapsedDays ? Math.round((filled.size / elapsedDays) * 100) : 0;
 
   return (
@@ -58,26 +57,26 @@ export default async function YearPage({ searchParams }: PageProps<"/calendar/ye
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {months.map((m) => {
-          const days = monthDays(m);
+          const days = m.days;
           const count = days.filter((d) => filled.has(d)).length;
-          const future = `${m}-01` > today;
+          const future = days[0] > today;
           return (
-            <li key={m}>
+            <li key={m.key}>
               <Link
-                href={future ? "#" : `/calendar?m=${m}`}
+                href={future ? "#" : `/calendar?m=${m.key}`}
                 aria-disabled={future}
-                aria-label={`${monthLabel(m)}: ${count} photos`}
+                aria-label={`${m.label}: ${count} photos`}
                 className={`card block p-3 transition-transform ${future ? "pointer-events-none opacity-45" : "hover:-translate-y-0.5"}`}
               >
                 <div className="mb-2 flex items-baseline justify-between">
-                  <span className="font-display font-semibold">{monthLabel(m, "short")}</span>
+                  <span className="font-display font-semibold">{m.short}</span>
                   <span className="text-xs text-muted tabular-nums">{count}</span>
                 </div>
                 <div className="grid grid-cols-7 gap-[3px]" aria-hidden>
                   {WEEKDAYS.map((d) => (
                     <span key={d} className="text-center text-[8px] leading-none text-muted">{d.charAt(0)}</span>
                   ))}
-                  {Array.from({ length: leadingBlanks(m) }, (_, i) => <span key={`b${i}`} />)}
+                  {Array.from({ length: m.leadingBlanks }, (_, i) => <span key={`b${i}`} />)}
                   {days.map((d) => (
                     <span
                       key={d}

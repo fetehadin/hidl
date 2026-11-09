@@ -1,29 +1,28 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MonthGrid } from "@/components/calendar/month-grid";
-import { addMonths, daysInMonth, leadingBlanks, monthLabel, monthOf } from "@/lib/calendar";
+import { addMonthKey, calendarMonth, monthKeyOf, parseMonthKey } from "@/lib/calendar-months";
 import { listPhotos, signPhotos } from "@/lib/data/photos";
 import { requireUser } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/time";
-import { monthParam } from "@/lib/validation/photos";
 
 export const metadata: Metadata = { title: "Calendar" };
 
 export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
   const { m, add } = await searchParams;
-  const { supabase, timeZone } = await requireUser();
+  // Months follow the calendar picked on Account: Gregorian, or Ethiopian (Meskerem … Pagume).
+  const { supabase, timeZone, calendar } = await requireUser();
   const today = todayISO(timeZone);
-  const currentMonth = monthOf(today);
-  const requested = monthParam.parse(typeof m === "string" ? m : undefined);
-  const month = requested && requested <= currentMonth ? requested : currentMonth;
+  const currentKey = monthKeyOf(calendar, today);
+  const requested = parseMonthKey(calendar, m);
+  const month = calendarMonth(calendar, requested && requested <= currentKey ? requested : currentKey);
 
-  const last = `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
-  const photos = await signPhotos(supabase, await listPhotos(supabase, `${month}-01`, last));
+  const photos = await signPhotos(supabase, await listPhotos(supabase, month.days[0], month.days[month.days.length - 1]));
 
-  const prev = addMonths(month, -1);
-  const next = addMonths(month, 1);
-  const isCurrent = month === currentMonth;
-  const rows = Math.ceil((leadingBlanks(month) + daysInMonth(month)) / 7);
+  const prev = calendarMonth(calendar, addMonthKey(calendar, month.key, -1));
+  const next = calendarMonth(calendar, addMonthKey(calendar, month.key, 1));
+  const isCurrent = month.key === currentKey;
+  const rows = Math.ceil((month.leadingBlanks + month.days.length) / 7);
 
   return (
     // On wide screens the month narrows so its cells stay portrait (about 4:5), like photos.
@@ -33,18 +32,18 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     >
       {/* One short row, so the month itself gets the room. Phones show chevrons only. */}
       <div className="mb-2 flex items-center justify-between gap-3 px-3 pt-1 sm:mb-3 sm:px-0 sm:pt-2">
-        <h1 className="font-title text-[1.6rem] leading-tight font-medium tracking-tight whitespace-nowrap sm:text-4xl">{monthLabel(month)}</h1>
+        <h1 className="font-title text-[1.6rem] leading-tight font-medium tracking-tight whitespace-nowrap sm:text-4xl">{month.label}</h1>
         <nav aria-label="Months" className="flex items-center gap-1.5 sm:gap-2">
-          <Link href={`/calendar?m=${prev}`} className="btn btn-ghost min-h-9 px-2.5 text-sm sm:min-h-10 sm:px-3 sm:text-base" aria-label={`Previous month, ${monthLabel(prev)}`}>
-            ‹<span className="hidden sm:inline"> {monthLabel(prev, "short")}</span>
+          <Link href={`/calendar?m=${prev.key}`} className="btn btn-ghost min-h-9 px-2.5 text-sm sm:min-h-10 sm:px-3 sm:text-base" aria-label={`Previous month, ${prev.label}`}>
+            ‹<span className="hidden sm:inline"> {prev.short}</span>
           </Link>
           {isCurrent ? (
             <button type="button" disabled aria-label="No next month yet" className="btn btn-ghost min-h-9 px-2.5 text-sm sm:min-h-10 sm:px-3 sm:text-base">
-              <span className="hidden sm:inline">{monthLabel(next, "short")} </span>›
+              <span className="hidden sm:inline">{next.short} </span>›
             </button>
           ) : (
-            <Link href={`/calendar?m=${next}`} className="btn btn-ghost min-h-9 px-2.5 text-sm sm:min-h-10 sm:px-3 sm:text-base" aria-label={`Next month, ${monthLabel(next)}`}>
-              <span className="hidden sm:inline">{monthLabel(next, "short")} </span>›
+            <Link href={`/calendar?m=${next.key}`} className="btn btn-ghost min-h-9 px-2.5 text-sm sm:min-h-10 sm:px-3 sm:text-base" aria-label={`Next month, ${next.label}`}>
+              <span className="hidden sm:inline">{next.short} </span>›
             </Link>
           )}
           {!isCurrent && (
@@ -52,13 +51,13 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
               Today
             </Link>
           )}
-          <Link href={`/calendar/year?y=${month.slice(0, 4)}`} className="btn btn-ghost min-h-9 px-2.5 text-sm sm:min-h-10 sm:px-3 sm:text-base">
+          <Link href={`/calendar/year?y=${month.year}`} className="btn btn-ghost min-h-9 px-2.5 text-sm sm:min-h-10 sm:px-3 sm:text-base">
             Year
           </Link>
         </nav>
       </div>
 
-      <MonthGrid key={month} month={month} today={today} photos={photos} addToday={add === "today"} />
+      <MonthGrid key={month.key} month={month} today={today} photos={photos} addToday={add === "today"} />
     </div>
   );
 }
