@@ -183,6 +183,18 @@
     background-color: var(--paper);
     color: var(--ink);
     font-family: var(--font-body), system-ui, sans-serif;
+    /* Phones that draw the page under the status bar (viewport-fit=cover): start below it. */
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* …and keep scrolled content from showing through behind the clock and battery. */
+  .status-bar-backdrop {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 60;
+    height: env(safe-area-inset-top);
+    background-color: var(--paper);
+    pointer-events: none;
   }
 
   h1,

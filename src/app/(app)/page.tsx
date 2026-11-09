@@ -13,7 +13,7 @@ import { Mascot, type MascotMood } from "@/components/mascot";
 import { LiveRelative } from "@/components/live-relative";
 import { WeekStrip } from "@/components/week-strip";
 import { listCountdowns, pickPrimaryCountdown } from "@/lib/data/countdowns";
-import { formatEthiopian } from "@/lib/ethiopian";
+import { formatDay, formatFullDate } from "@/lib/dates";
 import { letterSummary } from "@/lib/data/letters";
 import { addDays, photoStreak, weekOf } from "@/lib/calendar";
 import { type PhotoRow, listPhotoDates, listPhotos, signPhotos } from "@/lib/data/photos";
@@ -56,22 +56,22 @@ export default async function DashboardPage() {
   const countdownDone = countdown ? new Date(countdown.target_at).getTime() <= now : false;
   const hidi = companionLine({
     hour: nowInTz(timeZone, new Date(now)).getHours(),
-    streak: streak.count,
+    day: today,
     todayDone: streak.todayDone,
+    streak: streak.count,
     lettersReady: letters.readyCount,
+    nextCountdown: upcoming.length ? [...upcoming].sort((a, b) => a.days - b.days)[0] : null,
   });
 
   return (
     <div>
       <div className="flex flex-col gap-5 pt-4 pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
+          {/* One calendar only: the one picked on Account. */}
           <p className="eyebrow mb-1">
-            {calendar === "ethiopian" ? formatEthiopian(new Date(now), timeZone) : formatInTz(new Date(now), "EEEE", timeZone)}
+            {formatInTz(new Date(now), "EEEE", timeZone)} · {formatDay(new Date(now), calendar, timeZone)}
           </p>
           <h1 className="font-title text-4xl font-medium tracking-tight sm:text-5xl">{greeting(timeZone, new Date(now))}{name ? `, ${name}` : ""}!</h1>
-          <p className="mt-1 text-sm font-semibold text-muted">
-            {formatInTz(new Date(now), calendar === "ethiopian" ? "EEEE, MMMM d" : "MMMM d, yyyy", timeZone)}
-          </p>
         </div>
         <div className="animate-fade-up flex items-center gap-3 sm:max-w-sm">
           <Mascot mood={hidi.mood} size={92} />
@@ -116,10 +116,7 @@ export default async function DashboardPage() {
               <div className="min-w-0">
                 <p className="eyebrow mb-1">{countdownDone ? "it's over" : (KIND_INFO[countdown.kind] ?? KIND_INFO.deadline).eyebrow}</p>
                 <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{countdown.title}</h2>
-                {calendar === "ethiopian" && <p className="mt-1 text-ink-soft">{formatEthiopian(countdown.target_at, timeZone)}</p>}
-                <p className={calendar === "ethiopian" ? "text-sm text-muted" : "mt-1 text-ink-soft"}>
-                  {formatInTz(countdown.target_at, "EEEE, MMMM d, yyyy", timeZone)}
-                </p>
+                <p className="mt-1 text-ink-soft">{formatFullDate(countdown.target_at, calendar, timeZone)}</p>
 
                 {countdown.kind === "exam" && (
                   <p className="mt-4">
@@ -167,7 +164,7 @@ export default async function DashboardPage() {
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-bold text-ink">{c.title}</span>
                           <span className="block text-xs font-semibold text-muted">
-                            {formatInTz(c.target_at, "MMM d, yyyy", timeZone)}
+                            {formatDay(c.target_at, calendar, timeZone)}
                           </span>
                         </span>
                         <span className="shrink-0 text-right">
@@ -248,26 +245,45 @@ function StatChip({ tint, icon, value, label }: { tint: string; icon: ReactNode;
   );
 }
 
-/** What Hidi says on the dashboard: one nudge, picked by what matters most right now. */
+/**
+ * What Hidi says on the dashboard: one nudge, picked by what matters most right now. Never the
+ * streak count (the flame shows that). Lines that would repeat every visit rotate by day, so the
+ * same person doesn't read the same sentence twice in a row.
+ */
 function companionLine({
   hour,
-  streak,
+  day,
   todayDone,
+  streak,
   lettersReady,
+  nextCountdown,
 }: {
   hour: number;
-  streak: number;
+  /** Today as "YYYY-MM-DD", to rotate lines once a day (not on every refresh). */
+  day: string;
   todayDone: boolean;
+  streak: number;
   lettersReady: number;
+  nextCountdown: { title: string; days: number } | null;
 }): { mood: MascotMood; text: string } {
+  const pick = (lines: string[]) => lines[[...day].reduce((n, c) => n + c.charCodeAt(0), 0) % lines.length];
   if (lettersReady > 0) return { mood: "cheer", text: "Psst! A letter from past you is ready to open." };
+  if (nextCountdown && nextCountdown.days === 0) return { mood: "cheer", text: `${nextCountdown.title} is today. You've got this!` };
+  if (nextCountdown && nextCountdown.days === 1) return { mood: "wave", text: `${nextCountdown.title} is tomorrow. Deep breath.` };
   if (todayDone) {
     return {
       mood: "cheer",
-      text: streak > 1 ? `Today's captured. That's ${streak} days in a row!` : "Today's captured. Nice one!",
+      text: pick([
+        "Today's in the book. Nice one!",
+        "Saved. Future you will love this one.",
+        "Got it. Want to add a caption while it's fresh?",
+        "Lovely. Today's officially remembered.",
+      ]),
     };
   }
   if (hour < 5) return { mood: "sleepy", text: "Up late? Even a blurry photo counts for today." };
-  if (streak > 0) return { mood: "wave", text: `Keep your ${streak}-day streak going. What does today look like?` };
-  return { mood: "wave", text: "Hi! Snap one photo today and start a streak." };
+  if (streak > 0 && hour >= 20) return { mood: "wave", text: "The day's almost over. One photo keeps the flame lit." };
+  if (hour < 12) return { mood: "wave", text: pick(["Morning! What does today look like?", "Good morning. Breakfast counts as a photo.", "New day, blank page. Snap something?"]) };
+  if (hour < 17) return { mood: "wave", text: pick(["What's around you right now? That's today's photo.", "One photo. Doesn't have to be pretty.", "Afternoon check-in: catch a moment?"]) };
+  return { mood: "wave", text: pick(["Evening already. How was today?", "Before the day ends: one photo for the calendar?", "Golden hour. Good time for a picture."]) };
 }

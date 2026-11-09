@@ -12,10 +12,9 @@ import { LiveRelative } from "@/components/live-relative";
 import { getKeyBundle } from "@/lib/data/letter-keys";
 import { type LetterMeta, getLetterMeta, openLetter } from "@/lib/data/letters";
 import type { KeyBundle } from "@/lib/e2ee";
-import { formatDay } from "@/lib/dates";
-import { formatEthiopian } from "@/lib/ethiopian";
+import { formatDay, formatFullDate } from "@/lib/dates";
 import { requireUser } from "@/lib/supabase/server";
-import { formatInTz, utcToLocalInput } from "@/lib/time";
+import { utcToLocalInput } from "@/lib/time";
 import { letterIdSchema } from "@/lib/validation/letters";
 
 export const metadata: Metadata = { title: "Letter" };
@@ -49,10 +48,7 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
                 <p className="mt-5 font-display text-xl">
                   <LiveRelative target={letter.unlock_at} />
                 </p>
-                {calendar === "ethiopian" && <p className="text-ink-soft">{formatEthiopian(letter.unlock_at, timeZone)}</p>}
-                <p className="text-sm text-muted">
-                  {formatInTz(letter.unlock_at, "EEEE, MMMM d, yyyy 'at' h:mm a", timeZone)}
-                </p>
+                <p className="text-sm text-muted">{formatFullDate(letter.unlock_at, calendar, timeZone, { time: true })}</p>
                 <p className="mt-4 text-sm text-muted">
                   Sealed {formatDay(letter.created_at, calendar, timeZone)}. No peeking.
                 </p>
