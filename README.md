@@ -102,7 +102,7 @@ unlock emails.
 | Sealed letters can't be edited; the opening date can move earlier or later, but only while sealed and only to a time still in the future | `letters_before_update` trigger plus column grants (only `unlock_at` is updatable). Since `..._letter_date_any_direction.sql`; before that it could only move later. |
 | Usage numbers are for admins only | `usage_daily` (one row per person per day, a visit count) has no grants at all. Writes go only through `record_visit()` (counts the caller, database clock); reads only through `admin_stats()` / `admin_user_detail()`. Rows are deleted with the account. |
 | Only admins can use the admin panel, and only to see counts | `admins` has no grants; every admin read/write is a `SECURITY DEFINER` `admin_*` function starting with `assert_admin()` (42501 for anyone else). None of them selects letter bodies or captions. Suspending and deleting accounts go through the Auth admin API only after `admin_log()` (which is itself admin-only) has recorded them. An admin can't remove their own admin access, so one always remains. |
-| Leaderboard scores can't be inflated by uploading old photos | `leaderboard()` counts only photos whose `date` is the day they were added (`created_at`, set by the database, in the owner's zone). Scores and ranks are computed in Postgres; other people come back as name, buddy and picture only, no ids or emails. Finished periods are frozen in `leaderboard_results` (no grants). Opted-out people (`show_on_leaderboard = false`) are left out. |
+| Leaderboard scores can't be inflated by uploading old photos | `leaderboard()` counts only photos whose `date` is the day they were added (`created_at`, set by the database, in the owner's zone). Scores and ranks are computed in Postgres; other people come back as name and buddy only, no ids or emails. Finished periods are frozen in `leaderboard_results` (no grants). Opted-out people (`show_on_leaderboard = false`) are left out. |
 | Display names can't impersonate or collide | `display_name_ok()` (length, no control characters, reserved words like "admin"/"hidl") and a unique index on `lower(display_name)`. |
 | Every admin action is on record | `admin_audit` has no grants and no cascading foreign keys: written only by the admin functions, kept (with emails) after either account is deleted. Shown on `/admin/audit`. |
 | Feedback can't be faked or flooded | `feedback`: users may insert only `kind`, `message`, `page`, `user_agent` and read only their own rows (not `user_agent`); status, reply and timestamps are set by a trigger or `admin_update_feedback`. Check constraints on kind, length and `page`; at most 10 per person per day. |
@@ -110,7 +110,8 @@ unlock emails.
 | Any number of photos per day, each owned by one user | No per-day limit — `photos.user_id`/`date` are just columns, RLS and the folder-path check constraint still scope every row to its owner |
 | No photos for future days | `photos_before_write` trigger, using the database clock in the owner's own time zone (`user_settings.time_zone`) |
 | Short videos are allowed, up to 5 MB, and a row's file matches its type | The `photos` bucket's `file_size_limit` (5 MB, every file) and `allowed_mime_types` (JPEG, WebP, MP4, WebM, MOV), enforced by Storage on upload; the `photos_media_matches_path` check ties `media_type` to the file extension (video rows → `.mp4/.webm/.mov`, thumbnails always an image) |
-| Users only see their own data | RLS on every table and on the `photos` storage bucket (per-user folder) |
+| Users only see their own data | RLS on every table. Photo files are in per-user folders of a private store; only the server signs links (15 minutes), and only for the signed-in person's folder (`src/lib/storage/`, [docs/storage.md](docs/storage.md)) |
+| Photo space can't be faked or flooded | `reserve_media()` records every file in `media_objects` (no user grants) before an upload link exists: own folder, ≤ 5 MB, allowed types, 2 GB per person, 120 files an hour. Upload links are locked to that size and type; after upload the server checks the stored file's size, type and first bytes and deletes anything that doesn't match. |
 | An exam countdown always has scores; no other kind ever does | A check constraint on `countdowns`: `kind = 'exam'` requires `target_score`/`max_score`, every other kind forbids them. `kind` has no `UPDATE` grant, so it can't be changed after creation either. |
 | A countdown only stores the details its kind allows | `countdown_details_ok(kind, details)` in a check constraint on the `details` jsonb column: allowed keys per kind, string lengths, `birth_year` a whole number, and a birthday must say whose. The same list lives in `src/lib/countdown-kinds.ts` for the form. |
 | At most one countdown feeds the widget | A partial unique index, `countdowns (user_id) where is_widget`. Flipping which one is atomic via the `set_widget_countdown(id)` function, so the index is never violated mid-change. |
@@ -151,6 +152,11 @@ Fill `.env.local` from the `db:status` output:
 | `NEXT_PUBLIC_POSTHOG_HOST` | optional: PostHog ingestion host, default `https://us.i.posthog.com` (EU: `https://eu.i.posthog.com`) |
 | `POSTHOG_PERSONAL_API_KEY` | optional, server only: a PostHog personal API key with the `query:read` scope, for the admin Analytics tab |
 | `POSTHOG_PROJECT_ID` | optional: the PostHog project id the Analytics tab reads (with the key above) |
+| `STORAGE_PROVIDER` | where photo/video files live: `supabase` (default, the `photos` bucket) or `s3` (Garage on the VPS in production; [docs/storage.md](docs/storage.md)) |
+| `S3_PUBLIC_URL`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET` | with `s3`: the store's address for browsers (links are signed for it), optionally another one for the server, region (`garage`) and bucket (`hidl-media`) |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | with `s3`, server only: the app's own key for the bucket |
+| `MEDIA_CAPACITY_BYTES` | the store's size limit, for the admin panel (1 GiB when unset with Supabase) |
+| `REPORT_EMAIL`, `SUPABASE_URL` | server only, for the scripts in `deploy/media/` (alerts and reports; the project URL) |
 
 ```bash
 pnpm dev
@@ -164,7 +170,7 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
 | --- | --- |
 | `pnpm dev` | Dev server |
 | `pnpm test` | Unit tests (time zones, calendar math, validation) |
-| `pnpm test:integration` | Tests against the local Supabase: letter lock and encryption, multi-photo calendar, storage isolation, countdown rules, widget tokens, profiles, time zones, usage stats, admin panel and feedback, account deletion, unlock emails. Needs `pnpm db:start`. Refuses to run against a non-local URL. |
+| `pnpm test:integration` | Tests against the local Supabase: letter lock and encryption, multi-photo calendar, storage isolation, photo space and the media store (the S3 part needs a local Garage, see docs/storage.md), countdown rules, widget tokens, profiles, time zones, usage stats, admin panel and feedback, account deletion, unlock emails. Needs `pnpm db:start`. Refuses to run against a non-local URL. |
 | `pnpm test:all` | Both |
 | `pnpm typecheck` / `pnpm lint` | Static checks |
 | `pnpm db:reset` | Recreate the local database from `supabase/migrations` |
@@ -270,6 +276,8 @@ The email contains the letter's title and a link, never the body. Each letter is
 > **Free-tier limits to know about.** Supabase pauses a free project after a week with no activity; open the
 > dashboard and click **Restore** if that happens (data is kept). Resend's free plan allows 100 emails a day and
 > 3,000 a month, sign-in codes and unlock emails together; its dashboard (resend.com/emails) shows every delivery.
+> Photos live on the VPS's own 40 GB photo disk (Garage), not in Supabase's 1 GB of free storage; see
+> [docs/storage.md](docs/storage.md).
 
 ---
 

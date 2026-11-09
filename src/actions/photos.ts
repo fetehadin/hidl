@@ -2,8 +2,9 @@
 
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { PHOTO_BUCKET, getPhotoById } from "@/lib/data/photos";
-import type { ImageExt, MediaExt, MediaType } from "@/lib/media";
+import { getPhotoById } from "@/lib/data/photos";
+import { CONTENT_TYPE_OF_EXT, type ImageExt, MEDIA_QUOTA_BYTES, type MediaExt, type MediaType, formatSize } from "@/lib/media";
+import { type UploadTarget, discardMedia, mediaStore, mediaUsage, ownPaths, reserveMedia, verifyUploads } from "@/lib/storage";
 import { requireUser } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/time";
 import {
@@ -17,11 +18,10 @@ import {
 
 type Fail = { ok: false; message: string };
 
-export type UploadTicket = {
-  ok: true;
-  image: { path: string; token: string };
-  thumb: { path: string; token: string };
-};
+export type UploadTicket = { ok: true; image: UploadTarget; thumb: UploadTarget };
+
+/** Shown when a person's photo space is full. */
+const SPACE_FULL_MESSAGE = `Your photo space is full (${formatSize(MEDIA_QUOTA_BYTES)}). Delete some photos or videos to add new ones.`;
 
 function revalidate() {
   revalidatePath("/calendar", "layout");
@@ -29,35 +29,53 @@ function revalidate() {
 }
 
 /**
- * Step 1: hand out one-time signed upload URLs for the day's file (an image, or a video) and
- * its thumbnail (always an image). Storage itself refuses anything over 5 MB.
+ * Step 1: reserve the day's file (an image, or a video) and its thumbnail (always an image), then
+ * hand out an upload link for each. reserve_media refuses other folders, big files, wrong types,
+ * a full photo space and too many uploads in an hour; the links only take that exact file.
  */
-export async function prepareUpload(date: string, fullExt: MediaExt, thumbExt: ImageExt): Promise<UploadTicket | Fail> {
-  const parsed = prepareUploadSchema.safeParse({ date, fullExt, thumbExt });
+export async function prepareUpload(
+  date: string,
+  full: { ext: MediaExt; bytes: number },
+  thumb: { ext: ImageExt; bytes: number },
+): Promise<UploadTicket | Fail> {
+  const parsed = prepareUploadSchema.safeParse({ date, full, thumb });
   if (!parsed.success) return { ok: false, message: "Invalid upload." };
   const { supabase, user, timeZone } = await requireUser();
   if (parsed.data.date > todayISO(timeZone)) return { ok: false, message: "That day hasn't happened yet." };
 
   const base = `${user.id}/${parsed.data.date}-${randomBytes(8).toString("hex")}`;
-  const bucket = supabase.storage.from(PHOTO_BUCKET);
-  const [image, thumb] = await Promise.all([
-    bucket.createSignedUploadUrl(`${base}.${parsed.data.fullExt}`),
-    bucket.createSignedUploadUrl(`${base}-thumb.${parsed.data.thumbExt}`),
-  ]);
-  if (image.error || thumb.error) {
-    console.error("prepareUpload", image.error ?? thumb.error);
+  const files = [
+    { path: `${base}.${parsed.data.full.ext}`, bytes: parsed.data.full.bytes, contentType: CONTENT_TYPE_OF_EXT[parsed.data.full.ext] },
+    { path: `${base}-thumb.${parsed.data.thumb.ext}`, bytes: parsed.data.thumb.bytes, contentType: CONTENT_TYPE_OF_EXT[parsed.data.thumb.ext] },
+  ];
+  const reserved = await reserveMedia(supabase, files);
+  if (!reserved.ok) {
+    if (reserved.reason === "quota") return { ok: false, message: SPACE_FULL_MESSAGE };
+    if (reserved.reason === "rate") return { ok: false, message: "That's a lot of uploads at once. Try again in a little while." };
+    if (reserved.reason === "invalid") return { ok: false, message: "Invalid upload." };
     return { ok: false, message: "Couldn't start the upload. Try again." };
   }
-  return {
-    ok: true,
-    image: { path: image.data.path, token: image.data.token },
-    thumb: { path: thumb.data.path, token: thumb.data.token },
-  };
+
+  const store = mediaStore(supabase);
+  try {
+    const [image, thumbTarget] = await Promise.all(files.map((f) => store.uploadTarget(f.path, f.bytes, f.contentType)));
+    return { ok: true, image, thumb: thumbTarget };
+  } catch (error) {
+    console.error("prepareUpload", error);
+    await discardMedia(store, files.map((f) => f.path)).catch(() => {});
+    return { ok: false, message: "Couldn't start the upload. Try again." };
+  }
 }
 
-async function checkFilesUploaded(supabase: Awaited<ReturnType<typeof requireUser>>["supabase"], paths: string[]) {
-  const check = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(paths, 60);
-  return !check.error && !check.data.some((d) => d.error);
+/** The signed-in user's photo space, for the upload sheet's notice. Reads only; null if unknown. */
+export async function photoSpace(): Promise<{ used: number; quota: number } | null> {
+  const { supabase } = await requireUser();
+  try {
+    return await mediaUsage(supabase);
+  } catch (error) {
+    console.error("photoSpace", error);
+    return null;
+  }
 }
 
 /** Step 2a: record a new photo (or video) for a day. A day can have any number of them. */
@@ -78,14 +96,15 @@ export async function addPhoto(input: {
     return { ok: false, message: "Invalid upload." };
   }
 
-  if (!(await checkFilesUploaded(supabase, [imagePath, thumbPath]))) {
+  const store = mediaStore(supabase);
+  if (!(await verifyUploads(store, user.id, [imagePath, thumbPath]))) {
     return { ok: false, message: "The upload didn't finish. Try again." };
   }
 
   const { error } = await supabase.from("photos").insert({ date, media_type: mediaType, image_path: imagePath, thumb_path: thumbPath, caption });
   if (error) {
     console.error("addPhoto", error);
-    await supabase.storage.from(PHOTO_BUCKET).remove([imagePath, thumbPath]);
+    await discardMedia(store, [imagePath, thumbPath]);
     return { ok: false, message: "Couldn't save the photo." };
   }
 
@@ -111,7 +130,8 @@ export async function replacePhoto(input: {
   if (!uploadPathsOk(user.id, existing.date, mediaType, imagePath, thumbPath)) {
     return { ok: false, message: "Invalid upload." };
   }
-  if (!(await checkFilesUploaded(supabase, [imagePath, thumbPath]))) {
+  const store = mediaStore(supabase);
+  if (!(await verifyUploads(store, user.id, [imagePath, thumbPath]))) {
     return { ok: false, message: "The upload didn't finish. Try again." };
   }
 
@@ -121,11 +141,11 @@ export async function replacePhoto(input: {
     .eq("id", id);
   if (error) {
     console.error("replacePhoto", error);
-    await supabase.storage.from(PHOTO_BUCKET).remove([imagePath, thumbPath]);
+    await discardMedia(store, [imagePath, thumbPath]);
     return { ok: false, message: "Couldn't save the photo." };
   }
 
-  await supabase.storage.from(PHOTO_BUCKET).remove([existing.image_path, existing.thumb_path]);
+  await removeFiles(store, user.id, [existing.image_path, existing.thumb_path], "replacePhoto");
   revalidate();
   return { ok: true };
 }
@@ -148,13 +168,13 @@ export async function deletePhoto(id: string): Promise<{ ok: true } | Fail> {
   const parsed = photoIdSchema.safeParse(id);
   if (!parsed.success) return { ok: false, message: "Invalid photo." };
 
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
   const photo = await getPhotoById(supabase, parsed.data);
   if (!photo) return { ok: true };
 
   const { error } = await supabase.from("photos").delete().eq("id", parsed.data);
   if (error) return { ok: false, message: "Couldn't delete the photo." };
-  await supabase.storage.from(PHOTO_BUCKET).remove([photo.image_path, photo.thumb_path]);
+  await removeFiles(mediaStore(supabase), user.id, [photo.image_path, photo.thumb_path], "deletePhoto");
   revalidate();
   return { ok: true };
 }
@@ -194,5 +214,17 @@ export async function discardUpload(paths: string[]): Promise<void> {
   if (error) return; // when unsure, keep the files
   const inUse = new Set((used ?? []).flatMap((r) => [r.image_path, r.thumb_path]));
   const orphans = candidates.filter((p) => !inUse.has(p));
-  if (orphans.length) await supabase.storage.from(PHOTO_BUCKET).remove(orphans);
+  if (orphans.length) await removeFiles(mediaStore(supabase), user.id, orphans, "discardUpload");
+}
+
+/**
+ * Removes a photo's old files once the row no longer points at them. The row change already
+ * happened, so a failure here is logged (the monthly orphan report finds leftovers), not shown.
+ */
+async function removeFiles(store: ReturnType<typeof mediaStore>, userId: string, paths: string[], action: string) {
+  try {
+    await discardMedia(store, ownPaths(userId, paths, action));
+  } catch (error) {
+    console.error(action, "remove files", error);
+  }
 }

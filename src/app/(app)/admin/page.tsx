@@ -4,6 +4,8 @@ import { DailyChart } from "@/components/admin/daily-chart";
 import { Stat } from "@/components/admin/stat";
 import { formatBytes } from "@/lib/admin-format";
 import { getAdminStats } from "@/lib/data/admin";
+import { MEDIA_QUOTA_BYTES, formatSize } from "@/lib/media";
+import { mediaCapacity } from "@/lib/storage";
 import { requireAdmin } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -17,6 +19,9 @@ const nf = new Intl.NumberFormat("en-US");
 export default async function AdminOverviewPage() {
   const { supabase } = await requireAdmin();
   const stats = await getAdminStats(supabase);
+  const capacity = mediaCapacity();
+  const storageShare = stats.storage_bytes / capacity.bytes;
+  const storageWhere = capacity.provider === "s3" ? "on the server" : "in Supabase";
 
   return (
     <div className="flex flex-col gap-6">
@@ -86,7 +91,14 @@ export default async function AdminOverviewPage() {
       <section aria-labelledby="ops">
         <h2 id="ops" className="font-display mb-3 text-xl font-semibold">Running it</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="photo storage used" value={formatBytes(stats.storage_bytes)} sub="Supabase free tier: 1 GB" />
+          <Stat
+            label="photo storage used"
+            value={formatBytes(stats.storage_bytes)}
+            sub={`${Math.round(storageShare * 100)}% of ${formatBytes(capacity.bytes)} ${storageWhere}${
+              storageShare >= 0.7 ? ": time to make room" : ""
+            }${stats.storage_near_quota > 0 ? ` · ${nf.format(stats.storage_near_quota)} near their ${formatSize(MEDIA_QUOTA_BYTES)}` : ""}`}
+            highlight={storageShare >= 0.7}
+          />
           <Stat label="open feedback" value={stats.feedback_open} sub={`${nf.format(stats.feedback_new)} new`} href="/admin/feedback" highlight={stats.feedback_new > 0} />
           <Stat label={stats.suspended === 1 ? "suspended account" : "suspended accounts"} value={stats.suspended} />
           <Stat label={stats.admins === 1 ? "admin" : "admins"} value={stats.admins} />

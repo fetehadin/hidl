@@ -46,10 +46,13 @@ self.addEventListener("activate", (event) => {
 // with Range requests, which a cached whole-file response can't answer (Safari won't play it).
 const VIDEO_FILE = /\.(mp4|webm|mov)$/i;
 
+// Photo links: Supabase Storage's signed URLs, or the self-hosted store's (the `hidl-media`
+// bucket at media.fetehadin.com, path-style; see docs/storage.md).
 function isPhoto(request) {
   if (request.method !== "GET") return false;
   const url = new URL(request.url);
-  return url.pathname.includes("/storage/v1/object/sign/photos/") && !VIDEO_FILE.test(url.pathname);
+  const signed = url.pathname.includes("/storage/v1/object/sign/photos/") || url.pathname.startsWith("/hidl-media/");
+  return signed && url.origin !== self.location.origin && !VIDEO_FILE.test(url.pathname);
 }
 
 async function trim(cache) {

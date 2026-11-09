@@ -15,7 +15,7 @@ README's "How the important rules are enforced" table (every hard rule and the P
 - **Countdowns**: any number, eight kinds (exam with target/actual score, graduation, birthday, wedding, work, trip,
   life, other), shown in the units the user picks; one can be starred, and any can feed an Android home-screen
   widget through a token-authenticated JSON feed.
-- **Photo calendar**: any number of photos or short videos (≤ 5 MB) per day, a pinned "wallpaper" per day, a
+- **Photo calendar**: any number of photos or short videos (≤ 5 MB each, 2 GB per person) per day, a pinned "wallpaper" per day, a
   year view, and `/memories`, a pannable board of past days.
 - Gregorian or Ethiopian date display, a buildable avatar ("buddy") based on the mascot Hidi, account self-deletion,
   a landing page and install guide for signed-out visitors.
@@ -34,7 +34,8 @@ README's "How the important rules are enforced" table (every hard rule and the P
   (`src/components/analytics/analytics.tsx`).
 
 Who it's for: one person or a short allowlist (`ALLOWED_EMAIL=a@x.com,b@y.com`), or anyone (`ALLOWED_EMAIL=*`).
-Every account's data is isolated by Postgres RLS either way. It runs on a Contabo VPS (Docker) with free tiers for the rest
+Every account's data is isolated by Postgres RLS either way. It runs on a Contabo VPS (Docker; photo files too, in Garage on
+its own 40 GB disk, backed up to Google Drive) with free tiers for the rest
 (Supabase free, Resend for all email: sign-in codes through Supabase SMTP, and the unlock emails).
 
 ## 2. Tech stack
@@ -71,8 +72,9 @@ them. Details per feature: [`docs/architecture.md`](docs/architecture.md#core-ar
 
 **Mutations** happen only in server actions (`src/actions/*.ts`) plus two route handlers: the unlock-email cron
 and `/auth/confirm`. The widget feed is read-only. Photo files never pass through the app server: the browser resizes
-them (`src/lib/image.ts`) and uploads them straight to Storage with one-time signed URLs (`prepareUpload` →
-direct upload → `addPhoto`/`replacePhoto`).
+them (`src/lib/image.ts`) and uploads them straight to the media store with one-time signed URLs (`prepareUpload` →
+direct upload → `addPhoto`/`replacePhoto`). The store is Garage on the VPS (`STORAGE_PROVIDER=s3`) or Supabase
+Storage (`supabase`); only `src/lib/storage/` knows which. See [`docs/storage.md`](docs/storage.md).
 
 **Key directories**
 
@@ -90,12 +92,13 @@ src/app/download/android/    The Android app's .apk, streamed from /opt/hidl/dow
 src/actions/                 Server actions: auth, letters, encryption, countdowns, photos, preferences, feedback, admin,
                              profile
 src/lib/supabase/            server.ts (createClient, requireUser, requireAdmin, isAdmin), client.ts, proxy.ts, admin.ts
+src/lib/storage/             The media store (Garage/S3 or Supabase Storage): signing, checks, the media_objects record
 src/lib/data/                Typed read queries per table
 src/lib/validation/          zod schemas used by every action and route handler (server only)
 src/lib/                     Pure helpers: time, dates, ethiopian, calendar, calendar-months (Gregorian or Ethiopian
                              months for the photo calendar), names, countdown-kinds/units, e2ee,
                              key-store, image, media, memories, avatar, env, public-env, feedback, csv,
-                             admin-format, user-files, profile-rules, app-lock
+                             admin-format, user-files, profile-rules, app-lock, media-sniff
 src/components/              UI, grouped by feature (letters/, countdown/, calendar/, account/, ...)
 public/sw.js                 Service worker: caches photo files, offline page; never caches pages
 supabase/migrations/         The schema, in order; supabase/config.toml is the local stack config
@@ -103,6 +106,7 @@ supabase/templates/          Branded magic-link and confirm-signup emails (need 
 tests/unit/                  Pure logic, no services
 tests/integration/           Against a real local Supabase
 mobile/                      Expo app (own npm toolchain): Android countdown widget; see mobile/README.md
+deploy/media/                Server side of the photo store: disk + Garage setup, backups, alerts, tools (docs/storage.md)
 .github/workflows/           ci.yml (web: typecheck, lint, unit tests; mobile: typecheck), deploy-contabo.yml (Docker build + server restart after CI on main)
 ```
 
@@ -118,6 +122,7 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `countdowns` | `kind`, `title`, `target_at`, `target_score`/`max_score`/`actual_score`, `details` jsonb, `units` text[], `is_widget` | `kind` can't be updated; scores only for `exam`; `details` checked by `countdown_details_ok`; one `is_widget` per user. |
 | `widget_tokens` | `id`, `user_id`, `countdown_id` (null = follow the starred one), `token_hash` | `(countdown_id, user_id)` FK → `countdowns(id, user_id)`; `token_hash` is never selectable. |
 | `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover` | Many per day; no future dates (in the owner's zone, from `user_settings`); paths must be in the user's folder; one cover per `(user_id, date)`. |
+| `media_objects` | `path` (PK), `user_id`, `bytes`, `content_type`, `created_at`, `confirmed_at` | One row per photo/video file. **No user grants**: written by `reserve_media()` (folder, ≤ 5 MB, type, 2 GB per person `53100`, 120 files/hour `53400`) and by the server with the service role (confirm, delete). `media_usage()` tells a person their space. Admin storage numbers come from here. |
 | `profiles` | `user_id` (PK), `avatar` jsonb (nullable), `display_name`, `show_on_leaderboard` | Own row only. `avatar_ok()` mirrors `AVATAR_PARTS` in `src/lib/avatar.ts`; `display_name_ok()` mirrors `src/lib/profile-rules.ts`; names unique ignoring case; Write it update-then-insert (no `.upsert()`). Other people's names/buddies come out only through `leaderboard()`. |
 | `leaderboard_releases`, `leaderboard_results` | `(period, period_start)`, `rank`, `streak`, `photo_days` | No grants. A finished week/month is snapshotted by `leaderboard(p, true)` the first time anyone asks for it. |
 | `usage_daily` | `day`, `user_id`, `visits` | No grants at all. Written only by `record_visit()`, read only through `admin_stats()` / `admin_user_detail()` (admins). |
@@ -127,7 +132,8 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `app_handoffs` | `code_hash` (PK), `user_id`, `expires_at`, `used_at` | No grants. SHA-256 of the one-time "sign in on the phone app" code; 10 min, single use, a new code retires the old, 10 an hour. Made by `create_app_handoff()` (as the user), spent by `redeem_app_handoff()` (service role only). |
 | `user_settings` | `user_id` (PK), `time_zone` | The device's IANA zone, checked by `time_zone_ok()`. No row = Africa/Addis_Ababa. Written only by `setTimeZone`. |
 
-Storage: one private `photos` bucket, `<user_id>/...` folders, 5 MB per file, JPEG/WebP/MP4/WebM/MOV only.
+Files: `<user_id>/<date>-<random>[-thumb].<ext>`, 5 MB each, JPEG/WebP/MP4/WebM/MOV only, in the private `hidl-media`
+bucket on Garage (production) or Supabase's private `photos` bucket (`STORAGE_PROVIDER`).
 User preference `calendar` (Gregorian/Ethiopian) lives in `auth.users.user_metadata`, not a table.
 `exam_settings` from the first migrations was migrated into `countdowns` and dropped.
 
@@ -183,7 +189,7 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   `LETTER_META_COLUMNS`, which never includes `body`.
 - **Mirrored rules:** when a Postgres rule has a TypeScript mirror, change both in the same commit:
   `countdown_details_ok` ↔ `src/lib/countdown-kinds.ts`, `countdown_units_ok` ↔ `src/lib/countdown-units.ts`,
-  `avatar_ok` ↔ `src/lib/avatar.ts`, bucket limits ↔ `src/lib/media.ts`, `feedback` checks ↔ `src/lib/feedback.ts`,
+  `avatar_ok` ↔ `src/lib/avatar.ts`, `media_objects` checks and `media_quota_bytes()` ↔ `src/lib/media.ts`, `feedback` checks ↔ `src/lib/feedback.ts`,
   `display_name_ok` ↔ `src/lib/profile-rules.ts`, leaderboard periods ↔ `periodBounds` in
   `src/lib/data/leaderboard.ts`.
   `timeLeft()` in `src/lib/countdown-units.ts` is also copied to `mobile/src/countdown-units.ts` (the widget counts
@@ -245,7 +251,10 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   `rm -rf .next` fixes it.
 - **`/calendar` layout:** the month grid fits the viewport using `--chrome`. Anything added above or below it needs
   `--chrome` adjusted.
-- **Orphaned uploads:** if a tab closes mid-upload, files can be left in Storage. Nothing cleans those up yet.
+- **Orphaned uploads:** if a tab closes mid-upload, files (and their `media_objects` records) can be left behind.
+  The monthly orphan report (`deploy/media/tools/orphan-report.mjs`) lists them; nothing deletes them automatically.
+- **Photo files and their records go together.** Delete through `discardMedia()` (files first, then records), never
+  one without the other, or a person's space is counted wrong. Never sign a link without `ownPaths`/`isOwnPath`.
 - **CI doesn't run integration tests** (there's no Docker/Supabase in CI). Run `pnpm test:all` locally for any
   database change.
 - **The phone app signs in through `/api/app/*`** (`src/lib/app-auth.ts`): email code (`/auth/email`, `/auth/verify`),
@@ -270,7 +279,7 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
 
 ## 8. Open questions
 
-- **Orphaned uploads:** should there be a cleanup job for files no `photos` row points at?
+- **Orphaned uploads:** the report exists; should old orphans be deleted automatically after a review period?
 - **Integration tests in CI:** should CI start Supabase (for example with `supabase start` in a Docker-capable job)?
-- **Test-only env:** `tests/integration/setup.ts` loads `.env.test.local` before `.env.local`, but that file isn't
-  documented. What is meant to go in it?
+- **Test-only env:** `.env.test.local` (loaded before `.env.local` by `tests/integration/setup.ts`) holds the local
+  Garage settings for `tests/integration/media-store.test.ts` (docs/storage.md → Testing locally).

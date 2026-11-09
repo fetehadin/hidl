@@ -2,11 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { addPhoto, discardUpload, prepareUpload, replacePhoto } from "@/actions/photos";
+import { addPhoto, discardUpload, photoSpace, prepareUpload, replacePhoto } from "@/actions/photos";
+import { PhotoSpaceNotice } from "@/components/photo-space-notice";
 import { dayLabel } from "@/lib/calendar";
 import { type ProcessedMedia, processMedia } from "@/lib/image";
 import { MAX_UPLOAD_BYTES, formatMB } from "@/lib/media";
-import { createClient } from "@/lib/supabase/client";
 import { VideoBadge } from "./video-badge";
 
 type Mode = { kind: "add"; date: string } | { kind: "replace"; date: string; photoId: string };
@@ -22,21 +22,30 @@ type PendingItem = {
   uploaded: boolean;
 };
 
-/** Sends one photo's (or video's) two files straight to Storage via one-time signed URLs. */
+/** One PUT of a file to the link the server signed for it (exact size and type). */
+async function put(target: { url: string; headers: Record<string, string> }, body: Blob) {
+  const res = await fetch(target.url, { method: "PUT", headers: target.headers, body });
+  if (!res.ok) throw new Error(`Upload answered ${res.status}`);
+}
+
+/** Sends one photo's (or video's) two files straight to the media store via one-time upload links. */
 async function uploadFiles(date: string, media: ProcessedMedia): Promise<Uploaded> {
-  const ticket = await prepareUpload(date, media.fullExt, media.thumbExt);
+  if (media.full.size > MAX_UPLOAD_BYTES) throw new Error(`That file is over ${formatMB(MAX_UPLOAD_BYTES)}.`);
+  const ticket = await prepareUpload(
+    date,
+    { ext: media.fullExt, bytes: media.full.size },
+    { ext: media.thumbExt, bytes: media.thumb.size },
+  );
   if (!ticket.ok) throw new Error(ticket.message);
-  const bucket = createClient().storage.from("photos");
-  const [full, thumb] = await Promise.all([
-    bucket.uploadToSignedUrl(ticket.image.path, ticket.image.token, media.full, { contentType: media.fullType, cacheControl: "31536000" }),
-    bucket.uploadToSignedUrl(ticket.thumb.path, ticket.thumb.token, media.thumb, { contentType: media.thumbType, cacheControl: "31536000" }),
-  ]);
-  if (full.error || thumb.error) {
-    // Storage enforces the 5 MB cap itself; say so if that's what stopped it.
-    if (media.full.size > MAX_UPLOAD_BYTES) throw new Error(`That file is over ${formatMB(MAX_UPLOAD_BYTES)}.`);
+  const uploaded = { imagePath: ticket.image.path, thumbPath: ticket.thumb.path };
+  try {
+    await Promise.all([put(ticket.image, media.full), put(ticket.thumb, media.thumb)]);
+  } catch {
+    // Reserved but not (fully) uploaded: give the space back.
+    discardUpload([uploaded.imagePath, uploaded.thumbPath]).catch(() => {});
     throw new Error("Upload failed. Check your connection and try again.");
   }
-  return { imagePath: ticket.image.path, thumbPath: ticket.thumb.path };
+  return uploaded;
 }
 
 /** Best effort: delete what was uploaded for a photo that won't be saved. */
@@ -69,6 +78,7 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
   const [processing, setProcessing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [space, setSpace] = useState<{ used: number; quota: number } | null>(null);
 
   const isReplace = mode.kind === "replace";
   const maxFiles = isReplace ? 1 : Infinity;
@@ -76,6 +86,8 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
 
   useEffect(() => {
     dialogRef.current?.showModal();
+    // Only says anything at 90% or more of the photo space.
+    photoSpace().then(setSpace, () => {});
   }, []);
 
   useEffect(() => {
@@ -276,6 +288,8 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
             />
           </>
         )}
+
+        {space && <PhotoSpaceNotice used={space.used} quota={space.quota} className="mt-3" />}
 
         {error && (
           <p role="alert" className="mt-3 rounded-control bg-accent-soft px-3 py-2 text-sm">

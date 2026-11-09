@@ -5,7 +5,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  resolve: { alias: { "@": path.resolve(__dirname, "src") } },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+      // Tests run server code outside React's server environment, where this marker would throw.
+      "server-only": path.resolve(__dirname, "node_modules/server-only/empty.js"),
+    },
+  },
   test: {
     projects: [
       {
