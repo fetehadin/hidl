@@ -37,7 +37,10 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "hidl",
-    statusBarStyle: "black-translucent",
+    // The normal status bar, colored live from theme-color (applyTheme updates it). With
+    // "black-translucent" the clock was always white (unreadable in Teal Paper), and iPhones only
+    // read this when the app starts, so switching themes left the bar mismatched.
+    statusBarStyle: "default",
   },
   icons: {
     icon: { url: "/icon.svg", type: "image/svg+xml" },
@@ -61,6 +64,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full antialiased text-[17px] leading-relaxed">
         <RegisterServiceWorker />
+        <div aria-hidden className="status-bar-backdrop" />
         {children}
       </body>
     </html>

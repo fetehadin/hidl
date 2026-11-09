@@ -8,7 +8,7 @@ import { PencilIcon, StarIcon, TrashIcon } from "@/components/icons";
 import { detailLine, KIND_INFO } from "@/lib/countdown-kinds";
 import type { Countdown } from "@/lib/data/countdowns";
 import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
-import { formatEthiopian } from "@/lib/ethiopian";
+import { formatFullDate } from "@/lib/dates";
 import { formatInTz } from "@/lib/time";
 import { KindBadge } from "./kind-icon";
 import { LiveCountdown } from "./live-countdown";
@@ -33,10 +33,9 @@ export function CountdownCard({
   const [error, setError] = useState<string | null>(null);
 
   const done = new Date(countdown.target_at).getTime() <= now;
-  const ethiopian = useCalendarPref() === "ethiopian";
+  const calendar = useCalendarPref();
   const timeZone = useTimeZone();
-  const whenEthiopian = ethiopian ? formatEthiopian(countdown.target_at, timeZone) : null;
-  const when = formatInTz(countdown.target_at, "EEEE, MMMM d, yyyy 'at' h:mm a", timeZone);
+  const when = formatFullDate(countdown.target_at, calendar, timeZone, { time: true });
   const info = KIND_INFO[countdown.kind] ?? KIND_INFO.deadline;
   const details = countdown.details ?? {};
   const summary = detailLine(countdown.kind, details, Number(formatInTz(countdown.target_at, "yyyy", timeZone)));
@@ -83,8 +82,7 @@ export function CountdownCard({
               {countdown.title}
             </h2>
             {summary && <p className="mt-0.5 text-[15px] font-semibold text-ink">{summary}</p>}
-            {whenEthiopian && <p className="mt-0.5 text-sm text-ink-soft">{whenEthiopian}</p>}
-            <p className="text-sm text-muted">{when}</p>
+            <p className="mt-0.5 text-sm text-muted">{when}</p>
 
             {!done && countdown.kind === "exam" && (
               <p className="mt-3">

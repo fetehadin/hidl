@@ -250,7 +250,8 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 backdrop-blur sm:hidden"
+      // Solid, not see-through: on iPhones page content showed through under the tab bar.
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white sm:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="mx-auto grid max-w-md grid-cols-5 px-2 pt-1.5 pb-1">
