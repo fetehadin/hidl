@@ -1,11 +1,9 @@
 import { z } from "zod";
-import { loginSchema } from "./auth";
+import { emailCodeSchema, loginSchema } from "./auth";
 
 export const appEmailStartSchema = loginSchema;
 
-export const appEmailVerifySchema = loginSchema.extend({
-  code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from the email."),
-});
+export const appEmailVerifySchema = emailCodeSchema;
 
 export const appRedeemSchema = z.object({
   blob: z.string().min(40).max(8000),

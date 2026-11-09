@@ -1,9 +1,9 @@
 "use client";
 
 import Script from "next/script";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { type LoginState, sendMagicLink, signInWithGoogle } from "@/actions/auth";
+import { type CodeState, type LoginState, sendMagicLink, signInWithGoogle, verifyEmailCode } from "@/actions/auth";
 
 const initial: LoginState = { status: "idle" };
 
@@ -18,8 +18,19 @@ declare global {
   }
 }
 
-export function LoginForm({ turnstileSiteKey, google = false }: { turnstileSiteKey?: string; google?: boolean }) {
+type Props = { turnstileSiteKey?: string; google?: boolean };
+
+export function LoginForm(props: Props) {
+  // "Use a different email" starts over with a fresh form (a new key resets its state).
+  const [round, setRound] = useState(0);
+  return <LoginFlow key={round} {...props} onRestart={() => setRound((r) => r + 1)} />;
+}
+
+function LoginFlow({ turnstileSiteKey, google = false, onRestart }: Props & { onRestart: () => void }) {
   const [state, action, pending] = useActionState(sendMagicLink, initial);
+  const [, startResend] = useTransition();
+  // Counts sends, so the code step's resend timer restarts after each one.
+  const [sends, setSends] = useState(0);
   const [captchaToken, setCaptchaToken] = useState("");
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
@@ -32,15 +43,26 @@ export function LoginForm({ turnstileSiteKey, google = false }: { turnstileSiteK
     });
   }, [scriptLoaded, turnstileSiteKey]);
 
-  if (state.status === "sent") {
+  if (state.status === "sent" && state.email) {
+    const email = state.email;
     return (
-      <div role="status" className="space-y-2 text-center">
-        <p className="font-display text-2xl">Check your inbox.</p>
-        <p className="text-ink-soft">
-          If that address belongs here, a sign-in link is on its way. It works once, on any device, and expires in
-          an hour.
-        </p>
-      </div>
+      <CodeStep
+        key={sends}
+        email={email}
+        // With a captcha, every send needs a fresh check, so resending means starting over.
+        onResend={
+          turnstileSiteKey
+            ? undefined
+            : () =>
+                startResend(() => {
+                  const form = new FormData();
+                  form.set("email", email);
+                  setSends((n) => n + 1);
+                  action(form);
+                })
+        }
+        onRestart={onRestart}
+      />
     );
   }
 
@@ -72,6 +94,7 @@ export function LoginForm({ turnstileSiteKey, google = false }: { turnstileSiteK
             required
             className="field"
             placeholder="you@example.com"
+            defaultValue={state.email}
             aria-invalid={state.status === "error"}
             aria-describedby={state.status === "error" ? "email-error" : undefined}
           />
@@ -96,10 +119,87 @@ export function LoginForm({ turnstileSiteKey, google = false }: { turnstileSiteK
           className="btn btn-primary w-full"
           disabled={pending || (!!turnstileSiteKey && !captchaToken)}
         >
-          {pending ? "Sending…" : google ? "Email me a link" : "Send me a link"}
+          {pending ? "Sending…" : "Email me a sign-in code"}
         </button>
       </form>
     </>
+  );
+}
+
+const RESEND_AFTER = 30; // seconds; Supabase's own minimum between two emails (max_frequency)
+
+/**
+ * After the email is sent: type the 6-digit code from it (or just tap its link). Resend once the
+ * wait is over, and a way back if the address was mistyped, so nobody is stuck on "check your inbox".
+ */
+function CodeStep({ email, onResend, onRestart }: { email: string; onResend?: () => void; onRestart: () => void }) {
+  const [state, verify, pending] = useActionState<CodeState, FormData>(verifyEmailCode, { status: "idle" });
+  const [wait, setWait] = useState(RESEND_AFTER);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    const t = setInterval(() => setWait((w) => (w > 0 ? w - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div className="space-y-5">
+      <div role="status" className="space-y-1 text-center">
+        <p className="font-display text-2xl">Check your inbox</p>
+        <p className="text-ink-soft">
+          We sent a code to <strong className="text-ink">{email}</strong>. Type it here, or tap the link in the email.
+        </p>
+      </div>
+      <form ref={formRef} action={verify} className="space-y-3" noValidate>
+        <input type="hidden" name="email" value={email} />
+        <label htmlFor="code" className="sr-only">
+          6-digit code
+        </label>
+        <input
+          id="code"
+          name="code"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]*"
+          maxLength={6}
+          autoFocus
+          placeholder="123456"
+          className="field text-center font-display text-2xl tracking-[0.4em]"
+          aria-invalid={state.status === "error"}
+          aria-describedby={state.status === "error" ? "code-error" : undefined}
+          // Six digits typed or pasted: sign in straight away, no extra tap.
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, "").slice(0, 6);
+            if (digits !== e.target.value) e.target.value = digits;
+            if (digits.length === 6 && !pending) formRef.current?.requestSubmit();
+          }}
+        />
+        {state.status === "error" && (
+          <p id="code-error" className="text-center text-sm text-wax">
+            {state.message}
+          </p>
+        )}
+        <button type="submit" className="btn btn-primary w-full" disabled={pending}>
+          {pending ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+      <div className="space-y-2 text-center text-sm text-ink-soft">
+        <p>
+          Nothing yet? Check spam or promotions.{" "}
+          {onResend &&
+            (wait > 0 ? (
+              <span className="text-muted">Resend in {wait}s</span>
+            ) : (
+              <button type="button" onClick={onResend} className="font-semibold text-accent underline-offset-4 hover:underline">
+                Send it again
+              </button>
+            ))}
+        </p>
+        <button type="button" onClick={onRestart} className="font-semibold text-accent underline-offset-4 hover:underline">
+          Use a different email
+        </button>
+      </div>
+    </div>
   );
 }
 

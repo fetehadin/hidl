@@ -88,7 +88,8 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Supabase 
 
 **Hosting.** The app runs as a Docker container on a Contabo VPS, deployed by GitHub Actions on every merge to
 `main` (see [`deploy/README.md`](deploy/README.md)). The database, auth and photo storage run on the Supabase free
-plan; sign-in emails go out through Gmail SMTP and the optional unlock emails through Resend's free plan.
+plan; all email goes out through Resend from `hidl.fetehadin.com`: sign-in codes (as Supabase's SMTP) and the
+unlock emails.
 
 ---
 
@@ -190,8 +191,9 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
      (subject: `Your hidl sign-in link`) and `supabase/templates/confirm_signup.html` into **Confirm signup**
      (subject: `Welcome to hidl: confirm your email`). Their mascot images load from `{{ .SiteURL }}/email/`, so
      Authentication → URL Configuration → **Site URL** must be your deployed app URL. On the free tier,
-     Supabase only allows custom templates once you configure custom SMTP (Authentication → SMTP; Resend's free
-     SMTP, or Gmail's SMTP with an [app password](https://myaccount.google.com/apppasswords), both work).
+     Supabase only allows custom templates once you configure custom SMTP (Authentication → SMTP). Use Resend:
+     host `smtp.resend.com`, port 465, user `resend`, password = a Resend API key, sender on a domain verified in
+     Resend. Production does this through `deploy/supabase-prod/push.sh` with `SMTP_PASS` set to the key.
 5. **Authentication → Sign In / Providers**: if `ALLOWED_EMAIL` is a specific list (not `*`), sign in once to
    create your account, then turn off **Allow new users to sign up** — the app's allowlist already blocks other
    emails, but this closes it at the source too. Leave sign-ups on if `ALLOWED_EMAIL=*`.
@@ -253,7 +255,7 @@ Addis), with these set in the server's `.env`. It does nothing unless enabled:
 | `ENABLE_UNLOCK_EMAILS` | `true` |
 | `CRON_SECRET` | 32+ random characters (the cron service sends it as a Bearer token) |
 | `RESEND_API_KEY` | from [resend.com](https://resend.com) |
-| `EMAIL_FROM` | a sender on a domain verified in Resend, e.g. `hidl <letters@yourdomain.com>` |
+| `EMAIL_FROM` | a sender on a domain verified in Resend, e.g. `hidl <letters@hidl.fetehadin.com>` |
 | `SUPABASE_SECRET_KEY` | required for this job |
 
 The email contains the letter's title and a link, never the body. Each letter is announced once, and failed sends are retried the next day.
@@ -261,8 +263,8 @@ The email contains the letter's title and a link, never the body. Each letter is
 ---
 
 > **Free-tier limits to know about.** Supabase pauses a free project after a week with no activity; open the
-> dashboard and click **Restore** if that happens (data is kept). Resend's free plan allows 3,000 emails a month,
-> and Gmail SMTP about 500 sign-in emails a day.
+> dashboard and click **Restore** if that happens (data is kept). Resend's free plan allows 100 emails a day and
+> 3,000 a month, sign-in codes and unlock emails together; its dashboard (resend.com/emails) shows every delivery.
 
 ---
 
