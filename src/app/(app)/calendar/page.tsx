@@ -11,13 +11,13 @@ export const metadata: Metadata = { title: "Calendar" };
 export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
   const { m, add } = await searchParams;
   // Months follow the calendar picked on Account: Gregorian, or Ethiopian (Meskerem … Pagume).
-  const { supabase, timeZone, calendar } = await requireUser();
+  const { supabase, user, timeZone, calendar } = await requireUser();
   const today = todayISO(timeZone);
   const currentKey = monthKeyOf(calendar, today);
   const requested = parseMonthKey(calendar, m);
   const month = calendarMonth(calendar, requested && requested <= currentKey ? requested : currentKey);
 
-  const photos = await signPhotos(supabase, await listPhotos(supabase, month.days[0], month.days[month.days.length - 1]));
+  const photos = await signPhotos(supabase, user.id, await listPhotos(supabase, month.days[0], month.days[month.days.length - 1]));
 
   const prev = calendarMonth(calendar, addMonthKey(calendar, month.key, -1));
   const next = calendarMonth(calendar, addMonthKey(calendar, month.key, 1));

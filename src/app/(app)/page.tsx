@@ -24,7 +24,7 @@ import { monthKeyOf } from "@/lib/calendar-months";
 import { daysUntil, formatInTz, greeting, nowInTz, requestNow, todayISO } from "@/lib/time";
 
 export default async function DashboardPage() {
-  const { supabase, calendar, timeZone, accountName } = await requireUser();
+  const { supabase, user, calendar, timeZone, accountName } = await requireUser();
   const now = requestNow();
   const today = todayISO(timeZone, new Date(now));
   const week = weekOf(today);
@@ -51,7 +51,7 @@ export default async function DashboardPage() {
   // One picture per day this week: the pinned one, else the latest.
   const coverRows = new Map<string, PhotoRow>();
   for (const p of weekPhotos) if (!coverRows.get(p.date)?.is_cover) coverRows.set(p.date, p);
-  const weekCovers = new Map((await signPhotos(supabase, [...coverRows.values()])).map((p) => [p.date, p]));
+  const weekCovers = new Map((await signPhotos(supabase, user.id, [...coverRows.values()])).map((p) => [p.date, p]));
   const photo = weekCovers.get(today);
   const countdownDone = countdown ? new Date(countdown.target_at).getTime() <= now : false;
   const hidi = companionLine({

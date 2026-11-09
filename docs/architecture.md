@@ -70,28 +70,41 @@ layer physically cannot violate it, even with a bug:
   `=` via the service-role client; nothing else can read it back. Generating one must use plain
   update-then-insert, not `.upsert()` — Postgres's `ON CONFLICT DO UPDATE` needs full-table `SELECT` to detect the
   conflict, which a column-restricted table can't satisfy (`src/actions/countdowns.ts` `generateWidgetToken`).
-- Every table has RLS scoped to `user_id = auth.uid()`, and the `photos` storage bucket is split into per-user
-  folders with matching storage policies.
+- Every table has RLS scoped to `user_id = auth.uid()`. Photo files sit in per-user folders (`<user id>/...`)
+  in whichever store holds them (Supabase's `photos` bucket, with matching storage policies, or the self-hosted
+  Garage bucket, where the server checks the folder before signing anything; see [storage.md](storage.md)).
 
-**Account deletion** (`deleteAccount()` in `src/actions/auth.ts`) removes the user's storage files first (RLS
-still applies, uses the user's own session), then deletes the `auth.users` row via `createAdminClient()`
+**Account deletion** (`deleteAccount()` in `src/actions/auth.ts`) removes the user's photo files first
+(`removeUserFiles` → the media store's `removeFolder`), then deletes the `auth.users` row via `createAdminClient()`
 (service-role, `src/lib/supabase/admin.ts`) — which cascades via `on delete cascade` to every user table:
-`letters`, `letter_keys`, `photos`, `countdowns`, `widget_tokens`, and `profiles`. A new user table needs the same
+`letters`, `letter_keys`, `photos`, `media_objects`, `countdowns`, `widget_tokens`, and `profiles`. A new user table needs the same
 `references auth.users (id) on delete cascade`, or account deletion leaves its rows behind. Covered end-to-end in `tests/integration/account-deletion.test.ts`.
 
 **Photo upload is two-step and never passes through the app server, on purpose.** Images are resized client-side
 (`src/lib/image.ts` `processMedia`: 1600px full image + 480px thumbnail, WebP or JPEG; videos ≤ 5 MB go up as-is
-with a frame-grab thumbnail) and uploaded directly to Supabase Storage
-via one-time signed URLs, never through the app server. The flow (`src/actions/photos.ts`):
-1. `prepareUpload()` — issues a `createSignedUploadUrl` for both the image and the thumbnail.
-2. (client uploads both files directly to Supabase Storage) — the upload sheet does steps 1–2 **in the
+with a frame-grab thumbnail) and uploaded directly to the media store (Garage on the VPS, or Supabase Storage;
+`STORAGE_PROVIDER`, [storage.md](storage.md)) via one-time signed URLs, never through the app server. All store
+access goes through `src/lib/storage/` (`mediaStore()`); nothing else knows which store is in use. The flow
+(`src/actions/photos.ts`):
+1. `prepareUpload(date, full, thumb)` — sends each file's extension and exact size. `reserve_media()` (Postgres,
+   `..._media_objects.sql`) checks the folder, name, size (≤ 5 MB), type, the 2 GB per-person space (`53100`) and
+   120 files an hour (`53400`), and records both files in `media_objects`; then the store signs a 5-minute upload
+   link per file (with Garage, locked to that exact size and type).
+2. (client PUTs both files to those links) — the upload sheet does steps 1–2 **in the
    background as soon as a photo is picked**, so Save usually only runs step 3. Files for a photo that's removed
    from the sheet, or never saved (the sheet closes), are deleted via `discardUpload()`, which only touches the
-   user's own files and never ones a `photos` row points at. (A tab closed mid-way can still leave orphans.)
-3. `addPhoto()` (new photo) or `replacePhoto()` (swap one photo's file by `id`) — verifies both paths match the
-   user's folder pattern (`uploadPathsOk`) and that the files actually exist (`checkFilesUploaded`, using
-   `createSignedUrls` as an existence check) before writing the DB row; deletes the uploaded files on any failure,
-   and the photo's previous files on replace.
+   user's own files and never ones a `photos` row points at. (A tab closed mid-way can still leave orphans; the
+   monthly orphan report lists them.)
+3. `addPhoto()` (new photo) or `replacePhoto()` (swap one photo's file by `id`) — checks both paths match the
+   user's folder pattern (`uploadPathsOk`), then `verifyUploads()` reads each stored file's size, type and first
+   bytes (`src/lib/media-sniff.ts`) against its `media_objects` record and marks it confirmed. Anything that
+   doesn't match is deleted with its record. Files and records are always removed together (`discardMedia`), with
+   the service role: users have no grants on `media_objects`, so they can't shrink their usage.
+
+Viewing: `signPhotos(supabase, userId, rows)` signs 15-minute links, only for paths in the user's folder.
+`<MediaLinkRefresher>` (in the `(app)` layout) re-renders the page every 12 minutes while visible, so links on
+a page left open don't expire; the service worker caches photos by path, so that costs nothing. People see how
+much of their space they've used only from 90% on (`<PhotoSpaceNotice>`: upload sheet and Account).
 
 <a id="time-zones"></a>**Time zones are per user, like any global app** (`src/lib/time.ts`,
 `..._user_time_zones.sql`). Instants are `timestamptz` (UTC); a calendar day is the user's local day. How a user's
@@ -180,8 +193,9 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
     lift / delete. The last three use the Auth admin API (service role); they write `admin_log` first, which is the
     database's admin check, and refuse your own account and other admins. Suspend is a Supabase ban
     (`ban_duration`); an already-issued access token keeps working until it expires (≤ 1 h). Delete removes photo
-    files with `removeUserFiles` (`src/lib/user-files.ts`, pages past Storage's 100-name list default; also used
-    by `deleteAccount`) and then the auth user (cascade).
+    files with `removeUserFiles` (`src/lib/user-files.ts`, the media store's `removeFolder`; also used by
+    `deleteAccount`) and then the auth user (cascade). Storage numbers (`storage_bytes`, people near their space)
+    come from `media_objects`; the limit on the overview card is `MEDIA_CAPACITY_BYTES`.
   - *Audit log:* `admin_audit` keeps the admin's and target's emails and has no cascading FK, so "who deleted
     whom" survives the deletion. The CSV export route (`admin/users/export/route.ts`) logs `users.export`; CSV
     fields are formula-escaped (`src/lib/csv.ts`).

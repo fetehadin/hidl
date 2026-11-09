@@ -6,6 +6,7 @@ import { HidiMenu } from "@/components/hidi-menu";
 import { BuddyProvider } from "@/components/buddy-context";
 import { AppLockGate } from "@/components/lock/app-lock-gate";
 import { Mascot } from "@/components/mascot";
+import { MediaLinkRefresher } from "@/components/media-link-refresher";
 import { AppShell, MobileTabBar } from "@/components/nav";
 import { ProfileImage } from "@/components/profile/profile-image";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -54,6 +55,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <HidiMenu />
       </AppLockGate>
       <UsagePing />
+      <MediaLinkRefresher />
       </BuddyProvider>
     </CalendarPrefProvider>
   );

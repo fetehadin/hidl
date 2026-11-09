@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IMAGE_EXTS, VIDEO_EXTS } from "@/lib/media";
+import { IMAGE_EXTS, MAX_UPLOAD_BYTES, VIDEO_EXTS } from "@/lib/media";
 
 export const isoDate = z
   .string()
@@ -38,10 +38,12 @@ export const replacePhotoSchema = z.object({
   thumbPath: z.string().min(1).max(200),
 });
 
+const fileSize = z.number().int().min(1).max(MAX_UPLOAD_BYTES);
+
 export const prepareUploadSchema = z.object({
   date: isoDate,
-  fullExt: z.enum([...IMAGE_EXTS, ...VIDEO_EXTS]),
-  thumbExt: z.enum(IMAGE_EXTS),
+  full: z.object({ ext: z.enum([...IMAGE_EXTS, ...VIDEO_EXTS]), bytes: fileSize }),
+  thumb: z.object({ ext: z.enum(IMAGE_EXTS), bytes: fileSize }),
 });
 
 export const captionSchema = z.object({ id: photoIdSchema, caption });

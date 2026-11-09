@@ -1,8 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MediaType } from "@/lib/media";
-
-export const PHOTO_BUCKET = "photos";
-const SIGNED_URL_TTL = 60 * 60; // 1 hour
+import { mediaStore, ownPaths } from "@/lib/storage";
 
 export type PhotoRow = {
   id: string;
@@ -62,13 +60,14 @@ export async function getPhotoById(supabase: SupabaseClient, id: string) {
   return data as PhotoRow | null;
 }
 
-/** Signs thumbnail and full-size URLs for a batch of rows in one request. */
-export async function signPhotos(supabase: SupabaseClient, rows: PhotoRow[]): Promise<PhotoView[]> {
+/**
+ * Short-lived view links for a batch of the user's own rows (read as the user, so RLS already
+ * limits them to their photos). Paths outside their folder are never signed.
+ */
+export async function signPhotos(supabase: SupabaseClient, userId: string, rows: PhotoRow[]): Promise<PhotoView[]> {
   if (rows.length === 0) return [];
-  const paths = rows.flatMap((r) => [r.thumb_path, r.image_path]);
-  const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(paths, SIGNED_URL_TTL);
-  if (error) throw error;
-  const byPath = new Map(data.map((d) => [d.path, d.signedUrl]));
+  const paths = ownPaths(userId, rows.flatMap((r) => [r.thumb_path, r.image_path]), "view");
+  const byPath = await mediaStore(supabase).viewUrls(paths);
   return rows.map((r) => ({
     id: r.id,
     date: r.date,
