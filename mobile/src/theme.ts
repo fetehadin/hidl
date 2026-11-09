@@ -39,6 +39,9 @@ export const palettes = {
 } as const;
 
 export type ThemeName = keyof typeof palettes;
+
+/** Where the app keeps the theme the page last showed (WebShell writes it, the widget reads it). */
+export const THEME_KEY = 'hidl.theme';
 export type Palette = (typeof palettes)[ThemeName];
 
 /** Teal Paper: the sign-in screen and the widget. */

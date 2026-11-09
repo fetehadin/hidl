@@ -186,25 +186,16 @@ export async function generateWidgetToken(countdownId?: string | null): Promise<
 }
 
 /**
- * "Add to home screen" inside the phone app: stars the countdown (the app's widget shows the
- * starred one) and issues a fresh "starred countdown" feed link for the app to save, so the widget
- * works even if the app never got one at sign-in. Replacing that link stops any older copy of it
- * (an earlier phone, or KWGT set up with the starred feed); per-countdown KWGT links are untouched.
+ * "Add to home screen" inside the phone app: a fresh account feed link (every countdown still to
+ * come, starred first) for the app's widget to read, so it works even if the app never got one at
+ * sign-in. Replacing that link stops any older copy of it (an earlier phone, or KWGT set up with
+ * the account feed); per-countdown KWGT links are untouched.
  */
-export async function prepareAppWidget(countdownId: string | null): Promise<{ ok: true; feedUrl: string } | Fail> {
-  const target = widgetTarget(countdownId);
-  if (!target.ok) return target;
+export async function prepareAppWidget(): Promise<{ ok: true; feedUrl: string } | Fail> {
   const { supabase, user } = await requireUser();
-  if (target.id) {
-    const { error } = await supabase.rpc("set_widget_countdown", { countdown_id: target.id });
-    if (error) {
-      console.error("prepareAppWidget star", error);
-      return { ok: false, message: "Couldn't set up the widget. Try again." };
-    }
-  }
   const issued = await issueWidgetToken(supabase, user.id, null);
   if (!issued.ok) {
-    console.error("prepareAppWidget token", issued.error);
+    console.error("prepareAppWidget", issued.error);
     return { ok: false, message: "Couldn't set up the widget. Try again." };
   }
   revalidate();

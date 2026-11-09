@@ -15,6 +15,23 @@ export type CountdownFeed = {
   remaining: Partial<Record<Unit, number>>;
   /** The owner's IANA time zone the numbers were computed in (added with per-user time zones). */
   timeZone?: string;
+  /** Every countdown still to come, starred first (the account's feed only; added for the list widget). */
+  countdowns?: FeedItem[];
+};
+
+/** One countdown as the widget shows it. */
+export type FeedItem = {
+  id?: string;
+  kind: string;
+  title: string;
+  targetAt: string;
+  targetScore: number | null;
+  maxScore: number | null;
+  actualScore: number | null;
+  starred?: boolean;
+  done: boolean;
+  units: Unit[];
+  remaining?: Partial<Record<Unit, number>>;
 };
 
 export type Unit = 'years' | 'months' | 'days' | 'hours';
@@ -43,9 +60,25 @@ export async function fetchFeed(feedUrl: string): Promise<CountdownFeed> {
     throw new FeedError('No connection.', true);
   }
   const body = (await res.json().catch(() => null)) as (CountdownFeed & { error?: string }) | null;
+  // No countdown to come: the account's feed still answers with its (empty or just-ended) list,
+  // which the widget shows as such rather than as an error.
+  if (res.status === 404 && body && body.error !== 'invalid token' && Array.isArray(body.countdowns)) {
+    return { ...EMPTY, timeZone: body.timeZone, countdowns: body.countdowns };
+  }
   if (res.status === 404) throw new FeedError(body?.error === 'invalid token' ? 'Open hidl to reconnect.' : 'Add a countdown in hidl.');
   if (!res.ok || !body || body.error) throw new FeedError("Couldn't load the countdown.");
   return body;
+}
+
+const EMPTY: CountdownFeed = {
+  kind: 'other', title: '', targetAt: '', targetScore: null, maxScore: null, actualScore: null,
+  done: true, daysLeft: 0, units: [], remaining: {},
+};
+
+/** The countdowns to show: the list when the feed has one, else the feed's single countdown. */
+export function feedItems(feed: CountdownFeed): FeedItem[] {
+  if (Array.isArray(feed.countdowns)) return feed.countdowns;
+  return feed.title ? [feed] : [];
 }
 
 export async function getFeedUrl() {
@@ -81,29 +114,42 @@ export async function cacheFeed(feed: CountdownFeed) {
 const DEFAULT_TZ = 'Africa/Addis_Ababa';
 
 /** Whether the countdown has arrived, judged by the phone's clock (not when the feed was fetched). */
-export function isDone(feed: CountdownFeed, now = Date.now()) {
-  return feed.done || new Date(feed.targetAt).getTime() <= now;
+export function isDone(item: FeedItem, now = Date.now()) {
+  return item.done || new Date(item.targetAt).getTime() <= now;
 }
 
+export type Part = { value: number; unit: Unit };
+
 /**
- * "7mo 13d", in the countdown's own units, the same split the website shows. Worked out from
- * targetAt at `now`, so it stays right between refreshes and offline; the server's `remaining`
- * is only a fallback for a feed without a usable targetAt.
+ * The time left in the countdown's own units, the same split the website shows. Worked out from
+ * targetAt at `now`, so it stays right between refreshes and offline; the server's `remaining` is
+ * only a fallback for an item without a usable targetAt.
  */
-export function remainingText(feed: CountdownFeed, now = Date.now()) {
-  if (isDone(feed, now)) return 'Done!';
-  if (!Number.isNaN(new Date(feed.targetAt).getTime())) {
+export function remainingParts(item: FeedItem, timeZone: string | undefined, now = Date.now()): Part[] {
+  if (isDone(item, now)) return [];
+  if (!Number.isNaN(new Date(item.targetAt).getTime())) {
     try {
-      return timeLeft(feed.targetAt, now, feed.units, feed.timeZone ?? DEFAULT_TZ)
-        .map((p) => `${p.value}${UNIT_SHORT[p.unit]}`)
-        .join(' ');
+      return timeLeft(item.targetAt, now, item.units, timeZone ?? DEFAULT_TZ);
     } catch {
       // An unknown time zone on an old phone: fall through to the server's numbers.
     }
   }
-  const parts = UNIT_ORDER.filter((u) => feed.remaining[u] !== undefined).map((u) => `${feed.remaining[u]}${UNIT_SHORT[u]}`);
-  return parts.length > 0 ? parts.join(' ') : `${feed.daysLeft}d`;
+  return UNIT_ORDER.filter((u) => item.remaining?.[u] !== undefined).map((u) => ({ unit: u, value: item.remaining![u]! }));
 }
+
+/** "7mo 13d". */
+export function remainingText(item: FeedItem, timeZone: string | undefined, now = Date.now()) {
+  if (isDone(item, now)) return 'Done!';
+  const parts = remainingParts(item, timeZone, now);
+  return parts.length > 0 ? parts.map((p) => `${p.value}${UNIT_SHORT[p.unit]}`).join(' ') : 'Soon';
+}
+
+export const UNIT_WORD: Record<Unit, [string, string]> = {
+  years: ['year', 'years'],
+  months: ['month', 'months'],
+  days: ['day', 'days'],
+  hours: ['hour', 'hours'],
+};
 
 export function updatedText(fetchedAt: number, now = Date.now()) {
   const minutes = Math.round((now - fetchedAt) / 60_000);
