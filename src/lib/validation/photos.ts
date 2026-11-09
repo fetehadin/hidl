@@ -8,13 +8,6 @@ export const isoDate = z
     const d = new Date(`${s}T00:00:00Z`);
     return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
   }, "Invalid date.");
-
-export const monthParam = z
-  .string()
-  .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
-  .optional()
-  .catch(undefined);
-
 export const yearParam = z.coerce.number().int().min(2000).max(2100).optional().catch(undefined);
 
 export const caption = z

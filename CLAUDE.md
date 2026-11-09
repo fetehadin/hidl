@@ -92,7 +92,8 @@ src/actions/                 Server actions: auth, letters, encryption, countdow
 src/lib/supabase/            server.ts (createClient, requireUser, requireAdmin, isAdmin), client.ts, proxy.ts, admin.ts
 src/lib/data/                Typed read queries per table
 src/lib/validation/          zod schemas used by every action and route handler (server only)
-src/lib/                     Pure helpers: time, dates, ethiopian, calendar, countdown-kinds/units, e2ee,
+src/lib/                     Pure helpers: time, dates, ethiopian, calendar, calendar-months (Gregorian or Ethiopian
+                             months for the photo calendar), names, countdown-kinds/units, e2ee,
                              key-store, image, media, memories, avatar, env, public-env, feedback, csv,
                              admin-format, user-files, profile-rules, app-lock
 src/components/              UI, grouped by feature (letters/, countdown/, calendar/, account/, ...)

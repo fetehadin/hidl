@@ -54,6 +54,8 @@ export async function requireUser() {
     user: { id: claims.sub, email: claims.email as string },
     /** Which calendar to show dates in (see src/lib/dates.ts). */
     calendar: calendarPref(metadata?.calendar),
+    /** The name the sign-in provider gave (Google's full name), if any; see src/lib/names.ts. */
+    accountName: metadata?.full_name ?? metadata?.name ?? null,
     /**
      * The user's IANA time zone, for "today" and every displayed time (see src/lib/time.ts).
      * From the cookie TimeZoneSync keeps matched to the device; DEFAULT_TZ until the first sync.

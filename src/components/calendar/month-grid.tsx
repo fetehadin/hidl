@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { WEEKDAYS, leadingBlanks, monthDays } from "@/lib/calendar";
+import { WEEKDAYS } from "@/lib/calendar";
+import type { CalendarMonth } from "@/lib/calendar-months";
 import type { PhotoView } from "@/lib/data/photos";
 import { Lightbox, UploadSheet, usePreloadPhotoTools } from "./lazy";
 import { VideoBadge } from "./video-badge";
@@ -15,7 +16,8 @@ export function MonthGrid({
   photos,
   addToday = false,
 }: {
-  month: string;
+  /** The month to draw, Gregorian or Ethiopian (src/lib/calendar-months.ts). */
+  month: CalendarMonth;
   today: string;
   photos: PhotoView[];
   /** Open the upload sheet for today right away (Hidi's camera shortcut: /calendar?add=today). */
@@ -27,7 +29,7 @@ export function MonthGrid({
   for (const p of photos) byDate.set(p.date, [...(byDate.get(p.date) ?? []), p]);
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [upload, setUpload] = useState<UploadMode | null>(null);
-  const days = monthDays(month);
+  const days = month.days;
   const [focusedIndex, setFocusedIndex] = useState(() => Math.max(0, days.indexOf(today)));
   const cellRefs = useRef<(HTMLElement | null)[]>([]);
   const returnFocusTo = useRef<HTMLElement | null>(null);
@@ -114,12 +116,12 @@ export function MonthGrid({
           ))}
         </div>
         <div role="row" className="contents">
-          {Array.from({ length: leadingBlanks(month) }, (_, i) => (
+          {Array.from({ length: month.leadingBlanks }, (_, i) => (
             <div key={`blank-${i}`} aria-hidden />
           ))}
           {days.map((date, i) => {
             const dayPhotos = byDate.get(date);
-            const day = Number(date.slice(8));
+            const day = month.dayNumbers[i];
             const isToday = date === today;
             const isFuture = date > today;
             const tabIndex = i === focusedIndex ? 0 : -1;

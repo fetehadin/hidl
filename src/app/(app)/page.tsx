@@ -18,22 +18,29 @@ import { letterSummary } from "@/lib/data/letters";
 import { addDays, photoStreak, weekOf } from "@/lib/calendar";
 import { type PhotoRow, listPhotoDates, listPhotos, signPhotos } from "@/lib/data/photos";
 import { requireUser } from "@/lib/supabase/server";
+import { getProfile } from "@/lib/data/profile";
+import { greetingName } from "@/lib/names";
+import { monthKeyOf } from "@/lib/calendar-months";
 import { daysUntil, formatInTz, greeting, nowInTz, requestNow, todayISO } from "@/lib/time";
 
 export default async function DashboardPage() {
-  const { supabase, calendar, timeZone } = await requireUser();
+  const { supabase, calendar, timeZone, accountName } = await requireUser();
   const now = requestNow();
   const today = todayISO(timeZone, new Date(now));
   const week = weekOf(today);
 
-  const [countdowns, letters, weekPhotos, recentDates] = await Promise.all([
+  const [countdowns, letters, weekPhotos, recentDates, profile] = await Promise.all([
     listCountdowns(supabase),
     letterSummary(supabase),
     listPhotos(supabase, week[0], today),
     listPhotoDates(supabase, addDays(today, -400), today),
+    getProfile(supabase),
   ]);
+  const name = greetingName(profile.displayName, accountName);
   const streak = photoStreak(recentDates, today);
-  const monthDays = new Set(recentDates.filter((d) => d.startsWith(today.slice(0, 7)))).size;
+  // "Days this month" in the calendar picked on Account (an Ethiopian month isn't November).
+  const thisMonth = monthKeyOf(calendar, today);
+  const monthDays = new Set(recentDates.filter((d) => monthKeyOf(calendar, d) === thisMonth)).size;
   const countdown = pickPrimaryCountdown(countdowns, now);
   // Every upcoming countdown, soonest first: the stat chip cycles through them, and the
   // hero lists the next few after the primary one.
@@ -61,7 +68,7 @@ export default async function DashboardPage() {
           <p className="eyebrow mb-1">
             {calendar === "ethiopian" ? formatEthiopian(new Date(now), timeZone) : formatInTz(new Date(now), "EEEE", timeZone)}
           </p>
-          <h1 className="font-title text-4xl font-medium tracking-tight sm:text-5xl">{greeting(timeZone, new Date(now))}!</h1>
+          <h1 className="font-title text-4xl font-medium tracking-tight sm:text-5xl">{greeting(timeZone, new Date(now))}{name ? `, ${name}` : ""}!</h1>
           <p className="mt-1 text-sm font-semibold text-muted">
             {formatInTz(new Date(now), calendar === "ethiopian" ? "EEEE, MMMM d" : "MMMM d, yyyy", timeZone)}
           </p>
@@ -72,7 +79,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <WeekStrip days={week} today={today} covers={weekCovers} />
+      <WeekStrip days={week} today={today} covers={weekCovers} calendar={calendar} />
 
       {/* Micro-dashboard: always the same three stats, in the same places. */}
       <ul className="mb-5 grid grid-cols-3 gap-2.5 sm:gap-4" aria-label="Your stats">

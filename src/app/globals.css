@@ -201,7 +201,7 @@
     font-style: italic;
     font-weight: 400;
     letter-spacing: 0;
-    color: color-mix(in oklab, var(--muted) 78%, transparent);
+    color: color-mix(in oklab, var(--muted) 60%, transparent);
     opacity: 1;
   }
 
@@ -309,7 +309,7 @@
   /* Placeholders are examples, not answers: italic, regular weight and fainter than typed text,
      everywhere (not only .field), so nobody mistakes one for something already filled in. */
   .field::placeholder {
-    color: color-mix(in oklab, var(--muted) 78%, transparent);
+    color: color-mix(in oklab, var(--muted) 60%, transparent);
   }
   .field:focus {
     outline: none;
