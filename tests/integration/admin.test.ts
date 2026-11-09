@@ -8,7 +8,8 @@ describe("admin panel", () => {
   let me: TestUser;
   beforeAll(async () => {
     [boss, me] = await Promise.all([createTestUser(), createTestUser()]);
-    const { error } = await admin.from("admins").insert({ user_id: boss.id });
+    // A super admin: the account actions and admin changes below need one (..._super_admin.sql).
+    const { error } = await admin.from("admins").insert({ user_id: boss.id, role: "super" });
     if (error) throw error;
   });
   afterAll(async () => {
@@ -48,6 +49,7 @@ describe("admin panel", () => {
       ["admin_feedback", {}],
       ["admin_update_feedback", { p_id: me.id, p_status: "resolved" }],
       ["admin_set_admin", { p_user: me.id, p_admin: true }],
+      ["admin_set_role", { p_user: me.id, p_role: "admin" }],
       ["admin_audit_log", {}],
       ["admin_log", { p_action: "user.delete" }],
     ];
@@ -56,6 +58,8 @@ describe("admin panel", () => {
       expect(error?.code, fn).toBe("42501");
     }
     expect((await me.client.rpc("is_admin")).data).toBe(false);
+    expect((await me.client.rpc("my_admin_role")).data).toBeNull();
+    expect((await anon().rpc("my_admin_role")).error?.code).toBe("42501");
   });
 
   it("lists and searches accounts with counts, never content", async () => {
@@ -86,6 +90,56 @@ describe("admin panel", () => {
     const log = await getAuditLog(boss.client, { target: me.id });
     expect(log.map((a) => a.action)).toEqual(["admin.revoke", "admin.grant"]);
     expect(log[0]).toMatchObject({ admin_email: boss.email, target_email: me.email });
+  });
+
+  it("regular admins see everything but can't act on accounts or admins; super admins can", async () => {
+    const helper = await createTestUser();
+    const target = await createTestUser();
+    try {
+      expect((await admin.from("admins").insert({ user_id: helper.id })).error).toBeNull(); // default role: admin
+      expect((await helper.client.rpc("my_admin_role")).data).toBe("admin");
+      expect((await boss.client.rpc("my_admin_role")).data).toBe("super");
+
+      // Reading and feedback work for a regular admin...
+      for (const fn of ["admin_stats", "admin_users", "admin_feedback", "admin_audit_log"]) {
+        expect((await helper.client.rpc(fn, {})).error, fn).toBeNull();
+      }
+      expect((await helper.client.rpc("admin_log", { p_action: "feedback.reply", p_target: target.id })).error).toBeNull();
+      // ...account actions and admin changes don't (the app logs before calling the Auth API).
+      for (const action of ["user.suspend", "user.unsuspend", "user.delete"]) {
+        expect((await helper.client.rpc("admin_log", { p_action: action, p_target: target.id })).error?.code, action).toBe("42501");
+      }
+      expect((await helper.client.rpc("admin_set_role", { p_user: target.id, p_role: "admin" })).error?.code).toBe("42501");
+      expect((await helper.client.rpc("admin_set_admin", { p_user: target.id, p_admin: true })).error?.code).toBe("42501");
+      expect((await helper.client.rpc("admin_set_role", { p_user: boss.id, p_role: null })).error?.code).toBe("42501");
+
+      // A super admin grants, promotes, demotes and removes, each logged with the roles.
+      expect((await boss.client.rpc("admin_set_role", { p_user: target.id, p_role: "admin" })).error).toBeNull();
+      expect((await boss.client.rpc("admin_set_role", { p_user: target.id, p_role: "super" })).error).toBeNull();
+      expect((await target.client.rpc("my_admin_role")).data).toBe("super");
+      expect((await boss.client.rpc("admin_set_role", { p_user: target.id, p_role: "admin" })).error).toBeNull();
+      expect((await getUserDetail(boss.client, target.id))?.admin_role).toBe("admin");
+      expect((await boss.client.rpc("admin_set_role", { p_user: target.id, p_role: null })).error).toBeNull();
+      expect((await target.client.rpc("my_admin_role")).data).toBeNull();
+      const log = await getAuditLog(boss.client, { target: target.id });
+      expect(log.map((a) => [a.action, a.details])).toEqual([
+        ["admin.revoke", { role: "admin" }],
+        ["admin.role", { from: "super", to: "admin" }],
+        ["admin.role", { from: "admin", to: "super" }],
+        ["admin.grant", { role: "admin" }],
+        ["feedback.reply", {}],
+      ]);
+
+      // Nobody changes their own role (so there's always a super admin), and roles are checked.
+      expect((await boss.client.rpc("admin_set_role", { p_user: boss.id, p_role: "admin" })).error?.code).toBe("22023");
+      expect((await boss.client.rpc("admin_set_role", { p_user: target.id, p_role: "owner" })).error?.code).toBe("22023");
+      // The old switch never lowers a super admin.
+      expect((await boss.client.rpc("admin_set_role", { p_user: helper.id, p_role: "super" })).error).toBeNull();
+      expect((await boss.client.rpc("admin_set_admin", { p_user: helper.id, p_admin: true })).error).toBeNull();
+      expect((await helper.client.rpc("my_admin_role")).data).toBe("super");
+    } finally {
+      await Promise.all([deleteTestUser(helper), deleteTestUser(target)]);
+    }
   });
 
   it("audit entries outlive the account they name", async () => {

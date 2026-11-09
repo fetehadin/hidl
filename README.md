@@ -146,6 +146,7 @@ Fill `.env.local` from the `db:status` output:
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` |
 | `ALLOWED_EMAIL` | the email you'll sign in with (comma-separate several, e.g. `a@x.com,b@y.com`, or `*` to let anyone sign up) |
 | `ADMIN_EMAIL` | optional: emails that become admins when they sign in (see "Admin panel") |
+| `SUPER_ADMIN_EMAIL` | optional: emails that become super admins when they sign in (see "Admin panel") |
 | `NEXT_PUBLIC_POSTHOG_KEY` | optional: PostHog project token (public, write-only); unset turns analytics off. Production: a GitHub repository variable, since it's inlined at build time |
 | `NEXT_PUBLIC_POSTHOG_HOST` | optional: PostHog ingestion host, default `https://us.i.posthog.com` (EU: `https://eu.i.posthog.com`) |
 | `POSTHOG_PERSONAL_API_KEY` | optional, server only: a PostHog personal API key with the `query:read` scope, for the admin Analytics tab |
@@ -238,12 +239,16 @@ Without `ADMIN_EMAIL`, admins are listed in the `public.admins` table. Add the f
 SQL editor (locally, Studio at http://127.0.0.1:54323), after that person has signed in once:
 
 ```sql
-insert into public.admins (user_id)
-select id from auth.users where email = 'you@example.com';
+insert into public.admins (user_id, role)
+select id, 'super' from auth.users where email = 'you@example.com';
 ```
 
-They'll see **Admin** in the side nav (and on Account on a phone). From there, admins can make other people admins
-on a user's page. Nobody can remove their own admin access, so there's always at least one.
+They'll see **Admin** in the side nav (and on Account on a phone).
+
+**Two levels.** Regular admins (`ADMIN_EMAIL`) see the numbers, analytics, accounts and audit log, and answer feedback.
+Super admins (`SUPER_ADMIN_EMAIL`) can also suspend, unsuspend and delete accounts and give, change or take away
+admin access, from a user's page. The database enforces this, not just the buttons. Nobody can change their own
+role, so there's always at least one super admin; a listed address is raised to its role on each visit, never lowered.
 
 ### Optional: email on unlock day
 

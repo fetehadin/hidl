@@ -121,7 +121,7 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `leaderboard_releases`, `leaderboard_results` | `(period, period_start)`, `rank`, `streak`, `photo_days` | No grants. A finished week/month is snapshotted by `leaderboard(p, true)` the first time anyone asks for it. |
 | `usage_daily` | `day`, `user_id`, `visits` | No grants at all. Written only by `record_visit()`, read only through `admin_stats()` / `admin_user_detail()` (admins). |
 | `feedback` | `kind`, `message`, `page`, `user_agent`, `status`, `reply`, `replied_at` | Users insert (`kind`, `message`, `page`, `user_agent` only) and read their own (not `user_agent`); no update/delete. Status and reply only via `admin_update_feedback`. 10 per person per day (trigger, `53400`). Kinds/statuses mirrored in `src/lib/feedback.ts`. |
-| `admins` | `user_id` (PK), `added_by` | No grants. `is_admin()` answers for the caller; changed only by `admin_set_admin` (can't remove yourself). First admin: an address in `ADMIN_EMAIL` is added on its next visit (`isAdmin(supabase, user)`), or insert by hand (README). |
+| `admins` | `user_id` (PK), `added_by`, `role` (`admin` or `super`) | No grants. `is_admin()` / `my_admin_role()` answer for the caller. Regular admins read and answer feedback; only `super` may suspend, unsuspend or delete accounts (refused in `admin_log`) and change admins (`admin_set_role`; nobody changes their own role, so a super admin always remains). First admins: `SUPER_ADMIN_EMAIL` / `ADMIN_EMAIL` addresses get that role on their next visit (`getAdminRole`, raised never lowered), or insert by hand (README). |
 | `admin_audit` | `admin_email`, `action`, `target_user`, `target_email`, `details` | No grants and **no FK cascade**: entries outlive both accounts. Written by `admin_log()`, read by `admin_audit_log()`. |
 | `app_handoffs` | `code_hash` (PK), `user_id`, `expires_at`, `used_at` | No grants. SHA-256 of the one-time "sign in on the phone app" code; 10 min, single use, a new code retires the old, 10 an hour. Made by `create_app_handoff()` (as the user), spent by `redeem_app_handoff()` (service role only). |
 | `user_settings` | `user_id` (PK), `time_zone` | The device's IANA zone, checked by `time_zone_ok()`. No row = Africa/Addis_Ababa. Written only by `setTimeZone`. |
@@ -189,7 +189,8 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   `timeLeft()` in `src/lib/countdown-units.ts` is also copied to `mobile/src/countdown-units.ts` (the widget counts
   on the phone): change both.
 - **Admin features:** every admin read/write is a `SECURITY DEFINER` `admin_*` function that starts with
-  `perform public.assert_admin()`; pages call `requireAdmin()` (a 404 for non-admins). Anything that needs the
+  `perform public.assert_admin()` (plus `assert_super_admin()` for anything that changes accounts or admins); pages
+  call `requireAdmin()` (a 404 for non-admins; it returns the caller's `role`). Anything that needs the
   service-role client (suspend, delete) calls `admin_log` *first*, so the database refuses non-admins before the
   admin client is touched. Admins see counts, never letter bodies, photos or captions: keep it that way.
 - **Client components must not import zod** or anything that does (`src/lib/validation/*`, `src/lib/env.ts`). Use

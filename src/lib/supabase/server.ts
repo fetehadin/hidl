@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { calendarPref } from "@/lib/dates";
-import { isAdminEmail, isAllowedEmail, publicEnv } from "@/lib/env";
+import { isAdminEmail, isSuperAdminEmail, isAllowedEmail, publicEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TZ_COOKIE, resolveTimeZone } from "@/lib/time";
 
@@ -69,36 +69,53 @@ export async function requireUser() {
  */
 export async function requireAdmin() {
   const ctx = await requireUser();
-  if (!(await isAdmin(ctx.supabase, ctx.user))) notFound();
-  return ctx;
+  const role = await getAdminRole(ctx.supabase, ctx.user);
+  if (!role) notFound();
+  return { ...ctx, role };
 }
 
-/**
- * Whether the signed-in user is an admin. False on any error (fails closed).
- *
- * Pass `user` to also honor ADMIN_EMAIL: an address on that list is added to public.admins the
- * first time it asks (the email on a session is already verified by the code or Google), so the
- * first admin needs no SQL. The database stays the single source of truth for who is an admin.
- */
+export type AdminRole = "admin" | "super";
+
+/** Whether the signed-in user is an admin (of either level). False on any error (fails closed). */
 export async function isAdmin(
   supabase: Awaited<ReturnType<typeof createClient>>,
   user?: { id: string; email: string },
 ) {
-  const { data, error } = await supabase.rpc("is_admin");
-  if (error) {
-    console.error("isAdmin", error);
-    return false;
-  }
-  if (data === true) return true;
-  if (!user || !isAdminEmail(user.email)) return false;
+  return (await getAdminRole(supabase, user)) !== null;
+}
 
-  // Service role: admins has no grants for anyone else. Only reached for addresses on the list.
-  const { error: grantError } = await createAdminClient()
-    .from("admins")
-    .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true });
-  if (grantError) {
-    console.error("isAdmin: granting ADMIN_EMAIL", grantError);
-    return false;
+/**
+ * The signed-in user's admin role: "super", "admin", or null. Null on any error (fails closed).
+ *
+ * Pass `user` to also honor SUPER_ADMIN_EMAIL and ADMIN_EMAIL: an address on one of those lists is
+ * given that role in public.admins the first time it asks (raised, never lowered; the email on a
+ * session is already verified by the code or Google), so the first admins need no SQL. The
+ * database stays the single source of truth for who is an admin and at what level.
+ */
+export async function getAdminRole(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  user?: { id: string; email: string },
+): Promise<AdminRole | null> {
+  const { data, error } = await supabase.rpc("my_admin_role");
+  if (error) {
+    console.error("getAdminRole", error);
+    return null;
   }
-  return true;
+  const role = data === "super" || data === "admin" ? (data as AdminRole) : null;
+  if (role === "super" || !user) return role;
+
+  const wanted: AdminRole | null = isSuperAdminEmail(user.email) ? "super" : isAdminEmail(user.email) ? "admin" : null;
+  if (!wanted || wanted === role) return role;
+
+  // Service role: admins has no grants for anyone else. Only reached for addresses on the lists.
+  // Update first, then insert (no .upsert(), which would also lower a role it shouldn't touch).
+  const admin = createAdminClient();
+  const { data: updated, error: updateError } = await admin.from("admins").update({ role: wanted }).eq("user_id", user.id).select("user_id");
+  const { error: grantError } =
+    updateError || (updated && updated.length > 0) ? { error: updateError } : await admin.from("admins").insert({ user_id: user.id, role: wanted });
+  if (grantError) {
+    console.error("getAdminRole: granting from the email list", grantError);
+    return role;
+  }
+  return wanted;
 }

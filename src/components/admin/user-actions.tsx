@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { deleteUser, setUserAdmin, suspendUser, unsuspendUser } from "@/actions/admin";
+import { deleteUser, setAdminRole, suspendUser, unsuspendUser } from "@/actions/admin";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Pending = null | "suspend" | "admin" | "delete";
@@ -14,18 +14,32 @@ const DURATIONS = [
   { value: "forever", label: "Until I lift it" },
 ] as const;
 
-/** Suspend / lift, admin access, delete. Admins must lose admin access before the first and last. */
+type Role = "admin" | "super";
+
+const ROLE_NAME: Record<Role, string> = { admin: "an admin", super: "a super admin" };
+
+/**
+ * Suspend / lift, admin access (none, admin, super admin), delete: shown to super admins only.
+ * Admins must lose admin access before they can be suspended or deleted.
+ */
 export function UserActions({
   userId,
   email,
-  isAdmin,
+  role,
   suspended,
 }: {
   userId: string;
   email: string;
-  isAdmin: boolean;
+  role: Role | null;
   suspended: boolean;
 }) {
+  const isAdmin = role !== null;
+  // The admin level the open dialog would set (null = take admin access away).
+  const [nextRole, setNextRole] = useState<Role | null>(null);
+  function askRole(r: Role | null) {
+    setNextRole(r);
+    setDialog("admin");
+  }
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [dialog, setDialog] = useState<Pending>(null);
@@ -75,12 +89,30 @@ export function UserActions({
         <div>
           <p className="font-semibold">Admin access</p>
           <p className="text-sm text-ink-soft">
-            {isAdmin ? "They can open this panel and manage every account." : "Lets them open this panel and manage every account."}
+            {role === "super"
+              ? "Super admin: sees everything here and manages accounts and admins."
+              : role === "admin"
+                ? "Admin: sees the numbers and feedback, can't change accounts."
+                : "Not an admin."}
           </p>
         </div>
-        <button type="button" className="btn btn-ghost shrink-0" disabled={isPending} onClick={() => setDialog("admin")}>
-          {isAdmin ? "Remove admin" : "Make admin"}
-        </button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {role !== "admin" && (
+            <button type="button" className="btn btn-ghost" disabled={isPending} onClick={() => askRole("admin")}>
+              {role === "super" ? "Make regular admin" : "Make admin"}
+            </button>
+          )}
+          {role !== "super" && (
+            <button type="button" className="btn btn-ghost" disabled={isPending} onClick={() => askRole("super")}>
+              Make super admin
+            </button>
+          )}
+          {isAdmin && (
+            <button type="button" className="btn btn-ghost" disabled={isPending} onClick={() => askRole(null)}>
+              Remove admin
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col gap-2 border-t-2 border-mint pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -125,17 +157,22 @@ export function UserActions({
 
       <ConfirmDialog
         open={dialog === "admin"}
-        title={isAdmin ? `Remove ${email}'s admin access?` : `Make ${email} an admin?`}
-        confirmLabel={isAdmin ? "Remove admin" : "Make admin"}
-        tone={isAdmin ? "danger" : "primary"}
+        title={nextRole ? `Make ${email} ${ROLE_NAME[nextRole]}?` : `Remove ${email}'s admin access?`}
+        confirmLabel={nextRole === "super" ? "Make super admin" : nextRole === "admin" ? "Make admin" : "Remove admin"}
+        tone={nextRole === "super" || nextRole === null ? "danger" : "primary"}
         pending={isPending}
         onCancel={() => setDialog(null)}
-        onConfirm={() => run(() => setUserAdmin(userId, !isAdmin), isAdmin ? "Admin access removed." : "They're an admin now.")}
+        onConfirm={() =>
+          run(() => setAdminRole(userId, nextRole), nextRole ? `They're ${ROLE_NAME[nextRole]} now.` : "Admin access removed.")
+        }
       >
         <p>
-          {isAdmin
-            ? "They'll lose access to this panel straight away."
-            : "They'll see everyone's account list and feedback, and can suspend or delete accounts. They still can't read anyone's letters or see photos."}
+          {nextRole === "super"
+            ? "They'll be able to suspend and delete accounts and give or take admin access, including yours."
+            : nextRole === "admin"
+              ? "They'll see the account list, numbers and feedback, but can't suspend, delete or change admins."
+              : "They'll lose access to this panel straight away."}{" "}
+          Nobody can read letters or see photos from here.
         </p>
       </ConfirmDialog>
 
