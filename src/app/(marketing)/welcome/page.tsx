@@ -177,6 +177,11 @@ export default function WelcomePage() {
                 Delete your account and everything in it, for good, from one button. No email to send, no waiting.
               </Point>
             </ul>
+            <p className="mt-6">
+              <Link href="/privacy" className="font-semibold text-accent hover:underline">
+                Read the full privacy policy
+              </Link>
+            </p>
           </div>
         </div>
       </section>

@@ -84,7 +84,7 @@ src/app/(app)/               Signed-in pages: dashboard, letters, countdown, cal
                              leaderboard
 src/app/(app)/admin/         Admin panel: overview, analytics, users (+[id], export), feedback, audit, system
 src/app/(auth)/login/        Sign-in (magic link, optional Google, optional Turnstile)
-src/app/(marketing)/         Public /welcome and /install (the only indexable pages); /stats redirects to /admin
+src/app/(marketing)/         Public /welcome, /install and /privacy (the only indexable pages); /stats redirects to /admin
 src/app/auth/confirm/        Magic-link / OAuth callback
 src/app/api/cron/            Daily unlock-email job (Bearer CRON_SECRET, off unless ENABLE_UNLOCK_EMAILS=true)
 src/app/api/widget/          Public countdown JSON feed, authenticated by a per-feed token
@@ -233,7 +233,7 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
 ## 7. Gotchas
 
 - **Public routes are allowlisted by name in two places.** Static files are skipped in the `src/proxy.ts` matcher;
-  public paths (`PUBLIC_PATHS` incl. `/download`, `/api/cron`, `/api/widget`, `/api/health`, `/api/app`) are skipped in `updateSession`. Anything new and public
+  public paths (`PUBLIC_PATHS` incl. `/privacy`, `/download`, `/api/cron`, `/api/widget`, `/api/health`, `/api/app`) are skipped in `updateSession`. Anything new and public
   that isn't added gets a 307 to `/login`. This has happened twice.
 - **Don't use `.upsert()` on column-restricted tables** (`widget_tokens`, `letters`). `ON CONFLICT` needs table-wide
   `SELECT`. Update first, then insert.
