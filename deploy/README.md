@@ -29,8 +29,12 @@ address (`https://<HIDL_DOMAIN>`), and the same URL must be in Supabase's Auth �
 
 Ports 80/443 belong to the tajstore Caddy (`/opt/tajstore/Caddyfile`), which also serves redart and voxlace. hidl
 has a `hidl.fetehadin.com` block there pointing at `hidl-web:3000`, and `/opt/hidl/docker-compose.override.yml`
-(server-only, not in the repo) joins the `web` container to the `tajstore_default` network under that alias.
-After editing that Caddyfile: `docker exec tajstore-caddy-1 caddy reload --config /etc/caddy/Caddyfile`.
+(server-only, not in the repo) joins the `web` container to the `tajstore_default` network under that alias,
+and the `garage` container (photo files) as `hidl-garage`, which a `media.fetehadin.com` block in the same
+Caddyfile points at. After editing that Caddyfile: `docker exec tajstore-caddy-1 caddy reload --config /etc/caddy/Caddyfile`.
+
+Photo and video files, their disk, backups and alerts: see [docs/storage.md](../docs/storage.md)
+(`deploy/media/` is copied to `/opt/hidl/media/`).
 
 ## GitHub settings (Settings → Secrets and variables → Actions)
 

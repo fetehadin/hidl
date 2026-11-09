@@ -1,0 +1,10 @@
+{
+  "name": "hidl-media-tools",
+  "private": true,
+  "description": "Server-side tools for hidl's photo store (docs/storage.md). Run through ../run-tool.sh.",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1164.0",
+    "@supabase/supabase-js": "2.118.0"
+  }
+}

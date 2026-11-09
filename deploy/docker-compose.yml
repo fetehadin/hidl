@@ -29,6 +29,27 @@ services:
         echo "0 5 * * * curl -fsS -H 'Authorization: Bearer $$CRON_SECRET' http://web:3000/api/cron/unlock-emails" | crontab -
         exec crond -f -l 6
 
+  # Photo and video files: Garage, a small S3-compatible store (docs/storage.md). Only with
+  # COMPOSE_PROFILES=media in .env, after deploy/media/setup-disk.sh made its own 40 GB disk.
+  # The data folders must already exist on that disk: if it isn't mounted, Garage refuses to start
+  # instead of quietly filling the server's main disk.
+  garage:
+    profiles: ["media"]
+    image: dxflrs/garage:v2.4.1
+    restart: unless-stopped
+    # Localhost only, for the nightly backup (rclone). Browsers reach it through the reverse proxy.
+    ports: ["127.0.0.1:3900:3900"]
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - type: bind
+        source: /srv/hidl-media/meta
+        target: /var/lib/garage/meta
+        bind: { create_host_path: false }
+      - type: bind
+        source: /srv/hidl-media/data
+        target: /var/lib/garage/data
+        bind: { create_host_path: false }
+
   caddy:
     profiles: ["edge"]
     image: caddy:2-alpine

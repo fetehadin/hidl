@@ -2,7 +2,7 @@
 // `avatars` bucket, then the bucket. Storage refuses deletes straight from its tables, so this
 // goes through the Storage API with the secret key.
 //
-//   SUPABASE_URL=https://<ref>.supabase.co SUPABASE_SECRET_KEY=... node scripts/media/remove-avatars-bucket.mjs [--yes]
+//   deploy/media/run-tool.sh remove-avatars-bucket.mjs [--yes]     (on the server, see docs/storage.md)
 //
 // Without --yes it only lists what it would delete.
 import { createClient } from "@supabase/supabase-js";
