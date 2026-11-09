@@ -35,7 +35,7 @@ README's "How the important rules are enforced" table (every hard rule and the P
 
 Who it's for: one person or a short allowlist (`ALLOWED_EMAIL=a@x.com,b@y.com`), or anyone (`ALLOWED_EMAIL=*`).
 Every account's data is isolated by Postgres RLS either way. It runs on a Contabo VPS (Docker) with free tiers for the rest
-(Supabase free, Gmail SMTP for sign-in emails, optional Resend).
+(Supabase free, Resend for all email: sign-in codes through Supabase SMTP, and the unlock emails).
 
 ## 2. Tech stack
 
@@ -50,7 +50,7 @@ Every account's data is isolated by Postgres RLS either way. It runs on a Contab
 | Tests | Vitest, two projects: `unit` and `integration` | `vitest` ^5.0.5 |
 | Lint | ESLint 9 flat config, `eslint-config-next` core-web-vitals + typescript | |
 | Tooling | pnpm (pinned via `packageManager`), Node 22 in CI, Supabase CLI (dev dep) | `pnpm` 10.34.6 |
-| Hosting | Docker on a Contabo VPS behind Caddy (`hidl.fetehadin.com`), Supabase, Gmail SMTP, Resend for optional emails | |
+| Hosting | Docker on a Contabo VPS behind Caddy (`hidl.fetehadin.com`), Supabase, Resend (sending domain `hidl.fetehadin.com`) | |
 
 ## 3. Architecture
 

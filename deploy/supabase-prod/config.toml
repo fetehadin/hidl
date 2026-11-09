@@ -200,8 +200,9 @@ password_requirements = ""
 # rp_origins = ["http://127.0.0.1:3000"]
 
 [auth.rate_limit]
-# Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
-email_sent = 30
+# Number of emails that can be sent per hour (all users together). Requires auth.email.smtp.
+# 30 turned people away at busy moments; Resend's free plan allows 100 a day, 3,000 a month.
+email_sent = 100
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
@@ -238,22 +239,24 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Sign-in emails go out through the hidl support Gmail. Without custom SMTP, Supabase only
-# emails members of the project's team, a few times an hour, so nobody else could sign up.
-# SMTP_PASS is a Google app password for that account (needs 2-Step Verification), never the
-# account password. Gmail allows about 500 emails a day.
+# Sign-in emails go out through Resend (an email service built for app mail: delivered in seconds,
+# DKIM/SPF-signed for hidl.fetehadin.com so they land in the inbox, with delivery logs at
+# resend.com/emails). Gmail SMTP was slow, throttled and often filtered. Without custom SMTP,
+# Supabase only emails members of the project's team, a few times an hour.
+# SMTP_PASS is the Resend API key (in ~/.config/hidl/prod.env, never committed). The sender must
+# be on a domain verified in Resend (hidl.fetehadin.com: Resend → Domains).
 [auth.email.smtp]
 enabled = true
-host = "smtp.gmail.com"
-port = 587
-user = "hidlsupport@gmail.com"
+host = "smtp.resend.com"
+port = 465
+user = "resend"
 pass = "env(SMTP_PASS)"
-admin_email = "hidlsupport@gmail.com"
+admin_email = "hello@hidl.fetehadin.com"
 sender_name = "hidl"
 
 # token_hash links (see src/app/auth/confirm/route.ts) work across browsers, unlike PKCE codes.
 [auth.email.template.magic_link]
-subject = "Your hidl sign-in link"
+subject = "Your hidl sign-in code"
 content_path = "./supabase/templates/magic_link.html"
 
 [auth.email.template.confirmation]
