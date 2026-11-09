@@ -22,7 +22,12 @@ website, because they come from the same place. Native screens can replace web o
      and photo uploads can use the camera.
    - **Offline:** the app shows its own offline screen.
    - **Signing out:** signing out on the site brings back the native sign-in screen and unhooks the widget.
-3. **Widget (`src/widget/`):** it always shows the account's starred countdown. Right after sign-in the app asks `/api/app/widget` for the account's countdown feed,
+3. **Widget (`src/widget/`):** one widget shows every countdown still to come (the account feed's `countdowns` list,
+   starred first), as a list you scroll; a single countdown gets a big hero card. Teal gradient or Graphite, following
+   the app's theme, with Hidi (`src/widget/hidi.ts`). The app redraws it when you leave the app or save a countdown,
+   and tells the page how many widgets are really placed (`getWidgetInfo`), so it never claims one that was removed.
+   Widgets are built from the library's primitives only: no React Native views and **no fragments (`<>…</>`)**, which
+   the library can't convert (the widget fails to draw). Right after sign-in the app asks `/api/app/widget` for the account's countdown feed,
    so nobody copies links or answers questions; this phone's widget replaces an older link (e.g. KWGT). Android
    redraws the widget every 30 minutes, headless. The time left is worked out on the phone from the countdown's date
    (`src/countdown-units.ts`, a copy of the website's), so it stays right offline and between refreshes.

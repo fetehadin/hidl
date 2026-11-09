@@ -8,7 +8,7 @@ import { renderCountdownWidget } from './task-handler';
 /** Re-render every hidl widget already on the home screen with what's saved now. */
 export async function refreshWidgets() {
   if (Platform.OS !== 'android') return;
-  await requestWidgetUpdate({ widgetName: WIDGET_NAME, renderWidget: () => renderCountdownWidget() }).catch(() => {});
+  await requestWidgetUpdate({ widgetName: WIDGET_NAME, renderWidget: (info) => renderCountdownWidget(info) }).catch(() => {});
 }
 
 async function save(feedUrl: string) {

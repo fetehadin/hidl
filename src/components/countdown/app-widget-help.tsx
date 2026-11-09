@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { prepareAppWidget } from "@/actions/countdowns";
+import { Mascot } from "@/components/mascot";
 import { useDevice } from "@/components/use-device";
 import { ANDROID_APP_PATH } from "@/lib/android-app";
 
 // What the phone app tells this page (WebShell.tsx in mobile/): `window.hidlApp` before the page
-// loads, and a "hidl-app" event with the answer to a request.
-type HidlApp = { pinWidget?: boolean };
-type PinResult = { type: "pin-widget"; ok: boolean; supported: boolean };
+// loads, then "hidl-app" events: how many hidl widgets are on the home screen, and pin answers.
+type HidlApp = { pinWidget?: boolean; widgets?: number | null };
+type AppEvent = { type: "pin-widget"; ok: boolean; supported: boolean } | { type: "widgets"; count: number };
 
 declare global {
   interface Window {
@@ -17,26 +18,30 @@ declare global {
   }
 }
 
-const noSubscribe = () => () => {};
+function subscribeApp(onChange: () => void) {
+  window.addEventListener("hidl-app", onChange);
+  return () => window.removeEventListener("hidl-app", onChange);
+}
 const appCanPin = () => Boolean(window.hidlApp?.pinWidget && window.ReactNativeWebView);
+// null until the app has looked (older app versions never do).
+const placedWidgets = () => window.hidlApp?.widgets ?? null;
 
 /**
- * The easy way to a home-screen widget: the hidl Android app, whose widget shows the starred
- * countdown. Inside the app it's one tap, like Duolingo's: star this countdown, hand the app a
- * fresh feed link, and Android asks "Add to Home screen?". Feed tokens for KWGT stay underneath,
- * as the advanced route (WidgetToken).
+ * The easy way to a home-screen widget: the hidl Android app's widget, which shows every
+ * countdown still to come (scroll through them; new ones appear by themselves). Inside the app
+ * it's one tap; Android then asks "Add to Home screen?". Elsewhere it points to the app.
  */
-export function AppWidgetHelp({ title, countdownId }: { title?: string; countdownId?: string }) {
+export function AppWidgetHelp({ title }: { title?: string }) {
   const device = useDevice();
-  // Set by the app before the page's own scripts run, so it never changes afterwards.
-  const canPin = useSyncExternalStore(noSubscribe, appCanPin, () => false);
+  const canPin = useSyncExternalStore(subscribeApp, appCanPin, () => false);
+  const widgets = useSyncExternalStore(subscribeApp, placedWidgets, () => null);
   const [status, setStatus] = useState<"idle" | "asked" | "manual" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   useEffect(() => {
     function onAnswer(e: Event) {
-      const detail = (e as CustomEvent<PinResult>).detail;
+      const detail = (e as CustomEvent<AppEvent>).detail;
       if (detail?.type !== "pin-widget") return;
       if (!detail.ok) {
         setStatus("error");
@@ -50,25 +55,25 @@ export function AppWidgetHelp({ title, countdownId }: { title?: string; countdow
   if (device === null) return null;
 
   const manualSteps = (
-    <p className="mt-1">
-      Press and hold an empty spot on your home screen, tap <strong>Widgets</strong>, find <strong>hidl</strong>, and drag{" "}
-      <strong>hidl countdown</strong> onto the screen.
+    <p className="mt-1 text-ink-soft">
+      Press and hold your home screen, tap <strong>Widgets</strong>, and drag <strong>hidl</strong> onto the screen.
     </p>
   );
 
   if (device === "app") {
     if (!canPin) {
       return (
-        <div className="rounded-2xl bg-mint p-4 text-ink-soft">
-          <p className="font-semibold text-heading">Add it from your home screen</p>
+        <div className="space-y-3">
+          <WidgetPreview title={title} />
           {manualSteps}
         </div>
       );
     }
+
     function pin() {
       setMessage(null);
       start(async () => {
-        const res = await prepareAppWidget(countdownId ?? null);
+        const res = await prepareAppWidget();
         if (!res.ok) {
           setStatus("error");
           setMessage(res.message);
@@ -80,28 +85,29 @@ export function AppWidgetHelp({ title, countdownId }: { title?: string; countdow
         );
       });
     }
+
+    const placed = widgets !== null && widgets > 0;
     return (
-      <div className="rounded-2xl bg-mint p-4 text-ink-soft">
+      <div className="space-y-4">
+        <WidgetPreview title={title} />
         {status === "asked" ? (
-          <>
-            <p className="font-semibold text-heading">Tap Add on the box that just opened</p>
-            <p className="mt-1">{title ? <><strong>{title}</strong> will be on your home screen.</> : "Your countdown will be on your home screen."}</p>
-          </>
+          <p className="text-center font-semibold text-heading">Tap Add on the box that just opened.</p>
         ) : status === "manual" ? (
-          <>
+          <div>
             <p className="font-semibold text-heading">Almost there</p>
-            <p className="mt-1">Your home screen doesn&apos;t accept widgets from apps, so add it yourself:</p>
             {manualSteps}
-          </>
+          </div>
+        ) : placed ? (
+          <p className="flex items-center justify-center gap-2 rounded-control bg-mint px-3 py-3 font-semibold text-heading">
+            <span aria-hidden>✓</span> It&apos;s on your home screen
+          </p>
         ) : (
           <>
-            <p className="font-semibold text-heading">{title ? `Keep ${title} on your home screen` : "Keep it on your home screen"}</p>
-            <p className="mt-1">One tap, and it counts down right there.</p>
-            <button type="button" onClick={pin} disabled={pending} className="btn btn-primary mt-3 w-full">
+            <button type="button" onClick={pin} disabled={pending} className="btn btn-primary min-h-12 w-full text-base">
               {pending ? "Setting it up…" : "Add to home screen"}
             </button>
             {message && (
-              <p role="alert" className="mt-2 text-sm text-wax">
+              <p role="alert" className="text-center text-sm text-wax">
                 {message}
               </p>
             )}
@@ -114,25 +120,51 @@ export function AppWidgetHelp({ title, countdownId }: { title?: string; countdow
   if (device === "iphone") {
     return (
       <p className="rounded-2xl bg-mint p-4 text-ink-soft">
-        Home-screen widgets need the hidl app, which is Android-only for now. On iPhone, keep hidl on your home screen as a
-        web app and your countdowns are one tap away.
+        Home-screen widgets need the hidl app, which is Android-only for now.
       </p>
     );
   }
 
   return (
-    <div className="rounded-2xl bg-mint p-4 text-ink-soft">
-      <p className="font-semibold text-heading">Get the hidl app for Android</p>
-      <p className="mt-1">Sign in there, open this countdown, and tap <strong>Add to home screen</strong>.</p>
+    <div className="space-y-4">
+      <WidgetPreview title={title} />
       {device === "android" ? (
-        <a href={ANDROID_APP_PATH} className="btn btn-primary mt-3 min-h-11" download>
-          Download the Android app
+        <a href={ANDROID_APP_PATH} className="btn btn-primary min-h-12 w-full text-base" download>
+          Get the hidl app
         </a>
       ) : (
-        <p className="mt-2 text-sm">
-          Open this page on your Android phone to download it, or go to <strong>/install</strong> there.
-        </p>
+        <p className="text-center text-sm text-ink-soft">Open hidl on your Android phone to get the app.</p>
       )}
+    </div>
+  );
+}
+
+/**
+ * A small picture of the widget, so the dialog shows what you get instead of explaining it.
+ * Colors follow mobile/src/widget/CountdownWidget.tsx's Teal Paper look.
+ */
+function WidgetPreview({ title }: { title?: string }) {
+  return (
+    <div
+      aria-hidden
+      className="mx-auto w-full max-w-72 rounded-[1.75rem] p-3 shadow-lg"
+      style={{ background: "linear-gradient(135deg, #2e7c7f, #63c1bb)" }}
+    >
+      <div className="flex items-center gap-1.5">
+        <Mascot size={26} />
+        <span className="font-brand text-lg font-bold text-[#ffffff]">hidl</span>
+        <span className="ml-auto rounded-full bg-[rgba(255,255,255,0.22)] px-2.5 py-0.5 text-xs font-bold text-[#ffffff]">
+          all your countdowns
+        </span>
+      </div>
+      <div className="mt-2 flex items-center gap-2.5 rounded-[1.1rem] bg-[#ffffff] px-2.5 py-2">
+        <span className="grid size-10 place-items-center rounded-[0.9rem] bg-[#e2f0ee] text-xl">⏳</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-bold text-[#1b2a2c]">{title ?? "Your countdown"}</span>
+          <span className="block text-xs text-[#5e6f72]">counts down right there</span>
+        </span>
+      </div>
+      <div className="mt-1.5 h-2 rounded-full bg-[rgba(255,255,255,0.35)]" />
     </div>
   );
 }

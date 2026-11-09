@@ -26,7 +26,7 @@ export function WidgetButton({ countdown, createdAt }: { countdown: { id: string
         className="flex min-h-11 items-center gap-1.5 rounded-control px-2 text-sm font-semibold text-accent hover:bg-accent-soft"
       >
         <WidgetIcon width={17} height={17} />
-        {createdAt ? "Widget on" : "Widget"}
+        Widget
       </button>
       <dialog
         ref={ref}
@@ -38,9 +38,8 @@ export function WidgetButton({ countdown, createdAt }: { countdown: { id: string
         <div className="p-5 sm:p-7">
           <div className="mb-3 flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <p className="eyebrow">home screen widget</p>
               <h2 id={titleId} className="font-display text-xl font-semibold tracking-tight">
-                A widget for {countdown.title}
+                Home screen widget
               </h2>
             </div>
             <button

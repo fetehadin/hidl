@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, BackHandler, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, AppState, BackHandler, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,21 +12,20 @@ import type { WebViewMessageEvent, WebViewNavigation, WebViewProgressEvent, WebV
 type WebViewHandle = { goBack(): void; reload(): void; injectJavaScript(script: string): void };
 const WebView = RNWebView as unknown as React.ComponentType<WebViewProps & { ref?: React.Ref<WebViewHandle> }>;
 import { APP_UA, SITE_ORIGIN } from '../config';
-import { requestPinWidget } from 'react-native-android-widget';
+import { getWidgetInfo, requestPinWidget } from 'react-native-android-widget';
 import { fetchFeed, saveFeedUrl } from '../feed';
-import { type Palette, type ThemeName, palettes, parseTheme } from '../theme';
+import { type Palette, THEME_KEY, type ThemeName, palettes, parseTheme } from '../theme';
 import { refreshWidgets } from '../widget/connect';
 import { WIDGET_NAME } from '../widget/CountdownWidget';
 
 // Tells the page, before its own scripts run, what this app can do (read in app-widget-help.tsx).
-const ANNOUNCE = `window.hidlApp = { pinWidget: true }; true;`;
+// `widgets` (how many hidl widgets are on the home screen) is filled in once the page has loaded.
+const ANNOUNCE = `window.hidlApp = { pinWidget: true, widgets: null }; true;`;
 
 /** Answers the page with a "hidl-app" event. */
 function answerScript(detail: Record<string, unknown>) {
   return `window.dispatchEvent(new CustomEvent('hidl-app', { detail: ${JSON.stringify(detail)} })); true;`;
 }
-
-const THEME_KEY = 'hidl.theme';
 
 // Tells the app which theme the page shows (the <html data-theme> attribute), now and whenever it
 // changes, so the strips around the page and the splash match it.
@@ -85,6 +84,38 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
   }
 
   /**
+   * Tells the page how many hidl widgets are really on the home screen (Android's own list), so
+   * it never says a widget is on after it's been removed.
+   */
+  async function reportWidgets() {
+    const count = await getWidgetInfo(WIDGET_NAME)
+      .then((list) => list.length)
+      .catch(() => null);
+    if (count === null) return;
+    web.current?.injectJavaScript(
+      `window.hidlApp = Object.assign(window.hidlApp || {}, { widgets: ${count} }); ` + answerScript({ type: 'widgets', count }),
+    );
+  }
+
+  // Redraw the widget with the latest countdowns when leaving the app (just added one? it's
+  // there when you get home), and re-check what's on the home screen when coming back.
+  const lastRefresh = useRef(0);
+  function refreshSoon() {
+    if (Date.now() - lastRefresh.current < 10_000) return;
+    lastRefresh.current = Date.now();
+    refreshWidgets().catch(() => {});
+  }
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background') {
+        lastRefresh.current = 0;
+        refreshSoon();
+      } else if (state === 'active') reportWidgets();
+    });
+    return () => sub.remove();
+  }, []);
+
+  /**
    * "Add to home screen" on a countdown: save the feed link the site just made, then ask Android
    * to place the widget (its own "Add to Home screen?" box). `supported` is false on launchers
    * that don't allow it; the page then shows the manual steps.
@@ -140,6 +171,8 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
       else setHandoffFailed(true);
     } else if (path && !path.startsWith('/auth')) {
       opened.current = true;
+      // Saving a countdown lands back on /countdown: show the change on the widget right away.
+      if (!nav.loading && path.startsWith('/countdown')) refreshSoon();
     }
   }
 
@@ -167,7 +200,10 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
         onMessage={onMessage}
         onShouldStartLoadWithRequest={shouldLoad}
         onLoadProgress={(e: WebViewProgressEvent) => setProgress(e.nativeEvent.progress)}
-        onLoadEnd={() => setReady(true)}
+        onLoadEnd={() => {
+          setReady(true);
+          reportWidgets();
+        }}
         onError={() => setFailed(true)}
         // Android can kill the web view's renderer (low memory); without this the screen goes blank for good.
         onRenderProcessGone={() => web.current?.reload()}

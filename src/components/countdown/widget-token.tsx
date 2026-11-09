@@ -7,6 +7,7 @@ import { publicEnv } from "@/lib/public-env";
 import { useTimeZone } from "@/components/calendar-pref";
 import { formatInTz } from "@/lib/time";
 import { AppWidgetHelp } from "./app-widget-help";
+import { useDevice } from "@/components/use-device";
 
 /**
  * Home-screen widget help: the Android app first (AppWidgetHelp), then, under "Advanced", creating,
@@ -24,6 +25,8 @@ export function WidgetToken({
   bare?: boolean;
 }) {
   const timeZone = useTimeZone();
+  // Inside the phone app the widget is one tap; feed links for other widget apps would only clutter it.
+  const inApp = useDevice() === "app";
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,13 +57,14 @@ export function WidgetToken({
       {!bare && (
         <>
           <p className="eyebrow mb-1">home screen widget</p>
-          <h2 className="font-display text-xl font-semibold">Your starred countdown</h2>
+          <h2 className="font-display text-xl font-semibold">Your countdowns</h2>
         </>
       )}
       <div className={bare ? "" : "mt-3"}>
-        <AppWidgetHelp title={countdown?.title} countdownId={countdown?.id} />
+        <AppWidgetHelp title={countdown?.title} />
       </div>
 
+      {!inApp && (
       <details className="mt-4" open={Boolean(revealedToken)}>
         <summary className="cursor-pointer text-sm font-semibold text-accent">Advanced: use KWGT or another widget app</summary>
         <p className="mt-2 text-ink-soft">
@@ -132,6 +136,7 @@ export function WidgetToken({
           )}
         </div>
       </details>
+      )}
 
       <ConfirmDialog
         open={confirmRevoke}

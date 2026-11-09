@@ -49,7 +49,43 @@ export async function GET(request: NextRequest) {
       .limit(1)
       .maybeSingle());
   }
-  if (!countdown) return NextResponse.json({ error: "no countdown yet" }, { status: 404 });
+  // The account's feed (no fixed countdown) also lists every countdown still to come, so the
+  // phone app's one widget can scroll through them all. Starred first, then soonest; one that
+  // ended in the last day stays, so "Done!" shows for a while.
+  let countdowns: Record<string, unknown>[] | undefined;
+  if (!tokenRow.countdown_id) {
+    const { data: all } = await admin
+      .from("countdowns")
+      .select("id, kind, title, target_at, target_score, max_score, actual_score, units, is_widget")
+      .eq("user_id", tokenRow.user_id)
+      .gt("target_at", new Date(Date.now() - 24 * 3_600_000).toISOString())
+      .order("is_widget", { ascending: false })
+      .order("target_at", { ascending: true })
+      .limit(20);
+    countdowns = (all ?? []).map((c) => {
+      const units = normalizeUnits(c.units);
+      const ended = new Date(c.target_at).getTime() <= Date.now();
+      return {
+        id: c.id,
+        kind: c.kind,
+        title: c.title,
+        targetAt: c.target_at,
+        targetScore: c.target_score,
+        maxScore: c.max_score,
+        actualScore: c.actual_score,
+        starred: c.is_widget,
+        done: ended,
+        units,
+        remaining: Object.fromEntries(ended ? [] : timeLeft(c.target_at, Date.now(), units, timeZone).map((p) => [p.unit, p.value])),
+      };
+    });
+  }
+
+  if (!countdown) {
+    // Nothing starred or to come. Old widgets read the 404; the list widget reads `countdowns`
+    // (empty, or one that just ended).
+    return NextResponse.json({ error: "no countdown yet", ...(countdowns ? { countdowns } : {}) }, { status: 404 });
+  }
 
   const done = new Date(countdown.target_at).getTime() <= Date.now();
   return NextResponse.json(
@@ -69,6 +105,7 @@ export async function GET(request: NextRequest) {
       remaining: Object.fromEntries(
         done ? [] : timeLeft(countdown.target_at, Date.now(), normalizeUnits(countdown.units), timeZone).map((p) => [p.unit, p.value]),
       ),
+      ...(countdowns ? { countdowns } : {}),
     },
     { headers: { "Cache-Control": "no-store" } },
   );
