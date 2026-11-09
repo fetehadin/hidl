@@ -3,12 +3,13 @@
  * still stored and reasoned about as a UTC instant exactly as before — this only changes
  * how a date is *shown* to the user.
  *
- * Anchored on the Ethiopian Millennium (1 Meskerem 2000 = September 11, 2007) and a plain
- * 4-year leap cycle (Ethiopian year is leap, with a 6-day Pagume, when year % 4 === 0),
- * validated against several independently-known fixed points: Ethiopian Christmas
- * (Genna, Tahsas 29) falling on January 7 across 2023/2024/2026, and Epiphany (Timkat,
- * Tir 11) on January 19, 2024. Holds for the foreseeable future — the two calendars'
- * 4-year leap cycles stay phase-locked until Gregorian's next century exception (~2100).
+ * Anchored on the Ethiopian Millennium (1 Meskerem 2000 = September 12, 2007) and the 4-year
+ * leap cycle: an Ethiopian year is leap, with a 6-day Pagume, when year % 4 === 3 (2011, 2015,
+ * 2019 …), the year before a Gregorian leap year, which is why Enkutatash then falls on
+ * September 12 (2023, 2027) instead of the 11th. Checked against known dates (tests/unit/
+ * ethiopian.test.ts): Enkutatash 2016 on September 12, 2023; Timkat (Tir 11) on January 20, 2024
+ * but January 19, 2025; Tahsas 29 on January 8, 2024 (Genna was kept on the 7th as Tahsas 28).
+ * Holds until Gregorian's next century exception (2100).
  *
  * An instant is converted via its calendar day in the user's time zone (matching how the
  * rest of the app treats "today"), not the raw UTC day, so a conversion near midnight
@@ -17,7 +18,7 @@
  */
 import { TZDate } from "@date-fns/tz";
 
-const ANCHOR_GREGORIAN_UTC_MS = Date.UTC(2007, 8, 11);
+const ANCHOR_GREGORIAN_UTC_MS = Date.UTC(2007, 8, 12);
 const ANCHOR_ETHIOPIAN_YEAR = 2000;
 const MS_PER_DAY = 86_400_000;
 
@@ -29,7 +30,12 @@ export const ETHIOPIAN_MONTHS = [
 export type EthiopianDate = { year: number; month: number; day: number };
 
 function isLeap(ethiopianYear: number) {
-  return ((ethiopianYear % 4) + 4) % 4 === 0;
+  return ((ethiopianYear % 4) + 4) % 4 === 3;
+}
+
+/** Days in an Ethiopian month: 30, except Pagume (13), which has 5 (6 in a leap year). */
+export function ethiopianMonthLength(year: number, month: number) {
+  return month === 13 ? (isLeap(year) ? 6 : 5) : 30;
 }
 
 function yearLength(ethiopianYear: number) {
