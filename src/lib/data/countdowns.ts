@@ -14,10 +14,12 @@ export type Countdown = {
   /** Which units the time left is shown in (src/lib/countdown-units.ts). */
   units: CountdownUnit[];
   is_widget: boolean;
+  /** When it was made: the start of its progress bar on Today. */
+  created_at: string;
   updated_at: string;
 };
 
-const COLUMNS = "id, kind, title, target_at, target_score, max_score, actual_score, details, units, is_widget, updated_at";
+const COLUMNS = "id, kind, title, target_at, target_score, max_score, actual_score, details, units, is_widget, created_at, updated_at";
 
 export async function listCountdowns(supabase: SupabaseClient) {
   const { data, error } = await supabase.from("countdowns").select(COLUMNS).order("target_at");

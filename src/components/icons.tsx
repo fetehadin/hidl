@@ -116,6 +116,14 @@ export const FlameIcon = (p: IconProps) => (
   </svg>
 );
 
+export const TrophyIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M8 4h8v5a4 4 0 0 1-8 0V4Z" />
+    <path d="M8 6H5a2 2 0 0 0 0 4h3.2M16 6h3a2 2 0 0 1 0 4h-3.2" />
+    <path d="M12 13v4M8.5 20h7M10 17h4l.5 3h-5l.5-3Z" />
+  </svg>
+);
+
 /* Countdown kinds */
 
 export const ExamIcon = (p: IconProps) => (

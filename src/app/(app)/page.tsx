@@ -1,28 +1,30 @@
-import { KIND_INFO } from "@/lib/countdown-kinds";
-import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRightIcon, CalendarIcon, FlameIcon } from "@/components/icons";
-import { CountdownStat } from "@/components/countdown/countdown-stat";
+import { ArrowRightIcon, TrophyIcon } from "@/components/icons";
 import { KindBadge } from "@/components/countdown/kind-icon";
 import { LiveCountdown } from "@/components/countdown/live-countdown";
-import { DashboardCard } from "@/components/dashboard-card";
-import { DashboardTodayPhoto } from "@/components/dashboard-today-photo";
-import { Envelope } from "@/components/envelope";
+import { VideoBadge } from "@/components/calendar/video-badge";
 import { sealInitial } from "@/components/letters/letter-card";
-import { Mascot, type MascotMood } from "@/components/mascot";
 import { LiveRelative } from "@/components/live-relative";
-import { WeekStrip } from "@/components/week-strip";
-import { listCountdowns, pickPrimaryCountdown } from "@/lib/data/countdowns";
-import { formatDay, formatFullDate } from "@/lib/dates";
-import { letterSummary } from "@/lib/data/letters";
+import { Mascot, type MascotMood } from "@/components/mascot";
+import { MiniEnvelope } from "@/components/today/mini-envelope";
+import { StreakRow } from "@/components/today/streak-row";
 import { addDays, photoStreak, weekOf } from "@/lib/calendar";
-import { type PhotoRow, listPhotoDates, listPhotos, signPhotos } from "@/lib/data/photos";
-import { requireUser } from "@/lib/supabase/server";
-import { getProfile } from "@/lib/data/profile";
-import { greetingName } from "@/lib/names";
 import { monthKeyOf } from "@/lib/calendar-months";
+import { KIND_INFO } from "@/lib/countdown-kinds";
+import { type Countdown, listCountdowns, pickPrimaryCountdown } from "@/lib/data/countdowns";
+import { letterSummary } from "@/lib/data/letters";
+import { type PhotoRow, type PhotoView, listPhotoDates, listPhotos, signPhotos } from "@/lib/data/photos";
+import { getProfile } from "@/lib/data/profile";
+import { type CalendarPref, formatDay, formatFullDate } from "@/lib/dates";
+import { greetingName } from "@/lib/names";
+import { requireUser } from "@/lib/supabase/server";
 import { daysUntil, formatInTz, greeting, nowInTz, requestNow, todayISO } from "@/lib/time";
 
+/**
+ * Today, phone first and minimal: the greeting, Hidi, the streak (flame + this week), the main
+ * countdown with the next few under it, the next letter and today's photo. Every block is the
+ * link itself, so there are no "Open …" lines; blocks with nothing to show aren't shown.
+ */
 export default async function DashboardPage() {
   const { supabase, user, calendar, timeZone, accountName } = await requireUser();
   const now = requestNow();
@@ -38,210 +40,224 @@ export default async function DashboardPage() {
   ]);
   const name = greetingName(profile.displayName, accountName);
   const streak = photoStreak(recentDates, today);
-  // "Days this month" in the calendar picked on Account (an Ethiopian month isn't November).
-  const thisMonth = monthKeyOf(calendar, today);
-  const monthDays = new Set(recentDates.filter((d) => monthKeyOf(calendar, d) === thisMonth)).size;
   const countdown = pickPrimaryCountdown(countdowns, now);
-  // Every upcoming countdown, soonest first: the stat chip cycles through them, and the
-  // hero lists the next few after the primary one.
   const upcoming = countdowns
     .filter((c) => new Date(c.target_at).getTime() > now)
-    .map((c) => ({ ...c, days: daysUntil(c.target_at, timeZone, new Date(now)) }));
+    .map((c) => ({ ...c, days: daysUntil(c.target_at, timeZone, new Date(now)) }))
+    .sort((a, b) => a.days - b.days);
   const comingUp = upcoming.filter((c) => c.id !== countdown?.id);
   // One picture per day this week: the pinned one, else the latest.
   const coverRows = new Map<string, PhotoRow>();
   for (const p of weekPhotos) if (!coverRows.get(p.date)?.is_cover) coverRows.set(p.date, p);
   const weekCovers = new Map((await signPhotos(supabase, user.id, [...coverRows.values()])).map((p) => [p.date, p]));
   const photo = weekCovers.get(today);
-  const countdownDone = countdown ? new Date(countdown.target_at).getTime() <= now : false;
   const hidi = companionLine({
     hour: nowInTz(timeZone, new Date(now)).getHours(),
     day: today,
     todayDone: streak.todayDone,
     streak: streak.count,
     lettersReady: letters.readyCount,
-    nextCountdown: upcoming.length ? [...upcoming].sort((a, b) => a.days - b.days)[0] : null,
+    nextCountdown: upcoming[0] ?? null,
   });
 
   return (
-    <div>
-      <div className="flex flex-col gap-5 pt-4 pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <div className="flex flex-col gap-4 sm:gap-5">
+      <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           {/* One calendar only: the one picked on Account. */}
           <p className="eyebrow mb-1">
             {formatInTz(new Date(now), "EEEE", timeZone)} · {formatDay(new Date(now), calendar, timeZone)}
           </p>
-          <h1 className="font-title text-4xl font-medium tracking-tight sm:text-5xl">{greeting(timeZone, new Date(now))}{name ? `, ${name}` : ""}!</h1>
+          <h1 className="font-title text-4xl font-medium tracking-tight sm:text-5xl">
+            {greeting(timeZone, new Date(now))}
+            {name ? `, ${name}` : ""}!
+          </h1>
         </div>
         <div className="animate-fade-up flex items-center gap-3 sm:max-w-sm">
-          <Mascot mood={hidi.mood} size={92} />
+          <Mascot mood={hidi.mood} size={84} />
           <p className="bubble text-[15px] font-semibold text-ink-soft">{hidi.text}</p>
         </div>
       </div>
 
-      <WeekStrip days={week} today={today} covers={weekCovers} calendar={calendar} />
-
-      {/* Micro-dashboard: always the same three stats, in the same places. */}
-      <ul className="mb-5 grid grid-cols-3 gap-2.5 sm:gap-4" aria-label="Your stats">
-        <StatChip
-          tint="tint-white"
-          icon={<FlameIcon width={26} height={26} className={streak.count > 0 ? "text-teal" : "text-muted"} />}
-          value={streak.count}
-          label="day streak"
+      <div>
+        <StreakRow
+          streak={streak.count}
+          todayDone={streak.todayDone}
+          days={week}
+          today={today}
+          thumbs={Object.fromEntries([...weekCovers].map(([d, p]) => [d, p.thumbUrl]))}
+          calendar={calendar}
         />
-        <StatChip
-          tint="tint-white"
-          icon={<CalendarIcon width={26} height={26} className="text-teal" />}
-          value={monthDays}
-          label="days this month"
-        />
-        <CountdownStat items={upcoming.map((c) => ({ id: c.id, title: c.title, days: c.days }))} />
-      </ul>
-      <p className="-mt-2 mb-5 text-right text-sm">
-        <Link href="/leaderboard" className="font-bold text-accent hover:underline">
-          See this week&apos;s streak leaderboard →
+        <Link
+          href="/leaderboard"
+          className="mt-2 flex items-center gap-2 px-1 py-1.5 text-sm font-bold text-ink-soft hover:text-accent"
+        >
+          <span className="grid size-7 place-items-center rounded-[9px] bg-mint text-accent">
+            <TrophyIcon width={16} height={16} />
+          </span>
+          Leaderboard
+          <ArrowRightIcon width={14} height={14} className="ml-auto text-muted" />
         </Link>
-      </p>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {/* Primary countdown: a real hero, not a stacked card */}
-        {!countdown ? (
-          <DashboardCard eyebrow="deadlines" href="/countdown/new" linkLabel="Add a countdown" className="sm:col-span-2">
-            <p className="font-display text-xl">No countdowns yet.</p>
-            <p className="text-ink-soft">An exam, a birthday, a trip: anything you&apos;re counting down to.</p>
-          </DashboardCard>
+        {countdown ? (
+          <CountdownHero countdown={countdown} now={now} calendar={calendar} timeZone={timeZone} comingUp={comingUp} />
         ) : (
-          <div className="card card-interactive animate-fade-up p-6 sm:col-span-2 sm:p-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <p className="eyebrow mb-1">{countdownDone ? "it's over" : (KIND_INFO[countdown.kind] ?? KIND_INFO.deadline).eyebrow}</p>
-                <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{countdown.title}</h2>
-                <p className="mt-1 text-ink-soft">{formatFullDate(countdown.target_at, calendar, timeZone)}</p>
-
-                {countdown.kind === "exam" && (
-                  <p className="mt-4">
-                    <span className="block text-sm font-semibold text-ink-soft">
-                      {countdownDone && countdown.actual_score !== null ? "Your score" : "Target score"}
-                    </span>
-                    <span className="font-display text-3xl font-semibold tabular-nums text-accent">
-                      {countdownDone && countdown.actual_score !== null ? countdown.actual_score : countdown.target_score}
-                    </span>
-                    <span className="text-lg text-muted"> / {countdown.max_score}</span>
-                  </p>
-                )}
-
-                <Link
-                  href="/countdown"
-                  className="mt-4 inline-flex items-center gap-1.5 text-[15px] font-semibold text-accent underline-offset-4 hover:underline"
-                >
-                  {countdownDone && countdown.kind === "exam" && countdown.actual_score === null
-                    ? "Enter your score"
-                    : "Open countdown"}
-                  <ArrowRightIcon width={16} height={16} />
-                </Link>
-              </div>
-
-              <div className="flex min-w-0 lg:flex-1 lg:justify-end">
-                {countdownDone ? (
-                  <p className="font-display text-5xl font-semibold text-accent sm:text-6xl">{(KIND_INFO[countdown.kind] ?? KIND_INFO.deadline).doneText}</p>
-                ) : (
-                  <LiveCountdown target={countdown.target_at} serverNow={now} units={countdown.units} size="large" />
-                )}
-              </div>
-            </div>
-
-            {comingUp.length > 0 && (
-              <div className="mt-6 border-t-2 border-mint pt-4">
-                <h3 className="eyebrow mb-2">also coming up</h3>
-                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {comingUp.slice(0, 3).map((c) => (
-                    <li key={c.id}>
-                      <Link
-                        href="/countdown"
-                        className="flex items-center gap-3 rounded-2xl bg-mint/60 px-3 py-2.5 transition-colors hover:bg-mint"
-                      >
-                        <KindBadge kind={c.kind} size={36} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-bold text-ink">{c.title}</span>
-                          <span className="block text-xs font-semibold text-muted">
-                            {formatDay(c.target_at, calendar, timeZone)}
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-right">
-                          <span className="block font-display text-xl leading-none font-semibold text-heading tabular-nums">
-                            {c.days}
-                          </span>
-                          <span className="block text-[10px] font-extrabold tracking-wide text-muted uppercase">
-                            {c.days === 1 ? "day" : "days"}
-                          </span>
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-                {comingUp.length > 3 && (
-                  <Link
-                    href="/countdown"
-                    className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-accent underline-offset-4 hover:underline"
-                  >
-                    {comingUp.length - 3} more
-                    <ArrowRightIcon width={14} height={14} />
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
+          <Link
+            href="/countdown/new"
+            className="card card-interactive flex items-center gap-3 p-5 font-bold text-accent sm:col-span-2"
+          >
+            Add your first countdown
+            <ArrowRightIcon width={16} height={16} />
+          </Link>
         )}
 
-        {/* Next letter */}
         {letters.readyCount > 0 ? (
-          <DashboardCard eyebrow="a letter is waiting" href="/letters" linkLabel="Open it">
-            <Envelope state="ready" initial="✶" className="pointer-events-none">
-              <p className="font-display text-xl">
-                {letters.readyCount === 1 ? "One letter is" : `${letters.readyCount} letters are`} ready to open.
-              </p>
-            </Envelope>
-          </DashboardCard>
+          <Link href="/letters" className="card card-interactive flex items-center gap-4 p-4">
+            <MiniEnvelope initial="✶" ready />
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-[17px] font-bold text-ink">
+                {letters.readyCount === 1 ? "A letter is ready to open" : `${letters.readyCount} letters are ready to open`}
+              </span>
+            </span>
+            <ArrowRightIcon width={16} height={16} className="shrink-0 text-muted" />
+          </Link>
         ) : letters.next ? (
-          <DashboardCard eyebrow="next letter" href={`/letters/${letters.next.id}`} linkLabel="See all letters">
-            <Envelope state="sealed" initial={sealInitial(letters.next.recipient)}>
-              <p className="font-hand text-lg leading-none text-accent">for {letters.next.recipient}</p>
-              <p className="mt-1 font-display text-xl font-semibold">{letters.next.title}</p>
-              <p className="mt-1 text-[15px] font-semibold text-ink-soft">
+          <Link href={`/letters/${letters.next.id}`} className="card card-interactive flex items-center gap-4 p-4">
+            <MiniEnvelope initial={sealInitial(letters.next.recipient)} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-display text-[17px] font-bold text-ink">For {letters.next.recipient}</span>
+              <span className="block text-sm font-semibold text-muted">
                 <LiveRelative target={letters.next.unlock_at} />
-              </p>
-            </Envelope>
-          </DashboardCard>
-        ) : (
-          <DashboardCard eyebrow="next letter" href="/letters/new" linkLabel="Write a letter">
-            <p className="font-display text-xl">Nothing sealed yet.</p>
-            <p className="text-ink-soft">Write something for future you to open later.</p>
-          </DashboardCard>
-        )}
+              </span>
+            </span>
+            <ArrowRightIcon width={16} height={16} className="shrink-0 text-muted" />
+          </Link>
+        ) : null}
 
-        {/* Today's photo */}
-        <DashboardCard
-          eyebrow="today's picture"
-          href={photo ? "/memories" : "/calendar"}
-          linkLabel={photo ? "Wander your memories" : "See the calendar"}
-          className="tint-aqua"
-        >
-          <DashboardTodayPhoto photo={photo ?? null} today={today} />
-        </DashboardCard>
+        {photo && <TodayPhoto photo={photo} href={`/calendar?m=${monthKeyOf(calendar, today)}`} />}
       </div>
     </div>
   );
 }
 
-function StatChip({ tint, icon, value, label }: { tint: string; icon: ReactNode; value: number | string; label: string }) {
+/**
+ * The main countdown, as before (title, date, the live tiles) plus a progress bar from the day it
+ * was made to the day itself; the next ones sit under it as small two-per-row cards.
+ */
+function CountdownHero({
+  countdown,
+  now,
+  calendar,
+  timeZone,
+  comingUp,
+}: {
+  countdown: Countdown;
+  now: number;
+  calendar: CalendarPref;
+  timeZone: string;
+  comingUp: (Countdown & { days: number })[];
+}) {
+  const info = KIND_INFO[countdown.kind] ?? KIND_INFO.deadline;
+  const start = new Date(countdown.created_at).getTime();
+  const end = new Date(countdown.target_at).getTime();
+  const done = end <= now;
+  const progress = done ? 1 : end > start ? Math.min(1, Math.max(0.02, (now - start) / (end - start))) : 0;
+  const scoreDue = done && countdown.kind === "exam" && countdown.actual_score === null;
+
   return (
-    <li className={`clay ${tint} flex flex-col items-center gap-1 px-2 py-3 text-center sm:flex-row sm:gap-3 sm:px-5 sm:text-left`}>
-      <span className="grid size-11 shrink-0 place-items-center rounded-full bg-mint">{icon}</span>
-      <span>
-        <span className="block font-display text-2xl leading-none font-semibold tabular-nums sm:text-3xl">{value}</span>
-        <span className="block text-[11px] font-extrabold tracking-wide text-muted uppercase sm:text-xs">{label}</span>
+    <section className="card animate-fade-up p-5 sm:col-span-2 sm:p-7">
+      <Link href="/countdown" className="block">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <p className="eyebrow mb-1">{done ? "it's over" : info.eyebrow}</p>
+            <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{countdown.title}</h2>
+            <p className="mt-0.5 text-ink-soft">{formatFullDate(countdown.target_at, calendar, timeZone)}</p>
+            {countdown.kind === "exam" && !scoreDue && (
+              <p className="mt-3 text-sm font-semibold text-ink-soft">
+                {done ? "Your score" : "Target"}{" "}
+                <span className="font-display text-xl font-bold text-accent tabular-nums">
+                  {done ? countdown.actual_score : countdown.target_score}
+                </span>
+                <span className="text-muted"> / {countdown.max_score}</span>
+              </p>
+            )}
+          </div>
+          <div className="flex min-w-0 lg:flex-1 lg:justify-end">
+            {done ? (
+              <p className="animate-pop-in font-display text-5xl font-semibold text-accent sm:text-6xl">{info.doneText}</p>
+            ) : (
+              <LiveCountdown target={countdown.target_at} serverNow={now} units={countdown.units} size="large" />
+            )}
+          </div>
+        </div>
+
+        {!done && (
+          <div
+            className="mt-4 h-1.5 overflow-hidden rounded-full bg-paper-deep"
+            role="progressbar"
+            aria-label="Time passed since you made this countdown"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progress * 100)}
+          >
+            <div className="animate-grow-x relative h-full overflow-hidden rounded-full bg-teal" style={{ width: `${progress * 100}%` }}>
+              <span aria-hidden className="animate-shine absolute inset-0 bg-gradient-to-r from-transparent via-white/45 to-transparent" />
+            </div>
+          </div>
+        )}
+      </Link>
+
+      {scoreDue && (
+        <Link href="/countdown" className="mt-4 inline-flex items-center gap-1.5 font-semibold text-accent hover:underline">
+          Enter your score
+          <ArrowRightIcon width={16} height={16} />
+        </Link>
+      )}
+
+      {comingUp.length > 0 && (
+        <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {comingUp.slice(0, 4).map((c, i) => (
+            <li key={c.id} className="animate-fade-up min-w-0" style={{ animationDelay: `${120 + i * 70}ms` }}>
+              <Link href="/countdown" className="flex h-full flex-col gap-2 rounded-2xl bg-mint/70 p-3 transition-colors hover:bg-mint">
+                <span className="flex items-start gap-2">
+                  <KindBadge kind={c.kind} size={28} />
+                  <span className="line-clamp-2 min-w-0 flex-1 text-[13px] leading-snug font-bold text-ink">{c.title}</span>
+                </span>
+                <span className="mt-auto leading-none">
+                  <span className="font-display text-2xl font-bold text-heading tabular-nums">{c.days}</span>{" "}
+                  <span className="text-[10px] font-extrabold tracking-wider text-muted uppercase">{c.days === 1 ? "day" : "days"}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** Today's photo, smaller: the caption sits on the picture instead of under it. */
+function TodayPhoto({ photo, href }: { photo: PhotoView; href: string }) {
+  return (
+    <Link href={href} className="animate-fade-up relative block h-52 overflow-hidden rounded-[1.5rem] bg-paper-deep sm:h-auto sm:min-h-52">
+      {/* eslint-disable-next-line @next/next/no-img-element -- a short-lived signed link; next/image would re-fetch it */}
+      <img
+        src={photo.isVideo ? photo.thumbUrl : photo.fullUrl}
+        alt={photo.caption ?? (photo.isVideo ? "Today's video" : "Today's photo")}
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <span className="absolute top-2.5 left-2.5 rounded-full bg-scrim/40 px-2 py-1 text-[10px] font-extrabold tracking-widest text-snow uppercase backdrop-blur">
+        Today
       </span>
-    </li>
+      {photo.isVideo && <VideoBadge className="absolute top-2.5 right-2.5" />}
+      {photo.caption && (
+        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-scrim/70 to-transparent px-3.5 pt-10 pb-3 text-[15px] font-semibold text-snow">
+          {photo.caption}
+        </span>
+      )}
+    </Link>
   );
 }
 
