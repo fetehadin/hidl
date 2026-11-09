@@ -1,0 +1,7 @@
+# hidl photo store (docs/storage.md). Add to the deploy user's crontab: crontab -e, paste below
+# the existing lines. Times are UTC, placed between TajStore's and Voxlace's jobs.
+*/15 * * * * /opt/hidl/media/check-space.sh >> /opt/hidl/media/logs/check-space.log 2>&1
+40 1 * * * /opt/hidl/media/backup-media.sh >> /opt/hidl/media/logs/backup.log 2>&1
+10 2 * * * /opt/hidl/media/backup-db.sh >> /opt/hidl/media/logs/backup.log 2>&1
+0 9 1 * * /opt/hidl/media/run-tool.sh orphan-report.mjs --email >> /opt/hidl/media/logs/orphans.log 2>&1
+30 9 1 * * /opt/hidl/media/restore-test.sh >> /opt/hidl/media/logs/backup.log 2>&1
