@@ -20,7 +20,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
           <Link href="/#features" className="hidden rounded-full px-3 py-2 font-bold text-ink-soft hover:bg-mint hover:text-ocean md:block">
             Features
           </Link>
-          <Link href="/#privacy" className="hidden rounded-full px-3 py-2 font-bold text-ink-soft hover:bg-mint hover:text-ocean md:block">
+          <Link href="/privacy" className="hidden rounded-full px-3 py-2 font-bold text-ink-soft hover:bg-mint hover:text-ocean md:block">
             Privacy
           </Link>
           <Link href="/install" className="hidden rounded-full px-3 py-2 font-bold text-ink-soft hover:bg-mint hover:text-ocean sm:block">
@@ -45,7 +45,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
           </p>
           <p className="flex gap-4 font-semibold">
             <Link href="/install" className="hover:text-ocean">Install the app</Link>
-            <Link href="/#privacy" className="hover:text-ocean">Privacy</Link>
+            <Link href="/privacy" className="hover:text-ocean">Privacy</Link>
             <Link href="/login" className="hover:text-ocean">Sign in</Link>
           </p>
         </div>

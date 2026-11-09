@@ -19,12 +19,15 @@ if [ ! -e "$IMG" ]; then
   fi
   fallocate -l "$SIZE" "$IMG"
   chmod 600 "$IMG"
-  mkfs.ext4 -q -m 0 -L hidl-media "$IMG"
+  # nodiscard: otherwise formatting hands the reserved space straight back to the main disk.
+  mkfs.ext4 -q -m 0 -E nodiscard -L hidl-media "$IMG"
   echo "Made $IMG ($SIZE)."
 fi
+# Reserve the whole size on the main disk (fills any holes; the contents don't change).
+fallocate -l "$SIZE" "$IMG"
 
 mkdir -p "$MNT"
-grep -q "^$IMG " /etc/fstab || echo "$IMG $MNT ext4 loop,defaults,nofail 0 2" >> /etc/fstab
+grep -q "^$IMG " /etc/fstab || echo "$IMG $MNT ext4 loop,defaults,nofail,X-fstrim.notrim 0 2" >> /etc/fstab   # weekly fstrim would un-reserve the space
 mountpoint -q "$MNT" || mount "$MNT"
 mkdir -p "$MNT/meta" "$MNT/data"
 chmod 700 "$MNT/meta" "$MNT/data"
