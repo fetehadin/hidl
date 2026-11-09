@@ -209,19 +209,17 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   the visitor's IP itself.
 - **Profiles** (`..._profiles_leaderboard.sql`, `src/actions/profile.ts`, `src/components/profile/`): `profiles`
   gained `display_name` (unique ignoring case, rules in `display_name_ok()` ↔ `src/lib/profile-rules.ts`),
-  `picture_path` and `show_on_leaderboard`; `avatar` is nullable so a row can hold only a name (`resetAvatar` now
-  clears the column instead of deleting the row). A picture is cropped to a 320 px square in the browser
-  (`processProfilePicture` in `src/lib/image.ts`), uploaded to the public `avatars` bucket with a signed URL
-  (`preparePictureUpload` → upload → `setProfilePicture`, which checks the file exists and removes the old one).
-  `<ProfileImage>` draws the picture or else the buddy; the side nav and phone header use it. `removeUserFiles`
-  clears both buckets on account deletion.
+  and `show_on_leaderboard`; `avatar` is nullable so a row can hold only a name (`resetAvatar` now clears the
+  column instead of deleting the row). Everyone is shown by their buddy: uploaded profile pictures (the public
+  `avatars` bucket, `picture_path`) were removed in `..._remove_profile_pictures.sql`. `<ProfileImage>` draws the
+  buddy (or Hidi's default); the side nav, phone header and leaderboard use it.
 - **Leaderboard** (`/leaderboard`, `leaderboard()` in SQL, `src/lib/data/leaderboard.ts`): ranks the longest run of
   consecutive *on-time* photo days in the current week (Mon–Sun) or month, by `app_today()`. On time = a photo whose
   `date` equals its `created_at` day in the owner's zone; backfills don't count. Ties share a rank (then more photo
   days wins). Everyone is listed unless `show_on_leaderboard` is off; no name shows as "A hidl friend". Rows carry
-  name, buddy, picture path and `is_me`, never ids or emails. The previous period is "released": the first call
+  name, buddy and `is_me`, never ids or emails. The previous period is "released": the first call
   for it writes `leaderboard_releases` + top 100 into `leaderboard_results`, and later calls read that snapshot
-  (names/pictures stay live; people who opted out since show anonymously). Desktop nav has a Leaderboard item; phones
+  (names/buddies stay live; people who opted out since show anonymously). Desktop nav has a Leaderboard item; phones
   reach it from Today (under the stats) and Account.
 - **App lock** (`src/lib/app-lock.ts`, `src/components/lock/`): optional, per device and per user. A 4–6 digit PIN
   or a 3×3 pattern (≥ 4 dots; crossing an unused dot adds it), hashed with PBKDF2-SHA256 (100k, random salt) into

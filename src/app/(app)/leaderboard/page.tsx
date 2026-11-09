@@ -7,8 +7,6 @@ import { formatDayString } from "@/lib/admin-format";
 import type { CalendarPref } from "@/lib/dates";
 import { type LeaderboardPeriod, type LeaderboardRow, getLeaderboard } from "@/lib/data/leaderboard";
 import { getProfile } from "@/lib/data/profile";
-import { pictureUrl } from "@/lib/profile-rules";
-import { publicEnv } from "@/lib/public-env";
 import { requireUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Leaderboard" };
@@ -159,8 +157,7 @@ function Row({ row }: { row: LeaderboardRow }) {
 }
 
 function Face({ row, size }: { row: LeaderboardRow; size: number }) {
-  const src = row.picturePath ? pictureUrl(publicEnv.NEXT_PUBLIC_SUPABASE_URL, row.picturePath) : null;
-  return <ProfileImage pictureSrc={src} avatar={row.avatar} size={size} className="ring-2 ring-aqua" />;
+  return <ProfileImage avatar={row.avatar} size={size} className="ring-2 ring-aqua" />;
 }
 
 function Notice({ children }: { children: React.ReactNode }) {

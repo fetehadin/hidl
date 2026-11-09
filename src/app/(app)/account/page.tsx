@@ -58,16 +58,15 @@ export default async function AccountPage() {
       <div id="profile" className="card mt-4 scroll-mt-6 p-5 sm:p-6">
         <p className="eyebrow mb-1">profile</p>
         <h2 className="font-display text-xl font-semibold">How others see you</h2>
-        <p className="mt-1 mb-5 text-ink-soft">Your name and picture on the leaderboard. Your email is never shown to anyone.</p>
+        <p className="mt-1 mb-5 text-ink-soft">Your name and buddy on the leaderboard. Your email is never shown to anyone.</p>
         <ProfileEditor
           displayName={profile.displayName}
-          picturePath={profile.picturePath}
           avatar={buddy}
           showOnLeaderboard={profile.showOnLeaderboard}
         />
       </div>
 
-      <div className="card mt-4 p-5 sm:p-6">
+      <div id="buddy" className="card mt-4 scroll-mt-6 p-5 sm:p-6">
         <p className="eyebrow mb-1">you</p>
         <h2 className="font-display text-xl font-semibold">Your buddy</h2>
         <p className="mt-1 mb-5 text-ink-soft">Make a little character that&apos;s yours. It takes Hidi&apos;s place around the app (Hidi keeps the logo).</p>

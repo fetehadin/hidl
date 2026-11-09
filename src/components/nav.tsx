@@ -51,14 +51,12 @@ function isActive(pathname: string, href: string) {
 export function AppShell({
   initialCollapsed,
   avatar,
-  pictureSrc,
   isAdmin,
   theme,
   children,
 }: {
   initialCollapsed: boolean;
   avatar: AvatarConfig | null;
-  pictureSrc: string | null;
   isAdmin: boolean;
   theme: Theme;
   children: ReactNode;
@@ -77,7 +75,7 @@ export function AppShell({
       style={{ "--nav-w": collapsed ? NAV_WIDTH.closed : NAV_WIDTH.open } as React.CSSProperties}
     >
       {children}
-      <SideNav collapsed={collapsed} onToggle={toggle} avatar={avatar} pictureSrc={pictureSrc} isAdmin={isAdmin} theme={theme} />
+      <SideNav collapsed={collapsed} onToggle={toggle} avatar={avatar} isAdmin={isAdmin} theme={theme} />
     </div>
   );
 }
@@ -91,14 +89,12 @@ function SideNav({
   collapsed,
   onToggle,
   avatar,
-  pictureSrc,
   isAdmin,
   theme,
 }: {
   collapsed: boolean;
   onToggle: () => void;
   avatar: AvatarConfig | null;
-  pictureSrc: string | null;
   isAdmin: boolean;
   theme: Theme;
 }) {
@@ -183,7 +179,7 @@ function SideNav({
             }`}
           >
             {/* 28px buddy in the 20px icon column, so the label stays aligned with the others. */}
-            <ProfileImage pictureSrc={pictureSrc} avatar={avatar} size={28} className="-mx-1 ring-2 ring-aqua" />
+            <ProfileImage avatar={avatar} size={28} className="-mx-1 ring-2 ring-aqua" />
             <Label collapsed={collapsed}>Account</Label>
           </Link>
           <form action={signOut}>

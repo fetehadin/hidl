@@ -1,101 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useActionState, useRef, useState, useTransition } from "react";
-import { type ProfileFormState, preparePictureUpload, removeProfilePicture, saveProfile, setProfilePicture } from "@/actions/profile";
+import { useActionState } from "react";
+import { type ProfileFormState, saveProfile } from "@/actions/profile";
 import type { AvatarConfig } from "@/lib/avatar";
-import { processProfilePicture } from "@/lib/image";
-import { DISPLAY_NAME_MAX, PICTURE_EDGE, pictureUrl } from "@/lib/profile-rules";
-import { publicEnv } from "@/lib/public-env";
-import { createClient } from "@/lib/supabase/client";
+import { DISPLAY_NAME_MAX } from "@/lib/profile-rules";
 import { ProfileImage } from "./profile-image";
 
 /**
- * The public side of an account: a display name, a picture (an uploaded photo, or the buddy),
- * and whether to appear on the leaderboard. Shown on /account.
+ * The public side of an account: a display name, the buddy others see, and whether to appear on
+ * the leaderboard. Shown on /account.
  */
 export function ProfileEditor({
   displayName,
-  picturePath,
   avatar,
   showOnLeaderboard,
 }: {
   displayName: string | null;
-  picturePath: string | null;
   avatar: AvatarConfig | null;
   showOnLeaderboard: boolean;
 }) {
-  const router = useRouter();
   const [state, action, pending] = useActionState<ProfileFormState, FormData>(saveProfile, { status: "idle" });
-  const [uploading, startUpload] = useTransition();
-  const [pictureMessage, setPictureMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
   const nameError = state.fieldErrors?.display_name?.[0];
-  const src = picturePath ? pictureUrl(publicEnv.NEXT_PUBLIC_SUPABASE_URL, picturePath) : null;
-
-  function upload(file: File) {
-    setPictureMessage(null);
-    startUpload(async () => {
-      try {
-        const { blob, ext } = await processProfilePicture(file, PICTURE_EDGE);
-        const ticket = await preparePictureUpload(ext);
-        if (!ticket.ok) return setPictureMessage({ tone: "error", text: ticket.message });
-        const { error } = await createClient()
-          .storage.from("avatars")
-          .uploadToSignedUrl(ticket.path, ticket.token, blob, { contentType: blob.type, cacheControl: "31536000" });
-        if (error) return setPictureMessage({ tone: "error", text: "The upload didn't go through. Try again." });
-        const saved = await setProfilePicture(ticket.path);
-        if (!saved.ok) return setPictureMessage({ tone: "error", text: saved.message });
-        setPictureMessage({ tone: "ok", text: "New picture saved." });
-        router.refresh();
-      } catch (e) {
-        setPictureMessage({ tone: "error", text: e instanceof Error ? e.message : "Couldn't use that picture." });
-      } finally {
-        if (fileRef.current) fileRef.current.value = "";
-      }
-    });
-  }
-
-  function switchToBuddy() {
-    setPictureMessage(null);
-    startUpload(async () => {
-      const result = await removeProfilePicture();
-      if (!result.ok) return setPictureMessage({ tone: "error", text: result.message });
-      setPictureMessage({ tone: "ok", text: "Your buddy is your picture now." });
-      router.refresh();
-    });
-  }
 
   return (
     <div className="grid gap-6 sm:grid-cols-[10rem_1fr]">
       <div className="flex flex-col items-center gap-3">
-        <ProfileImage pictureSrc={src} avatar={avatar} size={128} label="Your profile picture" className="ring-4 ring-aqua" />
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          id="profile-picture"
-          onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])}
-        />
-        <label
-          htmlFor="profile-picture"
-          aria-disabled={uploading}
-          className="btn btn-ghost min-h-10 cursor-pointer px-3 text-sm"
-        >
-          {uploading ? "Working…" : src ? "Change photo" : "Upload a photo"}
-        </label>
-        {src && (
-          <button type="button" onClick={switchToBuddy} disabled={uploading} className="text-sm font-bold text-accent hover:underline">
-            Use my buddy instead
-          </button>
-        )}
-        {pictureMessage && (
-          <p role={pictureMessage.tone === "error" ? "alert" : "status"} className={`text-center text-sm ${pictureMessage.tone === "error" ? "text-wax" : "text-accent"}`}>
-            {pictureMessage.text}
-          </p>
-        )}
+        <ProfileImage avatar={avatar} size={128} label="Your buddy" className="ring-4 ring-aqua" />
+        <a href="#buddy" className="text-sm font-bold text-accent hover:underline">
+          Change your buddy
+        </a>
       </div>
 
       <form action={action} className="flex flex-col gap-4">
@@ -130,7 +64,7 @@ export function ProfileEditor({
           <span>
             <span className="font-semibold">Show me on the leaderboard</span>
             <span className="block text-sm text-ink-soft">
-              Others see your name, picture and photo streak. Never your photos.{" "}
+              Others see your name, buddy and photo streak. Never your photos.{" "}
               <Link href="/leaderboard" className="font-semibold text-accent">See the board</Link>
             </span>
           </span>

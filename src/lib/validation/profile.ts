@@ -13,5 +13,3 @@ export const profileSchema = z.object({
     .transform((name) => (name === "" ? null : name)),
   show_on_leaderboard: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
 });
-
-export const picturePathSchema = z.string().regex(/^[0-9a-f-]{36}\/[0-9a-f]{16}\.(webp|jpg)$/);
