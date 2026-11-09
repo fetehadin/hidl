@@ -12,7 +12,7 @@ import {
   waitAfterFailures,
 } from "@/lib/app-lock";
 import { periodBounds } from "@/lib/data/leaderboard";
-import { displayNameProblem, isOwnPicturePath, normalizeDisplayName } from "@/lib/profile-rules";
+import { displayNameProblem, normalizeDisplayName } from "@/lib/profile-rules";
 
 describe("app lock", () => {
   it("PINs are 4 to 6 digits", () => {
@@ -86,12 +86,7 @@ describe("display names", () => {
     expect(displayNameProblem("hidl team")).toMatch(/reserved/);
     expect(displayNameProblem("The Admin")).toMatch(/reserved/);
   });
-  it("only accepts picture paths in your own folder", () => {
-    const me = "8f0a2b1c-1111-4222-8333-444455556666";
-    expect(isOwnPicturePath(`${me}/0123456789abcdef.webp`, me)).toBe(true);
-    expect(isOwnPicturePath(`${me}/0123456789abcdef.png`, me)).toBe(false);
-    expect(isOwnPicturePath(`other/0123456789abcdef.webp`, me)).toBe(false);
-  });
+
 });
 
 describe("leaderboard periods", () => {

@@ -4,7 +4,7 @@ import { getLeaderboard } from "@/lib/data/leaderboard";
 import { todayISO } from "@/lib/time";
 import { admin, anon, createTestUser, deleteTestUser, type TestUser } from "./helpers";
 
-// ..._profiles_leaderboard.sql: display names, pictures, and the photo-streak leaderboard.
+// ..._profiles_leaderboard.sql: display names and the photo-streak leaderboard.
 
 const tag = randomUUID().slice(0, 6);
 const photo = (u: TestUser, date: string, n = 1) => ({
@@ -60,24 +60,9 @@ describe("profiles", () => {
     expect((await anon().from("profiles").select("*")).error?.code).toBe("42501");
   });
 
-  it("a picture must be in your own folder, named the app's way", async () => {
-    const ok = await a.client.from("profiles").update({ picture_path: `${a.id}/0123456789abcdef.webp` }).eq("user_id", a.id);
-    expect(ok.error).toBeNull();
-    const theirs = await a.client.from("profiles").update({ picture_path: `${b.id}/0123456789abcdef.webp` }).eq("user_id", a.id);
-    expect(theirs.error?.code).toBe("23514");
-    const odd = await a.client.from("profiles").update({ picture_path: `${a.id}/../x.webp` }).eq("user_id", a.id);
-    expect(odd.error?.code).toBe("23514");
-  });
-
-  it("pictures upload only to your own folder and are public", async () => {
-    const png = new Blob([new Uint8Array([0x52, 0x49, 0x46, 0x46])], { type: "image/webp" });
-    const mine = await a.client.storage.from("avatars").upload(`${a.id}/0123456789abcdef.webp`, png, { contentType: "image/webp", upsert: true });
-    expect(mine.error).toBeNull();
-    const theirs = await a.client.storage.from("avatars").upload(`${b.id}/0123456789abcdef.webp`, png, { contentType: "image/webp" });
-    expect(theirs.error).not.toBeNull();
-    const url = anon().storage.from("avatars").getPublicUrl(`${a.id}/0123456789abcdef.webp`).data.publicUrl;
-    expect((await fetch(url)).status).toBe(200);
-    await admin.storage.from("avatars").remove([`${a.id}/0123456789abcdef.webp`]);
+  it("profiles have no picture any more", async () => {
+    const res = await a.client.from("profiles").update({ picture_path: `${a.id}/0123456789abcdef.webp` } as never).eq("user_id", a.id);
+    expect(res.error).not.toBeNull();
   });
 
   it("resetting the buddy keeps the name", async () => {
@@ -120,7 +105,7 @@ describe("leaderboard", () => {
     expect(error?.code).toBe("42501");
   });
 
-  it("this week's board shows names and pictures, never ids or emails, and marks you", async () => {
+  it("this week's board shows names and buddies, never ids or emails, and marks you", async () => {
     await me.client.from("photos").insert(photo(me, todayISO("Africa/Addis_Ababa"), 3));
     const board = await getLeaderboard(me.client, "week");
     const mine = board.rows.find((r) => r.isMe);
@@ -129,7 +114,7 @@ describe("leaderboard", () => {
     expect(board.rows.some((r) => r.displayName === `Hidden ${tag}`)).toBe(false);
     const raw = await me.client.rpc("leaderboard", { p_period: "week" });
     expect(Object.keys((raw.data as object[])[0]).sort()).toEqual(
-      ["avatar", "display_name", "is_me", "period_end", "period_start", "photo_days", "picture_path", "rank", "streak"],
+      ["avatar", "display_name", "is_me", "period_end", "period_start", "photo_days", "rank", "streak"],
     );
   });
 

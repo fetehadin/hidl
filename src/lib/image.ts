@@ -146,30 +146,3 @@ export async function processMedia(file: File): Promise<ProcessedMedia> {
   if (file.type.startsWith("image/")) return processImage(file);
   throw new Error("That file isn't a photo or a video.");
 }
-
-/**
- * A profile picture: the middle square of the photo (EXIF orientation applied), PICTURE_EDGE
- * pixels a side, WebP (JPEG on Safari). Small enough to stay far under the avatars bucket's cap.
- */
-export async function processProfilePicture(file: File, edge = 320): Promise<{ blob: Blob; ext: ImageExt }> {
-  if (!file.type.startsWith("image/")) throw new Error("Pick a photo (JPEG, PNG, WebP or HEIC).");
-  let bitmap: ImageBitmap;
-  try {
-    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-  } catch {
-    throw new Error("This browser can't read that image format. Try a JPEG or PNG.");
-  }
-  try {
-    const side = Math.min(bitmap.width, bitmap.height);
-    const canvas = document.createElement("canvas");
-    canvas.width = canvas.height = Math.min(edge, side);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas is not available.");
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
-    const blob = await toBlob(canvas, imageType(), 0.85);
-    return { blob, ext: extOf(blob.type) };
-  } finally {
-    bitmap.close();
-  }
-}

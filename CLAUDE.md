@@ -20,7 +20,7 @@ README's "How the important rules are enforced" table (every hard rule and the P
 - Gregorian or Ethiopian date display, a buildable avatar ("buddy") based on the mascot Hidi, account self-deletion,
   a landing page and install guide for signed-out visitors.
 - **Feedback** (`/feedback`): anyone signed in can send a bug, idea or praise and see replies to it.
-- **Profiles and leaderboard:** a display name and picture (an uploaded photo or the buddy) on `/account`;
+- **Profiles and leaderboard:** a display name on `/account`, shown with the buddy (no uploaded pictures);
   `/leaderboard` ranks photo streaks weekly and monthly (everyone unless they opt out), with last period's results
   frozen ("released").
 - **App lock:** an optional per-device PIN or pattern lock screen (`/account`), kept in the browser only.
@@ -118,7 +118,7 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `countdowns` | `kind`, `title`, `target_at`, `target_score`/`max_score`/`actual_score`, `details` jsonb, `units` text[], `is_widget` | `kind` can't be updated; scores only for `exam`; `details` checked by `countdown_details_ok`; one `is_widget` per user. |
 | `widget_tokens` | `id`, `user_id`, `countdown_id` (null = follow the starred one), `token_hash` | `(countdown_id, user_id)` FK → `countdowns(id, user_id)`; `token_hash` is never selectable. |
 | `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover` | Many per day; no future dates (in the owner's zone, from `user_settings`); paths must be in the user's folder; one cover per `(user_id, date)`. |
-| `profiles` | `user_id` (PK), `avatar` jsonb (nullable), `display_name`, `picture_path`, `show_on_leaderboard` | Own row only. `avatar_ok()` mirrors `AVATAR_PARTS` in `src/lib/avatar.ts`; `display_name_ok()` mirrors `src/lib/profile-rules.ts`; names unique ignoring case; `picture_path` must be `<own id>/<16 hex>.webp\|jpg`. Write it update-then-insert (no `.upsert()`). Other people's names/pictures come out only through `leaderboard()`. |
+| `profiles` | `user_id` (PK), `avatar` jsonb (nullable), `display_name`, `show_on_leaderboard` | Own row only. `avatar_ok()` mirrors `AVATAR_PARTS` in `src/lib/avatar.ts`; `display_name_ok()` mirrors `src/lib/profile-rules.ts`; names unique ignoring case; Write it update-then-insert (no `.upsert()`). Other people's names/buddies come out only through `leaderboard()`. |
 | `leaderboard_releases`, `leaderboard_results` | `(period, period_start)`, `rank`, `streak`, `photo_days` | No grants. A finished week/month is snapshotted by `leaderboard(p, true)` the first time anyone asks for it. |
 | `usage_daily` | `day`, `user_id`, `visits` | No grants at all. Written only by `record_visit()`, read only through `admin_stats()` / `admin_user_detail()` (admins). |
 | `feedback` | `kind`, `message`, `page`, `user_agent`, `status`, `reply`, `replied_at` | Users insert (`kind`, `message`, `page`, `user_agent` only) and read their own (not `user_agent`); no update/delete. Status and reply only via `admin_update_feedback`. 10 per person per day (trigger, `53400`). Kinds/statuses mirrored in `src/lib/feedback.ts`. |
@@ -127,8 +127,7 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `app_handoffs` | `code_hash` (PK), `user_id`, `expires_at`, `used_at` | No grants. SHA-256 of the one-time "sign in on the phone app" code; 10 min, single use, a new code retires the old, 10 an hour. Made by `create_app_handoff()` (as the user), spent by `redeem_app_handoff()` (service role only). |
 | `user_settings` | `user_id` (PK), `time_zone` | The device's IANA zone, checked by `time_zone_ok()`. No row = Africa/Addis_Ababa. Written only by `setTimeZone`. |
 
-Storage: one private `photos` bucket, `<user_id>/...` folders, 5 MB per file, JPEG/WebP/MP4/WebM/MOV only. One
-**public** `avatars` bucket for profile pictures, `<user_id>/<16 hex>.webp|jpg`, 512 KB, WebP/JPEG only.
+Storage: one private `photos` bucket, `<user_id>/...` folders, 5 MB per file, JPEG/WebP/MP4/WebM/MOV only.
 User preference `calendar` (Gregorian/Ethiopian) lives in `auth.users.user_metadata`, not a table.
 `exam_settings` from the first migrations was migrated into `countdowns` and dropped.
 
@@ -185,7 +184,7 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
 - **Mirrored rules:** when a Postgres rule has a TypeScript mirror, change both in the same commit:
   `countdown_details_ok` ↔ `src/lib/countdown-kinds.ts`, `countdown_units_ok` ↔ `src/lib/countdown-units.ts`,
   `avatar_ok` ↔ `src/lib/avatar.ts`, bucket limits ↔ `src/lib/media.ts`, `feedback` checks ↔ `src/lib/feedback.ts`,
-  `display_name_ok` and the `avatars` bucket ↔ `src/lib/profile-rules.ts`, leaderboard periods ↔ `periodBounds` in
+  `display_name_ok` ↔ `src/lib/profile-rules.ts`, leaderboard periods ↔ `periodBounds` in
   `src/lib/data/leaderboard.ts`.
   `timeLeft()` in `src/lib/countdown-units.ts` is also copied to `mobile/src/countdown-units.ts` (the widget counts
   on the phone): change both.
