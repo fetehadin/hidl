@@ -22,10 +22,19 @@ website, because they come from the same place. Native screens can replace web o
      and photo uploads can use the camera.
    - **Offline:** the app shows its own offline screen.
    - **Signing out:** signing out on the site brings back the native sign-in screen and unhooks the widget.
-3. **Widget (`src/widget/`):** one widget holds every countdown still to come (the account feed's `countdowns` list,
-   starred first), one at a time and big; ‹ › in its header flip between them ("1 / 3"), redrawn from the saved copy
-   so it's instant. Each widget remembers its own page (`hidl.widgetPage.<id>`). Teal gradient or Graphite, following
-   the app's theme, with Hidi (`src/widget/hidi.ts`). The app redraws it when you leave the app or save a countdown,
+3. **Widget (`src/widget/`):** three entries in the widget picker, all the same "chunky" widget (teal frame, white
+   card on a darker edge, Nunito numbers): `CountdownSmall` (2×2), `Countdown` (4×2, the original name so placed
+   widgets keep working) and `CountdownLarge` (4×4, with a list). What's drawn follows the real size
+   (`layoutFor` in `CountdownWidget.tsx`), so any of them stays readable when resized. Countdowns come from the
+   account feed's `countdowns` list, soonest first, then ones that passed (last 7 days); ‹ › and the dots flip
+   between them, redrawn from the saved copy so it's instant. Hidi's mood and the speech line follow the date
+   (`mood.ts`: calm, excited, nervous, party, sleepy; tested in the web app's `tests/unit/widget-mood.test.ts`);
+   the art is SVG strings (`hidi.ts`). Each widget keeps its own settings (`settings.ts`, `hidl.widget.<id>`):
+   which countdowns to leave out, Light / Dark / Follow phone, and which one it's showing (by id). The setup screen
+   (`WidgetSetup.tsx`) opens when a widget is added and from the launcher's widget settings. Tapping the card opens
+   that countdown (`hidl://open?path=/countdown#c-<id>`, checked by `src/deep-link.ts`). Fonts are bundled from
+   `assets/fonts` (OFL) and the picker previews are `assets/widget/preview-*.png`. Nothing animates or ticks
+   between redraws: the library draws the widget as a picture. The app redraws it when you leave the app or save a countdown,
    and tells the page how many widgets are really placed (`getWidgetInfo`), so it never claims one that was removed.
    Widgets are built from the library's primitives only: no React Native views and **no fragments (`<>…</>`)**, which
    the library can't convert (the widget fails to draw). Right after sign-in the app asks `/api/app/widget` for the account's countdown feed,
@@ -33,8 +42,8 @@ website, because they come from the same place. Native screens can replace web o
    redraws the widget every 30 minutes, headless. The time left is worked out on the phone from the countdown's date
    (`src/countdown-units.ts`, a copy of the website's), so it stays right offline and between refreshes.
    - **One tap from a countdown:** the page learns the app can place widgets from `window.hidlApp` (set by
-     `WebShell.tsx` before the page loads). Its **Add to home screen** button calls `prepareAppWidget` (stars the
-     countdown, issues a fresh starred feed link) and posts `{ type: "pin-widget", feedUrl }`. The app saves the link
+     `WebShell.tsx` before the page loads). Its **Add to home screen** button calls `prepareAppWidget` (issues a
+     fresh account feed link) and posts `{ type: "pin-widget", feedUrl }`. The app saves the link
      (same site only), then calls `requestPinWidget`, and answers with a `hidl-app` event. Launchers that don't allow
      apps to place widgets get the manual steps instead.
 

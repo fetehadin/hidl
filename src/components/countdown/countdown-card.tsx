@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { deleteCountdown, setWidgetCountdown } from "@/actions/countdowns";
+import { deleteCountdown } from "@/actions/countdowns";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { PencilIcon, StarIcon, TrashIcon } from "@/components/icons";
+import { PencilIcon, TrashIcon } from "@/components/icons";
 import { detailLine, KIND_INFO } from "@/lib/countdown-kinds";
 import type { Countdown } from "@/lib/data/countdowns";
 import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
@@ -49,31 +49,9 @@ export function CountdownCard({
     });
   }
 
-  function star() {
-    setError(null);
-    startTransition(async () => {
-      const res = await setWidgetCountdown(countdown.id);
-      if (!res.ok) setError(res.message);
-    });
-  }
-
   return (
-    <div className={`card relative p-5 sm:p-6 ${featured ? "card-interactive" : ""}`}>
-      <button
-        type="button"
-        onClick={star}
-        disabled={pending}
-        aria-pressed={countdown.is_widget}
-        aria-label={countdown.is_widget ? "Starred: shown first on your dashboard" : "Star to show this first on your dashboard"}
-        title={countdown.is_widget ? "Starred: shown first on your dashboard" : "Star to show this first on your dashboard"}
-        className={`absolute top-3 right-3 flex min-h-11 min-w-11 items-center justify-center rounded-full transition-colors ${
-          countdown.is_widget ? "text-accent" : "text-muted hover:text-ink"
-        }`}
-      >
-        <StarIcon width={22} height={22} filled={countdown.is_widget} strokeWidth={1.5} />
-      </button>
-
-      <div className={`flex flex-col gap-4 pr-11 ${featured ? "lg:flex-row lg:items-center lg:justify-between lg:gap-8" : ""}`}>
+    <div id={`c-${countdown.id}`} className={`card relative scroll-mt-24 p-5 sm:p-6 ${featured ? "card-interactive" : ""}`}>
+      <div className={`flex flex-col gap-4 ${featured ? "lg:flex-row lg:items-center lg:justify-between lg:gap-8" : ""}`}>
         <div className="flex min-w-0 gap-3.5">
           <KindBadge kind={countdown.kind} size={featured ? 52 : 44} />
           <div className="min-w-0">

@@ -14,8 +14,8 @@ README's "How the important rules are enforced" table (every hard rule and the P
 - **Time-locked letters** to your future self, sealed until an opening date, end-to-end encrypted in the browser.
   Writing asks for nothing; opening takes fingerprint / Face ID, the key emailed at setup, or an optional passphrase.
 - **Countdowns**: any number, eight kinds (exam with target/actual score, graduation, birthday, wedding, work, trip,
-  life, other), shown in the units the user picks; one can be starred, and any can feed an Android home-screen
-  widget through a token-authenticated JSON feed.
+  life, other), shown in the units the user picks, soonest first (no starring), and feed the Android home-screen
+  widget (three sizes, Hidi in five moods) through a token-authenticated JSON feed.
 - **Photo calendar**: any number of photos or short videos (≤ 5 MB each, 2 GB per person) per day, a pinned "wallpaper" per day, a
   year view, and `/memories`, a pannable board of past days.
 - Gregorian or Ethiopian date display, a buildable avatar ("buddy") based on the mascot Hidi, account self-deletion,
@@ -124,7 +124,7 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `letter_keys` | `user_id` (PK), `public_key`, `private_key_wrapped`, `email_wrapped_key`, `email_share`, `kdf_salt`, `kdf_iterations`, `passphrase_wrapped_key`, `recovery_wrapped_key` | One per user. The key pair (writing needs only `public_key`) and the letter key wrapped once per way in: email key, optional passphrase, old recovery key. At least one way in (check); the pair is set once (`letter_keys_guard`); no `DELETE`. |
 | `letter_passkeys` | `credential_id` (PK), `user_id`, `wrapped_key` | Fingerprint / Face ID: the letter key wrapped by a passkey's PRF secret. Own rows only, 10 per person (`53400`). |
 | `countdowns` | `kind`, `title`, `target_at`, `target_score`/`max_score`/`actual_score`, `details` jsonb, `units` text[], `is_widget` | `kind` can't be updated; scores only for `exam`; `details` checked by `countdown_details_ok`; one `is_widget` per user. |
-| `widget_tokens` | `id`, `user_id`, `countdown_id` (null = follow the starred one), `token_hash` | `(countdown_id, user_id)` FK → `countdowns(id, user_id)`; `token_hash` is never selectable. |
+| `widget_tokens` | `id`, `user_id`, `countdown_id` (null = the account feed: next one + the list), `token_hash` | `(countdown_id, user_id)` FK → `countdowns(id, user_id)`; `token_hash` is never selectable. |
 | `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover` | Many per day; no future dates (in the owner's zone, from `user_settings`); paths must be in the user's folder; one cover per `(user_id, date)`. |
 | `media_objects` | `path` (PK), `user_id`, `bytes`, `content_type`, `created_at`, `confirmed_at` | One row per photo/video file. **No user grants**: written by `reserve_media()` (folder, ≤ 5 MB, type, 2 GB per person `53100`, 120 files/hour `53400`) and by the server with the service role (confirm, delete). `media_usage()` tells a person their space. Admin storage numbers come from here. |
 | `profiles` | `user_id` (PK), `avatar` jsonb (nullable), `display_name`, `show_on_leaderboard` | Own row only. `avatar_ok()` mirrors `AVATAR_PARTS` in `src/lib/avatar.ts`; `display_name_ok()` mirrors `src/lib/profile-rules.ts`; names unique ignoring case; Write it update-then-insert (no `.upsert()`). Other people's names/buddies come out only through `leaderboard()`. |

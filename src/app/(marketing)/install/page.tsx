@@ -153,7 +153,7 @@ function AndroidApp() {
     <div className="mt-5 rounded-2xl bg-mint p-4">
       <h3 className="font-display text-lg font-semibold text-ocean">Want a countdown widget? Get the Android app</h3>
       <p className="mt-1 text-ink-soft">
-        The hidl app is the same journal and account, plus a home-screen widget for your starred countdown.
+        The hidl app is the same journal and account, plus a home-screen widget that flips through your countdowns.
       </p>
       <ol className="mt-3 list-decimal space-y-1 pl-5 text-ink-soft">
         <li>Download it below and open the downloaded file.</li>

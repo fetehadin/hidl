@@ -1,9 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { handoffUrl, isSignedIn, setSignedIn, type AppSession } from './src/auth';
 import { SITE_URL } from './src/config';
+import { pathFromLink } from './src/deep-link';
 import { SignInScreen } from './src/screens/SignInScreen';
 import { WebShell } from './src/screens/WebShell';
 import { colors } from './src/theme';
@@ -15,7 +16,10 @@ export default function App() {
   const [state, setState] = useState<State>({ name: 'loading' });
 
   useEffect(() => {
-    isSignedIn().then((yes) => setState(yes ? { name: 'journal', startUrl: `${SITE_URL}/` } : { name: 'signed-out' }));
+    // Opened from a widget tap: start on that page (the countdown tapped) instead of Today.
+    Promise.all([isSignedIn(), Linking.getInitialURL().catch(() => null)]).then(([yes, link]) =>
+      setState(yes ? { name: 'journal', startUrl: `${SITE_URL}${pathFromLink(link) ?? '/'}` } : { name: 'signed-out' }),
+    );
   }, []);
 
   async function signedIn(session: AppSession) {

@@ -12,7 +12,7 @@ import { useDevice } from "@/components/use-device";
 /**
  * Home-screen widget help: the Android app first (AppWidgetHelp), then, under "Advanced", creating,
  * regenerating or removing a feed token for KWGT and the like. Without `countdown` it's the
- * account's "starred countdown" feed; with one, that countdown's own feed.
+ * account feed (whichever countdown is next); with one, that countdown's own feed.
  */
 export function WidgetToken({
   createdAt,
@@ -75,7 +75,7 @@ export function WidgetToken({
               only <strong>{countdown.title}</strong>
             </>
           ) : (
-            "whichever one countdown you've starred"
+            "whichever countdown comes next"
           )}{" "}
           as JSON, never your letters or photos.
         </p>

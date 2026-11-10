@@ -2,7 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/** When the starred-countdown feed's token was created, or null if there isn't one. */
+/** When the account feed's token was created, or null if there isn't one. */
 export async function getWidgetTokenCreatedAt(supabase: SupabaseClient) {
   const { data, error } = await supabase.from("widget_tokens").select("created_at").is("countdown_id", null).maybeSingle();
   if (error) throw error;
@@ -17,7 +17,7 @@ export async function listCountdownWidgetTokens(supabase: SupabaseClient) {
 }
 
 /**
- * Creates (or replaces) the bearer token for a widget feed: the starred-countdown feed when
+ * Creates (or replaces) the bearer token for a widget feed: the account feed when
  * `countdownId` is null, else that countdown's own. Only the hash is stored; the raw token is
  * returned once. Used by the website's Widget button and by the phone app's sign-in.
  */

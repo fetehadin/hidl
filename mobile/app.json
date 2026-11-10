@@ -4,7 +4,7 @@
     "slug": "hidl",
     "owner": "fetebuild",
     "scheme": "hidl",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -27,17 +27,50 @@
       [
         "react-native-android-widget",
         {
+          "fonts": [
+            "./assets/fonts/Nunito-ExtraBold.ttf",
+            "./assets/fonts/Nunito-Black.ttf",
+            "./assets/fonts/JetBrainsMono-Bold.ttf"
+          ],
           "widgets": [
+            {
+              "name": "CountdownSmall",
+              "label": "hidl countdown · small",
+              "description": "Hidi and the big number. Tap to flip.",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "previewImage": "./assets/widget/preview-small.png",
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000,
+              "widgetFeatures": "reconfigurable"
+            },
             {
               "name": "Countdown",
               "label": "hidl countdown",
-              "description": "Time left on one of your hidl countdowns",
-              "minWidth": "180dp",
+              "description": "Your countdowns, soonest first, with arrows to flip.",
+              "minWidth": "250dp",
               "minHeight": "110dp",
-              "targetCellWidth": 3,
+              "targetCellWidth": 4,
               "targetCellHeight": 2,
+              "previewImage": "./assets/widget/preview-medium.png",
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
+              "updatePeriodMillis": 1800000,
+              "widgetFeatures": "reconfigurable"
+            },
+            {
+              "name": "CountdownLarge",
+              "label": "hidl countdowns · large",
+              "description": "Hidi up top and a list of every countdown.",
+              "minWidth": "250dp",
+              "minHeight": "250dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 4,
+              "previewImage": "./assets/widget/preview-large.png",
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000,
+              "widgetFeatures": "reconfigurable"
             }
           ]
         }
