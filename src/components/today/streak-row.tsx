@@ -10,11 +10,12 @@ import { monthKeyOf } from "@/lib/calendar-months";
 import type { CalendarPref } from "@/lib/dates";
 
 /**
- * Today's streak, Duolingo-style: a flame with the count, then this week as seven dots. The flame
- * lights up (and bounces once) when today has a photo, and is grey until then. A day with a photo
- * shows it in its dot, a day a streak freeze covered shows ice, and today without a photo is a
- * pulsing "+" that opens the upload sheet. Tapping the flame opens the streak sheet: freezes held,
- * and buying one with XP.
+ * Today's streak, Duolingo-style: a flame with the count, then this week as seven small portrait
+ * tiles. The flame lights up when today has a photo, and is grey until then. A day with a photo
+ * shows it, a day a streak freeze covered shows ice, today without a photo is a dashed "+" that
+ * opens the upload sheet, and other days are just their names. On phones the count sits on one
+ * line above the week so the photos get the full width. Tapping the flame opens the streak sheet:
+ * freezes held, and buying one with XP.
  */
 export function StreakRow({
   streak,
@@ -28,6 +29,7 @@ export function StreakRow({
   freezeMax,
   freezeCost,
   xpBalance,
+  className = "",
 }: {
   streak: number;
   todayDone: boolean;
@@ -43,59 +45,52 @@ export function StreakRow({
   freezeMax: number;
   freezeCost: number;
   xpBalance: number;
+  className?: string;
 }) {
   usePreloadPhotoTools({ lightbox: false });
   const [uploading, setUploading] = useState(false);
   const [sheet, setSheet] = useState(false);
 
   return (
-    <section aria-label="Your streak" className="card flex items-center gap-3 px-3.5 py-3 sm:gap-5 sm:px-5">
+    <section aria-label="Your streak" className={`card px-3.5 py-3 sm:flex sm:items-center sm:gap-5 sm:px-5 sm:py-4 ${className}`}>
       <button
         type="button"
         onClick={() => setSheet(true)}
         aria-label={`${streak}-day streak, ${freezes} streak ${freezes === 1 ? "freeze" : "freezes"}. Open streak details`}
-        className="flex shrink-0 items-center gap-3 rounded-2xl text-left"
+        className="flex shrink-0 items-center gap-2 rounded-2xl text-left sm:gap-3"
       >
         <span className="relative">
           <Flame lit={todayDone} />
           {freezes > 0 && (
             <span
               aria-hidden
-              className="absolute -right-1.5 -bottom-0.5 grid size-5 place-items-center rounded-full bg-ice text-[10px] font-extrabold text-snow ring-2 ring-white"
+              className="absolute -right-1.5 -bottom-0.5 grid size-4 place-items-center rounded-full bg-ice text-[9px] font-extrabold text-snow ring-2 ring-white sm:size-5 sm:text-[10px]"
             >
               {freezes}
             </span>
           )}
         </span>
-        <span className="leading-none">
-          <span className="block font-display text-[1.7rem] font-extrabold tabular-nums text-ink">{streak}</span>
-          <span className="mt-1 block text-[10px] font-extrabold tracking-wider text-muted uppercase">day streak</span>
+        {/* Phones: one line ("12 day streak") so the week below gets the room; wider: stacked. */}
+        <span className="flex items-baseline gap-1.5 leading-none sm:block">
+          <span className="block font-display text-xl font-extrabold tabular-nums text-ink sm:text-[1.7rem]">{streak}</span>
+          <span className="block text-[10px] font-extrabold tracking-wider text-muted uppercase sm:mt-1">day streak</span>
         </span>
       </button>
 
-      <ol className="ml-auto grid grid-cols-7 gap-1 sm:gap-2" aria-label="This week">
+      <ol className="mt-2.5 grid grid-cols-7 gap-1.5 sm:mt-0 sm:flex-1 sm:gap-2" aria-label="This week">
         {days.map((date, i) => {
           const label = WEEKDAYS[i];
           const thumb = thumbs[date];
-          const letter = (
-            <span aria-hidden className="block text-center text-[10px] leading-none font-extrabold text-muted">
-              {label[0]}
-            </span>
-          );
-          const dot = "mt-1 block size-[1.15rem] rounded-full sm:size-6";
+          const tile = "relative block aspect-[3/4] w-full overflow-hidden rounded-xl sm:rounded-2xl";
+          const name = "absolute inset-x-0 top-1 text-center text-[10px] leading-none font-extrabold sm:top-1.5 sm:text-xs";
           if (thumb) {
             return (
               <li key={date}>
-                <Link href={`/calendar?m=${monthKeyOf(calendar, date)}`} aria-label={`${label}: open the calendar`}>
-                  {letter}
+                <Link href={`/calendar?m=${monthKeyOf(calendar, date)}`} aria-label={`${label}: open the calendar`} className={`${tile} bg-paper-deep ${date === today ? "animate-pop-in" : ""}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={thumb}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    className={`${dot} object-cover ring-2 ring-flame ring-offset-1 ring-offset-white ${date === today ? "animate-pop-in" : ""}`}
-                  />
+                  <img src={thumb} alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+                  <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-scrim/55 to-transparent" />
+                  <span aria-hidden className={`${name} text-snow`}>{label}</span>
                 </Link>
               </li>
             );
@@ -103,9 +98,9 @@ export function StreakRow({
           if (frozen.includes(date)) {
             return (
               <li key={date} aria-label={`${label}: kept by a streak freeze`}>
-                {letter}
-                <span className={`${dot} grid place-items-center bg-ice-soft text-ice ring-2 ring-ice`}>
-                  <SnowflakeIcon className="size-3 sm:size-3.5" />
+                <span className={`${tile} grid place-items-center bg-ice-soft text-ice ring-2 ring-ice ring-inset`}>
+                  <span aria-hidden className={name}>{label}</span>
+                  <SnowflakeIcon className="mt-2 size-4 sm:size-5" />
                 </span>
               </li>
             );
@@ -113,20 +108,23 @@ export function StreakRow({
           if (date === today) {
             return (
               <li key={date}>
-                <button type="button" onClick={() => setUploading(true)} aria-label="Add today's photo" className="block">
-                  {letter}
-                  <span className={`${dot} relative grid place-items-center text-accent ring-2 ring-teal`}>
-                    <span aria-hidden className="animate-ping-soft absolute inset-0 rounded-full ring-2 ring-teal" />
-                    <span aria-hidden className="text-sm leading-none font-bold">+</span>
-                  </span>
+                <button
+                  type="button"
+                  onClick={() => setUploading(true)}
+                  aria-label="Add today's photo"
+                  className={`${tile} grid place-items-center border-2 border-dashed border-teal bg-mint text-accent transition-colors hover:bg-aqua/40`}
+                >
+                  <span aria-hidden className={name}>{label}</span>
+                  <span aria-hidden className="mt-2 text-xl leading-none font-bold sm:text-2xl">+</span>
                 </button>
               </li>
             );
           }
           return (
             <li key={date} aria-label={date < today ? `${label}: no photo` : label}>
-              {letter}
-              <span className={`${dot} ${date < today ? "bg-paper-deep" : "bg-paper-deep/50"}`} />
+              <span className={tile}>
+                <span aria-hidden className={`${name} ${date < today ? "text-muted" : "text-muted/50"}`}>{label}</span>
+              </span>
             </li>
           );
         })}
@@ -246,7 +244,7 @@ function Flame({ lit, large = false }: { lit: boolean; large?: boolean }) {
     <svg
       viewBox="0 0 44 48"
       aria-hidden
-      className={`${large ? "h-20 w-[4.5rem]" : "h-11 w-10"} shrink-0 ${lit ? "animate-flame drop-shadow-[0_4px_8px_color-mix(in_srgb,var(--flame)_45%,transparent)]" : "opacity-40 grayscale"}`}
+      className={`${large ? "h-20 w-[4.5rem]" : "h-8 w-7 sm:h-11 sm:w-10"} shrink-0 ${lit ? "animate-flame drop-shadow-[0_4px_8px_color-mix(in_srgb,var(--flame)_45%,transparent)]" : "opacity-40 grayscale"}`}
     >
       <defs>
         <linearGradient id="streak-flame" x1="0" y1="1" x2="0" y2="0">

@@ -245,7 +245,7 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   name, buddy and `is_me`, never ids or emails. The previous period is "released": the first call
   for it writes `leaderboard_releases` + top 100 into `leaderboard_results`, and later calls read that snapshot
   (names/buddies stay live; people who opted out since show anonymously). Desktop nav has a Leaderboard item; phones
-  reach it from Today (the "#3 this week · 120 XP" line under the streak) and Account.
+  reach it from Today (the leaderboard card: place, XP, the gap to the next person, the top three faces) and Account.
 - **App lock** (`src/lib/app-lock.ts`, `src/components/lock/`): optional, per device and per user. A 4–6 digit PIN
   or a 3×3 pattern (≥ 4 dots; crossing an unused dot adds it), hashed with PBKDF2-SHA256 (100k, random salt) into
   `localStorage["hidl-lock:<user id>"]`; the secret is never stored or sent. `<AppLockGate>` keeps the app mounted but
@@ -366,13 +366,20 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   (`font-brand`). Photos carry their own overlays: white `text-snow` with a `--scrim` shade, never theme colors.
   `.btn` is flat with a small press. The memories board keeps its sky (`--sky-top`/`--sky-mid`, night-toned in
   Graphite). The calendar is a dense photo grid: portrait cells (narrowed on wide screens so they stay ~4:5), the
-  date over each photo, "+N" for extra photos, plain numbers on empty days and a dashed "+" for today. Today is minimal
-  and phone first (`src/app/(app)/page.tsx`): one date in the chosen calendar, Hidi (never repeating the streak),
-  the streak row (`src/components/today/streak-row.tsx`: a flame that lights up once today has a photo, and the week
-  as seven dots, today's a pulsing "+" that opens the upload sheet; `weekOf()` in `src/lib/calendar.ts`), the main
-  countdown with a progress bar from `created_at` and the next ones as two-per-row cards, the next letter as one row
-  (`mini-envelope.tsx`) and today's photo with its caption on it. Blocks with nothing to show aren't shown, and the
-  blocks are the links (no "Open …" lines). `LiveCountdown` rolls its numbers in and, in the last 72 hours, ticks
+  date over each photo, "+N" for extra photos, plain numbers on empty days and a dashed "+" for today. Today
+  (`src/app/(app)/page.tsx`, parts in `src/components/today/`) shows every feature even before it's used, as a
+  picture rather than a paragraph, so a new person sees what hidl is for: one date in the chosen calendar, Hidi (a
+  welcome line for someone with nothing yet; never repeating the streak), the streak row (`streak-row.tsx`: a flame
+  that lights up once today has a photo, and the week as seven portrait tiles with each day's photo, today's a
+  dashed "+" that opens the upload sheet; on phones the count sits on one line above the week so the photos get
+  the width; `weekOf()` in `src/lib/calendar.ts`), the leaderboard card (`board-card.tsx`), the countdown (the starred
+  one while it's ahead, else the nearest, with a progress bar from `created_at` and the next ones as two-per-row
+  cards; a finished one only when nothing is ahead, for 3 days or until an exam's score is in; with none, a start
+  button, plus the kinds to pick from on wider screens), today's photo (`today-photo.tsx`: the picture, or an empty page with a camera) and the letters
+  envelope (`letter-tile.tsx`: ready, next sealed, or a blank one that starts a letter). Phones stack these with the
+  photo and letter side by side; from `lg` it's a three-column grid with the photo standing tall on the right and
+  this month's photo calendar (`month-glance.tsx`, in the chosen calendar) under the countdown. The blocks are the
+  links (no "Open …" lines). `LiveCountdown` rolls its numbers in and, in the last 72 hours, ticks
   hours/minutes/seconds. The flame colors are `--flame`/`--flame-2`; every animation stops under
   `prefers-reduced-motion`. The mascot, Hidi, is `src/components/mascot.tsx`
   (moods: happy, wave, cheer, sleepy, curious); `src/app/icon.svg`, `public/icon-*.png` and `apple-touch-icon.png` are the full character on a mint tile (the
