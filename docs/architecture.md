@@ -369,8 +369,8 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   are picked in the upload sheet or tapped in the photo viewer (`PhotoGroupPicker`, with "New group"; saved per tap by
   `setPhotoGroups`; the viewer refreshes the page once, on close, so the board doesn't regroup under it), and
   renamed, deleted and reordered in the board's "Edit groups" sheet (`groups-sheet.tsx`). Every picker reads one list
-  (`photo-groups-store.ts`), so a group made in one place shows up everywhere. The board's "By day / By group" toggle
-  re-runs `layoutMemories(photos, by, groupOrder)` on the client and records `?by=group` with `history.replaceState`; by
+  (`photo-groups-store.ts`), so a group made in one place shows up everywhere. The "Gather photos" menu (the tiles button in the board's bottom bar:
+  by day, by group, edit groups) re-runs `layoutMemories(photos, by, groupOrder)` on the client and records `?by=group` with `history.replaceState`; by
   group, the first group is in the middle and the rest spiral out in the person's order, a photo in two groups is on
   both islands, and ungrouped ones gather on "Not in a group". Opening a photo from a group island walks that island
   only.
@@ -378,18 +378,24 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   circle around the origin holding every island, since the spiral is round and the box's corners are empty). A drag
   may pull up to `MAX_PULL` (72 px) past it, stiffer the further it goes, and springs back on release; a fling
   stops at the edge. Wheel, keys and zoom stop firmly.
-- **Share as a picture** (`share-sheet.tsx` + `snapshot.ts`, loaded on tap): redraws the current view on a canvas
-  (sky, clouds where they are, the photos on screen with frames and captions, island stickers, the title card and a
-  hidl mark) from the theme's CSS variables and the page's fonts, as a JPEG up to 2400 px. Photos are fetched with
-  CORS (the media store allows the site's origin), which keeps the canvas exportable. The sheet shows it, then
-  shares it (Web Share with files) or saves it. In the Android app the web view can't do either, so the page posts
-  the picture to the app (`share-image` message), which shares it with `expo-sharing`
-  (`mobile/src/share-image.ts`; only announced as `hidlApp.shareImage` when the APK has those native modules).
-  The same sheet makes **classic cards** of a day (a collage), a week (seven tiles, Monday first) or a month (a
-  calendar grid with each day's cover), 1080×1350, in the person's calendar (Gregorian or Ethiopian;
-  `src/lib/share-periods.ts`), with arrows to step back and forward. `photosForShare(from, to)` loads the period's
-  photos (at most 45 days). The Calendar page has a Share button too (`share-month-button.tsx`), opening on the month
-  shown.
+- **The board's controls** are one bar at the bottom: the "Gather photos" menu, All (fit every island), Latest
+  (Middle when by group) and Share. There are no zoom buttons: pinch, ctrl+wheel and the + / − keys zoom. The title
+  card at the top only names the page.
+- **Share as a picture** (`share-sheet.tsx` + `snapshot.ts`, loaded on tap). The sheet offers a **day, a week or a
+  month** (in the person's calendar, Gregorian or Ethiopian, `src/lib/share-periods.ts`, with arrows to step back and
+  forward) and, on the board, **this view**. A period is drawn as Memory Lane (`drawLanePicture`): the board's sky and
+  clouds, the title card, and every photo of the period framed (square photo, caption below) and laid out by
+  `laneLayout()` (`src/lib/lane-layout.ts`) as big as they can be while all of them stay whole, in the shape of the
+  screen it's made on (1080 px on the short side), with a day tag ("SAT 7") on each day's first photo in a week or
+  month. Past 48 photos, `pickForPicture()` keeps each day's first photo, then fills up. `photosForShare(from, to)`
+  loads the period's photos (at most 45 days). "This view" (`drawMemorySnapshot`) redraws the board exactly as on
+  screen. Both draw from the theme's CSS variables and the page's fonts; photos are fetched with CORS (the media store
+  allows the site's origin), which keeps the canvas exportable. The picture is then **copied** (as PNG, through the
+  async clipboard), **downloaded** (a JPEG) or **shared** (Web Share with files). In the Android app the web view can do
+  none of these, so the page posts the picture to the app: `share-image` (Android's share sheet, `expo-sharing`) or
+  `save-image` (Android's folder picker, then the file is written there); see `mobile/src/share-image.ts`. Both are
+  only announced (`hidlApp.shareImage` / `saveImage`) when the APK has those native modules. The Calendar page has a
+  Share button too (`share-month-button.tsx`), opening on the month shown.
 - The month calendar (`src/components/calendar/month-grid.tsx`) is sized to fit the viewport without scrolling:
   its height is `min(100dvh - --chrome, 1.8 x square-cell height)` using container query units (the page wrapper is an
   `@container`), so the cells stretch to fill the screen: tall on phones, wide on laptops. There is no card around

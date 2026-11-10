@@ -5,7 +5,7 @@ import { VideoBadge } from "@/components/calendar/video-badge";
 import { Lightbox, UploadSheet, usePreloadPhotoTools } from "@/components/calendar/lazy";
 import type { PhotoView } from "@/lib/data/photos";
 import { useCalendarPref } from "@/components/calendar-pref";
-import { ShareIcon } from "@/components/icons";
+import { ShareIcon, GatherIcon } from "@/components/icons";
 import { Mascot } from "@/components/mascot";
 import { formatEthiopianDay } from "@/lib/ethiopian";
 import {
@@ -151,7 +151,6 @@ export function MemoryBoard({
   const margin = useRef(0);
   const [hint, setHint] = useState(true);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [zoomPct, setZoomPct] = useState(100);
   /**
    * The open photo, and the photos Prev / Next walk through: every photo by day, the island's by
    * group. Kept as ids so a refreshed list (a caption, a deletion) shows fresh data in the same order.
@@ -160,6 +159,8 @@ export function MemoryBoard({
   /** The view being shared (camera and screen size when Share was tapped), while its sheet is open. */
   const [sharing, setSharing] = useState<SharedView | null>(null);
   const [editingGroups, setEditingGroups] = useState(false);
+  /** The small "Gather photos" menu above the controls (by day / by group / edit groups). */
+  const [menuOpen, setMenuOpen] = useState(false);
   const [upload, setUpload] = useState<UploadMode | null>(null);
   const returnFocusTo = useRef<HTMLElement | null>(null);
 
@@ -185,7 +186,6 @@ export function MemoryBoard({
       newly.forEach((d) => next.add(d));
       return next;
     });
-    setZoomPct(Math.round(scale * 100));
   }, [clusters]);
 
   /** Where the middle of the screen may go (world units): over the photos, never off into empty sky. */
@@ -569,15 +569,6 @@ export function MemoryBoard({
     apply();
   }
 
-  function centeredZoom(factor: number) {
-    const board = boardRef.current!;
-    stopAnim();
-    const c = cam.current;
-    const wx = (board.clientWidth / 2 - c.tx) / c.scale;
-    const wy = (board.clientHeight / 2 - c.ty) / c.scale;
-    flyTo(wx, wy, c.scale * factor, 260);
-  }
-
   function openPhoto(cluster: MemoryCluster<PhotoView>, id: string, trigger: HTMLElement) {
     if (suppressClick.current) return;
     returnFocusTo.current = trigger;
@@ -652,46 +643,9 @@ export function MemoryBoard({
       {/* Overlay: title + controls. The wrapper ignores the pointer so the board stays draggable underneath. */}
       <div className="pointer-events-none fixed inset-x-0 top-[4.75rem] z-10 mx-auto flex max-w-[70rem] justify-between px-5 sm:top-[5.5rem] sm:left-[var(--nav-w,0px)]">
         <div className="clay pointer-events-auto px-4 py-2.5 sm:py-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="eyebrow">memory lane</p>
-              <h1 className="font-title text-xl leading-tight font-medium sm:text-2xl">Memories</h1>
-              <p className="text-sm text-muted">{summary}</p>
-            </div>
-            <button
-              type="button"
-              className="-mr-1.5 grid size-10 shrink-0 place-items-center rounded-full text-ocean hover:bg-mint"
-              onClick={share}
-              aria-label="Share this view as a picture"
-              title="Share as a picture"
-            >
-              <ShareIcon width={21} height={21} />
-            </button>
-          </div>
-          <div role="group" aria-label="Group photos" className="mt-2 flex rounded-full bg-paper-deep p-0.5">
-            {(["day", "group"] as const).map((option) => (
-              <button
-                key={option}
-                type="button"
-                aria-pressed={by === option}
-                onClick={() => switchGroup(option)}
-                className={`flex-1 rounded-full px-3 py-1.5 text-sm font-bold whitespace-nowrap transition-colors ${
-                  by === option ? "bg-teal text-accent-ink" : "text-ink-soft hover:text-ink"
-                }`}
-              >
-                {option === "day" ? "By day" : "By group"}
-              </button>
-            ))}
-          </div>
-          {by === "group" && (
-            <button
-              type="button"
-              onClick={() => setEditingGroups(true)}
-              className="mt-1.5 w-full rounded-full px-3 py-1.5 text-sm font-bold text-ocean hover:bg-mint"
-            >
-              {groups.length === 0 ? "+ Make your first group" : "Edit groups"}
-            </button>
-          )}
+          <p className="eyebrow">memory lane</p>
+          <h1 className="font-title text-xl leading-tight font-medium sm:text-2xl">Memories</h1>
+          <p className="text-sm text-muted">{summary}</p>
         </div>
       </div>
 
@@ -716,22 +670,82 @@ export function MemoryBoard({
             </p>
           </div>
         </div>
-        <div className="clay pointer-events-auto flex items-center gap-1 p-1.5" role="toolbar" aria-label="Board controls">
-          <button type="button" className="grid size-10 place-items-center rounded-full text-xl font-bold text-ink-soft hover:bg-paper-deep" onClick={() => centeredZoom(1 / 1.35)} aria-label="Zoom out">
-            −
-          </button>
-          <span className="hidden w-11 text-center text-xs font-bold text-muted tabular-nums sm:inline" aria-live="polite">{zoomPct}%</span>
-          <button type="button" className="grid size-10 place-items-center rounded-full text-xl font-bold text-ink-soft hover:bg-paper-deep" onClick={() => centeredZoom(1.35)} aria-label="Zoom in">
-            +
-          </button>
-          <span className="mx-1 h-6 w-px bg-line" aria-hidden />
-          <button type="button" className="rounded-full px-3 py-2 text-sm font-bold text-ink-soft hover:bg-paper-deep" onClick={fitAll}>
-            All
-          </button>
-          <button type="button" className="rounded-full bg-teal px-3.5 py-2 text-[15px] font-bold text-accent-ink hover:opacity-90" onClick={() => flyTo(0, 0, 1)}>
-            {by === "group" ? "Middle" : "Latest"}
-          </button>
-
+        <div className="pointer-events-auto relative">
+          {menuOpen && (
+            <>
+              {/* Tapping anywhere else closes the menu. */}
+              <button type="button" aria-hidden tabIndex={-1} className="fixed inset-0 z-0 cursor-default" onClick={() => setMenuOpen(false)} />
+              <div
+                id="memory-gather-menu"
+                role="menu"
+                aria-label="Gather photos"
+                className="clay absolute bottom-full left-0 z-10 mb-2 w-56 p-1.5"
+                onKeyDown={(e) => e.key === "Escape" && setMenuOpen(false)}
+              >
+                <p className="px-3 pt-1.5 pb-1 text-[11px] font-extrabold tracking-wider text-muted uppercase">Gather photos</p>
+                {(["day", "group"] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={by === option}
+                    onClick={() => {
+                      switchGroup(option);
+                      setMenuOpen(false);
+                    }}
+                    className={`flex w-full items-center justify-between rounded-full px-3 py-2 text-left text-sm font-bold ${
+                      by === option ? "bg-teal text-accent-ink" : "text-ink-soft hover:bg-paper-deep"
+                    }`}
+                  >
+                    {option === "day" ? "By day" : "By group"}
+                    {by === option && <span aria-hidden>✓</span>}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setEditingGroups(true);
+                  }}
+                  className="mt-1 w-full rounded-full px-3 py-2 text-left text-sm font-bold text-ocean hover:bg-mint"
+                >
+                  {groups.length === 0 ? "+ Make your first group" : "Edit groups"}
+                </button>
+              </div>
+            </>
+          )}
+          <div className="clay relative flex items-center gap-1 p-1.5" role="toolbar" aria-label="Board controls">
+            <button
+              type="button"
+              className={`grid size-10 place-items-center rounded-full hover:bg-paper-deep ${by === "group" ? "text-accent" : "text-ink-soft"}`}
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-controls={menuOpen ? "memory-gather-menu" : undefined}
+              aria-label={`Gather photos: ${by === "group" ? "by group" : "by day"}`}
+              title="Gather photos by day or by group"
+            >
+              <GatherIcon width={20} height={20} />
+            </button>
+            <span className="mx-0.5 h-6 w-px bg-line" aria-hidden />
+            <button type="button" className="rounded-full px-3 py-2 text-sm font-bold text-ink-soft hover:bg-paper-deep" onClick={fitAll}>
+              All
+            </button>
+            <button type="button" className="rounded-full bg-teal px-3.5 py-2 text-[15px] font-bold text-accent-ink hover:opacity-90" onClick={() => flyTo(0, 0, 1)}>
+              {by === "group" ? "Middle" : "Latest"}
+            </button>
+            <span className="mx-0.5 h-6 w-px bg-line" aria-hidden />
+            <button
+              type="button"
+              className="grid size-10 place-items-center rounded-full text-ocean hover:bg-mint"
+              onClick={share}
+              aria-label="Share as a picture"
+              title="Share as a picture"
+            >
+              <ShareIcon width={20} height={20} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -763,7 +777,7 @@ export function MemoryBoard({
             title: by === "group" ? "Memories by group" : "Memories",
             summary,
           }}
-          initialMode="screen"
+          initialMode="day"
           initialDate={photos[photos.length - 1]?.date ?? today}
           today={today}
           onClose={() => setSharing(null)}
