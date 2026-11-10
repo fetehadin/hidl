@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-const UPDATED = "9 November 2026";
+const UPDATED = "10 November 2026";
 const CONTACT = "hidlsupport@gmail.com";
 
 export default function PrivacyPage() {
@@ -45,9 +45,12 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Letters:</strong> each letter&apos;s title, recipient, occasion and opening date, and its text.
-            Letter text is <strong>end-to-end encrypted</strong>: it&apos;s locked on your device with your passphrase
-            before it&apos;s saved, so nobody else can read it, including us. (Letters written before 3 November 2026,
-            when encryption was added, are stored as plain text.)
+            Letter text is <strong>end-to-end encrypted</strong>: it&apos;s locked on your device before it&apos;s saved,
+            so nobody else can read it, including us. You open your letters with your fingerprint or Face ID (a passkey
+            in your Apple or Google account), an optional passphrase, or the letter key we email you once. We don&apos;t
+            keep that emailed half of the key: it passes through our email service once to reach you, and it only works
+            together with your hidl account. (Letters written before 3 November 2026, when encryption was added, are
+            stored as plain text.)
           </li>
           <li>
             <strong>Countdowns:</strong> what you&apos;re counting down to, its date, and any scores or details you add.

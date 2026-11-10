@@ -1,9 +1,11 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { signOut } from "@/actions/auth";
 import { Mascot } from "@/components/mascot";
+import { FingerprintIcon } from "@/components/letters/letter-key";
 import { type LockConfig, checkLock, patternSecret, pinSecret, shouldLock, waitAfterFailures } from "@/lib/app-lock";
+import { PasskeyError, checkLockPasskey } from "@/lib/passkey";
 import { clearLock, markSeen, readLock, readSeen, writeLock } from "./lock-store";
 import { PatternPad } from "./pattern-pad";
 import { PinPad } from "./pin-pad";
@@ -93,6 +95,31 @@ function LockScreen({ userId, config, onUnlock }: { userId: string; config: Lock
   const [now, setNow] = useState(() => Date.now());
   const [blockedUntil, setBlockedUntil] = useState(config?.blockedUntil ?? 0);
   const waitMs = Math.max(0, blockedUntil - now);
+  const asked = useRef(false);
+
+  async function tryPasskey() {
+    const c = readLock(userId);
+    if (!c?.passkeyId || checking) return;
+    setChecking(true);
+    try {
+      if (await checkLockPasskey(c.passkeyId)) {
+        writeLock(userId, { ...c, failures: 0, blockedUntil: 0 });
+        onUnlock();
+        return;
+      }
+    } catch (e) {
+      if (e instanceof PasskeyError && e.reason !== "cancelled") setMessage(e.message);
+    }
+    setChecking(false);
+  }
+
+  // Ask for the fingerprint straight away; the PIN or pattern stays on screen as the fallback.
+  useEffect(() => {
+    if (!config?.passkeyId || asked.current) return;
+    asked.current = true;
+    void tryPasskey();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the lock screen opens
+  }, [config?.passkeyId]);
 
   // Tick while made to wait, so the countdown and the pad come back by themselves.
   useEffect(() => {
@@ -156,6 +183,14 @@ function LockScreen({ userId, config, onUnlock }: { userId: string; config: Lock
       )}
       {config?.kind === "pattern" && (
         <PatternPad onComplete={(pts) => attempt(patternSecret(pts))} disabled={checking || waitMs > 0} resetKey={wrong} error={Boolean(message)} />
+      )}
+
+      {config?.passkeyId && (
+        <button type="button" onClick={tryPasskey} disabled={checking}
+          className="flex items-center gap-2 rounded-full bg-ice-soft px-4 py-2 font-bold text-ice">
+          <FingerprintIcon className="size-6" />
+          Use fingerprint or Face ID
+        </button>
       )}
 
       <form id="lock-sign-out" action={signOut} />

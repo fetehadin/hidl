@@ -14,7 +14,7 @@ import { ThemeChoice } from "@/components/theme/theme-choice";
 import { THEME_COOKIE, parseTheme } from "@/lib/theme";
 import { PageHeader } from "@/components/page-header";
 import { DEFAULT_AVATAR } from "@/lib/avatar";
-import { getKeyBundle } from "@/lib/data/letter-keys";
+import { getKeyBundle, getLetterPasskeys } from "@/lib/data/letter-keys";
 import { getProfile } from "@/lib/data/profile";
 import { mediaUsage } from "@/lib/storage";
 import { isAdmin, requireUser } from "@/lib/supabase/server";
@@ -24,8 +24,9 @@ export const metadata: Metadata = { title: "Account" };
 
 export default async function AccountPage() {
   const { supabase, user, calendar, timeZone } = await requireUser();
-  const [bundle, profile, admin, space] = await Promise.all([
+  const [bundle, passkeys, profile, admin, space] = await Promise.all([
     getKeyBundle(supabase),
+    getLetterPasskeys(supabase),
     getProfile(supabase),
     isAdmin(supabase, user),
     mediaUsage(supabase).catch(() => null),
@@ -109,7 +110,7 @@ export default async function AccountPage() {
         <p className="eyebrow mb-1">privacy</p>
         <h2 className="font-display text-xl font-semibold">Private letters</h2>
         <p className="mt-1 mb-4 text-ink-soft">End-to-end encryption for what you write in your letters.</p>
-        <LetterEncryption bundle={bundle} />
+        <LetterEncryption user={{ id: user.id, email: user.email ?? "" }} bundle={bundle} passkeys={passkeys} />
       </div>
 
       <div className="card mt-4 p-5 sm:p-6">
@@ -119,7 +120,7 @@ export default async function AccountPage() {
           Ask for a PIN or pattern when hidl opens on this phone or computer, so nobody who picks it up can look through your
           journal. Set it on each device you want locked. Forgot it? Sign out and back in with your email.
         </p>
-        <AppLockSettings userId={user.id} />
+        <AppLockSettings userId={user.id} email={user.email ?? ""} />
       </div>
 
       <div className="card mt-4 p-5 sm:p-6">

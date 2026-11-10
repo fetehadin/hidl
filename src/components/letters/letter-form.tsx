@@ -7,10 +7,9 @@ import { createLetter, type FormState } from "@/actions/letters";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Markdown } from "@/components/markdown";
 import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
-import { encryptBody } from "@/lib/e2ee";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { formatInTz, localToUtc, timeZoneCity } from "@/lib/time";
-import { useLetterKey } from "./letter-key";
+import { useLetterWriter } from "./letter-key";
 
 export const DRAFT_KEY = "hidl:letter-draft";
 const RECIPIENTS = ["Future me", "Me in five years", "Me in ten years", "Me on my next birthday", "Me, after the big day"];
@@ -41,7 +40,7 @@ export function LetterForm() {
   const [confirming, setConfirming] = useState(false);
   const [encrypting, setEncrypting] = useState(false);
   const [encryptError, setEncryptError] = useState<string | null>(null);
-  const letterKey = useLetterKey();
+  const writer = useLetterWriter();
   const formRef = useRef<HTMLFormElement>(null);
   const loaded = useRef(false);
 
@@ -86,7 +85,7 @@ export function LetterForm() {
     setEncrypting(true);
     try {
       const fd = new FormData(form);
-      fd.set("body", await encryptBody(letterKey, draft.body.trim()));
+      fd.set("body", await writer.encrypt(draft.body.trim()));
       startTransition(() => action(fd));
     } catch {
       setEncryptError("Couldn't encrypt the letter on this device. Try again.");

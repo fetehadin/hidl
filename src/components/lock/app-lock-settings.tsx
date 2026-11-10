@@ -13,6 +13,8 @@ import {
   patternSecret,
   pinSecret,
 } from "@/lib/app-lock";
+import { FingerprintIcon } from "@/components/letters/letter-key";
+import { PasskeyError, createLockPasskey, passkeysAvailable } from "@/lib/passkey";
 import { clearLock, markSeen, readLock, writeLock } from "./lock-store";
 import { PatternPad } from "./pattern-pad";
 import { PinPad } from "./pin-pad";
@@ -26,7 +28,7 @@ type Step =
 const announce = () => window.dispatchEvent(new Event("hidl-lock-change"));
 
 /** Turn the device lock on or off, pick PIN or pattern, and how soon it locks again. On /account. */
-export function AppLockSettings({ userId }: { userId: string }) {
+export function AppLockSettings({ userId, email }: { userId: string; email: string }) {
   const [config, setConfig] = useState<LockConfig | null>(null);
   const [ready, setReady] = useState(false);
   const [step, setStep] = useState<Step>({ name: "idle" });
@@ -34,6 +36,40 @@ export function AppLockSettings({ userId }: { userId: string }) {
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [reset, setReset] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [canPasskey, setCanPasskey] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    passkeysAvailable().then((ok) => live && setCanPasskey(ok));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  async function setFingerprint(on: boolean) {
+    if (!config) return;
+    setMessage(null);
+    let next: LockConfig = { ...config };
+    if (on) {
+      setBusy(true);
+      try {
+        next = { ...config, passkeyId: await createLockPasskey({ id: userId, email }) };
+      } catch (e) {
+        setBusy(false);
+        if (!(e instanceof PasskeyError && e.reason === "cancelled")) {
+          setMessage({ tone: "error", text: e instanceof Error ? e.message : "Couldn't turn it on." });
+        }
+        return;
+      }
+      setBusy(false);
+    } else {
+      delete next.passkeyId;
+    }
+    writeLock(userId, next);
+    setConfig(next);
+    setMessage({ tone: "ok", text: on ? "Fingerprint / Face ID opens hidl now. Your " + kindName(config.kind) + " still works too." : "Fingerprint / Face ID is off for the lock." });
+    announce();
+  }
 
   useEffect(() => {
     const c = readLock(userId);
@@ -58,7 +94,9 @@ export function AppLockSettings({ userId }: { userId: string }) {
       return;
     }
     setBusy(true);
-    const c = await createLock(step.kind, secret, step.length, timeout);
+    const fresh = await createLock(step.kind, secret, step.length, timeout);
+    // Changing the PIN or pattern keeps fingerprint / Face ID on.
+    const c = config?.passkeyId ? { ...fresh, passkeyId: config.passkeyId } : fresh;
     setBusy(false);
     if (!writeLock(userId, c)) {
       setMessage({ tone: "error", text: "This browser won't let hidl save a lock (private browsing?)." });
@@ -136,6 +174,19 @@ export function AppLockSettings({ userId }: { userId: string }) {
               </>
             )}
           </div>
+          {config && canPasskey && (
+            <div className="flex items-center gap-3 rounded-2xl bg-ice-soft px-4 py-3">
+              <FingerprintIcon className="size-7 shrink-0 text-ice" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold text-ink">Fingerprint / Face ID</span>
+                <span className="block text-sm text-ink-soft">{config.passkeyId ? "On, with your " + kindName(config.kind) + " as a backup" : "Unlock with a touch or a look"}</span>
+              </span>
+              <button type="button" disabled={busy} onClick={() => setFingerprint(!config.passkeyId)}
+                className="shrink-0 rounded-control px-3 py-2 text-sm font-bold text-accent hover:bg-mint">
+                {config.passkeyId ? "Turn off" : "Turn on"}
+              </button>
+            </div>
+          )}
         </>
       )}
 

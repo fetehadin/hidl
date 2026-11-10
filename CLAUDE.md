@@ -12,6 +12,7 @@ README's "How the important rules are enforced" table (every hard rule and the P
 **hidl** is a personal journal web app, installable as a PWA (there is no native app):
 
 - **Time-locked letters** to your future self, sealed until an opening date, end-to-end encrypted in the browser.
+  Writing asks for nothing; opening takes fingerprint / Face ID, the key emailed at setup, or an optional passphrase.
 - **Countdowns**: any number, eight kinds (exam with target/actual score, graduation, birthday, wedding, work, trip,
   life, other), shown in the units the user picks; one can be starred, and any can feed an Android home-screen
   widget through a token-authenticated JSON feed.
@@ -24,7 +25,8 @@ README's "How the important rules are enforced" table (every hard rule and the P
   XP from photos, letters and countdowns, spent on streak freezes; `/leaderboard` ranks XP weekly and monthly
   (everyone unless they opt out), with last period's results
   frozen ("released").
-- **App lock:** an optional per-device PIN or pattern lock screen (`/account`), kept in the browser only.
+- **App lock:** an optional per-device PIN or pattern lock screen (`/account`), plus fingerprint / Face ID (a
+  passkey), kept in the browser only.
 - **Two themes:** Teal Paper (light, default) and Graphite (dark), both in the brand teal, switched per device with
   the half-circle button (side nav, phone header, landing page) or on Account. The phone app's own screens use the
   same palette (`mobile/src/theme.ts`) and follow the page's theme.
@@ -119,7 +121,8 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | Table | Key columns | Notes |
 | --- | --- | --- |
 | `letters` | `title`, `recipient`, `occasion`, `body`, `encrypted`, `unlock_at`, `opened_at`, `unlock_email_sent_at` | No `SELECT` on `body`: read only through `open_letter(id)` once `now() >= unlock_at`. Only `unlock_at` is updatable: earlier or later, only while sealed, only to a future time. |
-| `letter_keys` | `user_id` (PK), `kdf_salt`, `kdf_iterations`, `passphrase_wrapped_key`, `recovery_wrapped_key` | One per user. The letter key wrapped twice; no `DELETE`, the recovery copy can't change. |
+| `letter_keys` | `user_id` (PK), `public_key`, `private_key_wrapped`, `email_wrapped_key`, `email_share`, `kdf_salt`, `kdf_iterations`, `passphrase_wrapped_key`, `recovery_wrapped_key` | One per user. The key pair (writing needs only `public_key`) and the letter key wrapped once per way in: email key, optional passphrase, old recovery key. At least one way in (check); the pair is set once (`letter_keys_guard`); no `DELETE`. |
+| `letter_passkeys` | `credential_id` (PK), `user_id`, `wrapped_key` | Fingerprint / Face ID: the letter key wrapped by a passkey's PRF secret. Own rows only, 10 per person (`53400`). |
 | `countdowns` | `kind`, `title`, `target_at`, `target_score`/`max_score`/`actual_score`, `details` jsonb, `units` text[], `is_widget` | `kind` can't be updated; scores only for `exam`; `details` checked by `countdown_details_ok`; one `is_widget` per user. |
 | `widget_tokens` | `id`, `user_id`, `countdown_id` (null = follow the starred one), `token_hash` | `(countdown_id, user_id)` FK → `countdowns(id, user_id)`; `token_hash` is never selectable. |
 | `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover` | Many per day; no future dates (in the owner's zone, from `user_settings`); paths must be in the user's folder; one cover per `(user_id, date)`. |
@@ -245,7 +248,9 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
 - **App lock is client-only.** `<AppLockGate>` wraps everything in the `(app)` layout; the `hidl-lock` cookie (user
   ids, no secret) makes the server render the page hidden so nothing flashes. Anything new that shows journal content
   outside the `(app)` layout isn't covered by it.
-- **Encrypted letters:** anything that reads or writes a letter body must sit inside `<LetterKeyGate>`. Older letters
+- **Encrypted letters:** anything that reads or writes a letter body must sit inside `<LetterKeyGate need=…>`
+  (`useLetterWriter` / `useLetterReader`). Never send or store the email half of the email key anywhere but the
+  one email (`emailLetterKey`), and never log it. Older letters
   (`encrypted = false`) are plain text and stay that way.
 - **`ALLOWED_EMAIL` is checked in three places:** the login action, `/auth/confirm` (which also deletes a
   just-created Google account that isn't allowed), and `requireUser()`.

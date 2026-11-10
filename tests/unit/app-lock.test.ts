@@ -101,4 +101,10 @@ describe("leaderboard periods", () => {
     expect(periodBounds("month", true, "2026-03-31")).toEqual({ start: "2026-02-01", end: "2026-02-28" });
     expect(periodBounds("month", true, "2027-01-10")).toEqual({ start: "2026-12-01", end: "2026-12-31" });
   });
+
+  it("keeps a passkey id for fingerprint / Face ID, and drops a malformed one", async () => {
+    const c = await createLock("pin", pinSecret("1234"), 4, 60, 1000);
+    expect(parseLockConfig(JSON.stringify({ ...c, passkeyId: "AbC_123-xyzABCDEFGH" }))?.passkeyId).toBe("AbC_123-xyzABCDEFGH");
+    expect(parseLockConfig(JSON.stringify({ ...c, passkeyId: "<script>" }))?.passkeyId).toBeUndefined();
+  });
 });
