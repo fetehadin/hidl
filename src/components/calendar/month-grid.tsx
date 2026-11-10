@@ -97,8 +97,8 @@ export function MonthGrid({
       {/*
         Sized to the viewport: as tall as the screen allows (minus the app header, month row
         and tab bar, which is --chrome), so the photos get as much room as possible. Cells are
-        never more than 1.8x taller than wide; on wide screens the page wrapper (calendar/page.tsx)
-        narrows the grid so cells stay portrait, like photos. --rows is the month's number of
+        never more than 1.8x taller than wide; the page wrapper (calendar/page.tsx) sets the width:
+        portrait cells on tablets, a little wider than tall on computers. --rows is the month's number of
         weeks (4 to 6), set by the page. --chrome also leaves room below the grid for Hidi's
         corner menu (above the tab bar on phones), so it never covers a day.
       */}

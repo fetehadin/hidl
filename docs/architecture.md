@@ -406,7 +406,7 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   page titles (`font-title`), Plus Jakarta Sans everywhere else, Fredoka only for the "hidl" wordmark
   (`font-brand`). Photos carry their own overlays: white `text-snow` with a `--scrim` shade, never theme colors.
   `.btn` is flat with a small press. The memories board keeps its sky (`--sky-top`/`--sky-mid`, night-toned in
-  Graphite). The calendar is a dense photo grid: portrait cells (narrowed on wide screens so they stay ~4:5), the
+  Graphite). The calendar is a dense photo grid: portrait cells on phones and tablets (~4:5), a little wider than tall on computers (~6:5, at most 72rem, centered), the
   date over each photo, "+N" for extra photos, plain numbers on empty days and a dashed "+" for today. Today
   (`src/app/(app)/page.tsx`, parts in `src/components/today/`) shows every feature even before it's used, as a
   picture rather than a paragraph, so a new person sees what hidl is for: one date in the chosen calendar, Hidi (a
