@@ -114,7 +114,7 @@ describe("leaderboard", () => {
     expect(board.rows.some((r) => r.displayName === `Hidden ${tag}`)).toBe(false);
     const raw = await me.client.rpc("leaderboard", { p_period: "week" });
     expect(Object.keys((raw.data as object[])[0]).sort()).toEqual(
-      ["avatar", "display_name", "is_me", "period_end", "period_start", "photo_days", "rank", "streak"],
+      ["avatar", "display_name", "is_me", "period_end", "period_start", "photo_days", "rank", "streak", "xp"],
     );
   });
 

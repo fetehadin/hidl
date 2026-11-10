@@ -227,14 +227,25 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   column instead of deleting the row). Everyone is shown by their buddy: uploaded profile pictures (the public
   `avatars` bucket, `picture_path`) were removed in `..._remove_profile_pictures.sql`. `<ProfileImage>` draws the
   buddy (or Hidi's default); the side nav, phone header and leaderboard use it.
-- **Leaderboard** (`/leaderboard`, `leaderboard()` in SQL, `src/lib/data/leaderboard.ts`): ranks the longest run of
-  consecutive *on-time* photo days in the current week (Mon–Sun) or month, by `app_today()`. On time = a photo whose
-  `date` equals its `created_at` day in the owner's zone; backfills don't count. Ties share a rank (then more photo
-  days wins). Everyone is listed unless `show_on_leaderboard` is off; no name shows as "A hidl friend". Rows carry
+- **XP and streak freezes** (`..._xp_and_streak_freezes.sql`, `src/lib/xp.ts`, `src/lib/data/streak.ts`,
+  `src/actions/streak.ts`): XP is computed, never stored, by `xp_by_day()` from photos, letters and countdowns with
+  database-set timestamps, per day in the owner's zone: an on-time photo 10 (once a day), more photos +2 each (3 a
+  day), a streak bonus of the streak's length (10 max), a letter 15 (once a day), opening a letter on its day 20 each,
+  a countdown 5 (once a day). Deleting something takes its XP away; the daily caps stop farming. Spendable XP = all
+  XP ever − freezes bought. `buy_streak_freeze()` (50 XP, hold 2; `HX001` not enough XP, `HX002` full).
+  `my_streak()` (called by Today) spends one freeze per missed day up to yesterday, only if the freezes cover the
+  whole gap, and returns the balance, freezes and frozen days; frozen days keep the streak (Today counts them, the
+  streak row shows them as ice) but earn nothing. `streak_freezes` has no grants. The flame on Today opens the
+  freeze sheet.
+- **Leaderboard** (`/leaderboard`, `leaderboard()` in SQL, `src/lib/data/leaderboard.ts`): ranks XP earned in the
+  current week (Mon–Sun) or month, by `app_today()`; `streak` is still the longest run of *on-time* photo days in the
+  period (on time = a photo whose `date` equals its `created_at` day in the owner's zone; backfills don't count).
+  Ties share a rank (then the longer streak wins). The page shows a podium, your place with the XP to pass the next
+  person, everyone else and "How XP works". Everyone is listed unless `show_on_leaderboard` is off; no name shows as "A hidl friend". Rows carry
   name, buddy and `is_me`, never ids or emails. The previous period is "released": the first call
   for it writes `leaderboard_releases` + top 100 into `leaderboard_results`, and later calls read that snapshot
   (names/buddies stay live; people who opted out since show anonymously). Desktop nav has a Leaderboard item; phones
-  reach it from Today (under the stats) and Account.
+  reach it from Today (the "#3 this week · 120 XP" line under the streak) and Account.
 - **App lock** (`src/lib/app-lock.ts`, `src/components/lock/`): optional, per device and per user. A 4–6 digit PIN
   or a 3×3 pattern (≥ 4 dots; crossing an unused dot adds it), hashed with PBKDF2-SHA256 (100k, random salt) into
   `localStorage["hidl-lock:<user id>"]`; the secret is never stored or sent. `<AppLockGate>` keeps the app mounted but

@@ -21,7 +21,8 @@ README's "How the important rules are enforced" table (every hard rule and the P
   a landing page and install guide for signed-out visitors.
 - **Feedback** (`/feedback`): anyone signed in can send a bug, idea or praise and see replies to it.
 - **Profiles and leaderboard:** a display name on `/account`, shown with the buddy (no uploaded pictures);
-  `/leaderboard` ranks photo streaks weekly and monthly (everyone unless they opt out), with last period's results
+  XP from photos, letters and countdowns, spent on streak freezes; `/leaderboard` ranks XP weekly and monthly
+  (everyone unless they opt out), with last period's results
   frozen ("released").
 - **App lock:** an optional per-device PIN or pattern lock screen (`/account`), kept in the browser only.
 - **Two themes:** Teal Paper (light, default) and Graphite (dark), both in the brand teal, switched per device with
@@ -124,7 +125,8 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover` | Many per day; no future dates (in the owner's zone, from `user_settings`); paths must be in the user's folder; one cover per `(user_id, date)`. |
 | `media_objects` | `path` (PK), `user_id`, `bytes`, `content_type`, `created_at`, `confirmed_at` | One row per photo/video file. **No user grants**: written by `reserve_media()` (folder, ≤ 5 MB, type, 2 GB per person `53100`, 120 files/hour `53400`) and by the server with the service role (confirm, delete). `media_usage()` tells a person their space. Admin storage numbers come from here. |
 | `profiles` | `user_id` (PK), `avatar` jsonb (nullable), `display_name`, `show_on_leaderboard` | Own row only. `avatar_ok()` mirrors `AVATAR_PARTS` in `src/lib/avatar.ts`; `display_name_ok()` mirrors `src/lib/profile-rules.ts`; names unique ignoring case; Write it update-then-insert (no `.upsert()`). Other people's names/buddies come out only through `leaderboard()`. |
-| `leaderboard_releases`, `leaderboard_results` | `(period, period_start)`, `rank`, `streak`, `photo_days` | No grants. A finished week/month is snapshotted by `leaderboard(p, true)` the first time anyone asks for it. |
+| `leaderboard_releases`, `leaderboard_results` | `(period, period_start)`, `rank`, `xp`, `streak`, `photo_days` | No grants. A finished week/month is snapshotted by `leaderboard(p, true)` the first time anyone asks for it. Ranked by XP. |
+| `streak_freezes` | `id`, `user_id`, `cost`, `bought_at`, `used_on` (null = still held) | No grants. Bought by `buy_streak_freeze()` (50 XP, hold 2), spent on missed days by `my_streak()`. XP itself isn't stored: `xp_by_day()` computes it. |
 | `usage_daily` | `day`, `user_id`, `visits` | No grants at all. Written only by `record_visit()`, read only through `admin_stats()` / `admin_user_detail()` (admins). |
 | `feedback` | `kind`, `message`, `page`, `user_agent`, `status`, `reply`, `replied_at` | Users insert (`kind`, `message`, `page`, `user_agent` only) and read their own (not `user_agent`); no update/delete. Status and reply only via `admin_update_feedback`. 10 per person per day (trigger, `53400`). Kinds/statuses mirrored in `src/lib/feedback.ts`. |
 | `admins` | `user_id` (PK), `added_by`, `role` (`admin` or `super`) | No grants. `is_admin()` / `my_admin_role()` answer for the caller. Regular admins read and answer feedback; only `super` may suspend, unsuspend or delete accounts (refused in `admin_log`) and change admins (`admin_set_role`; nobody changes their own role, so a super admin always remains). First admins: `SUPER_ADMIN_EMAIL` / `ADMIN_EMAIL` addresses get that role on their next visit (`getAdminRole`, raised never lowered), or insert by hand (README). |
@@ -190,7 +192,8 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
 - **Mirrored rules:** when a Postgres rule has a TypeScript mirror, change both in the same commit:
   `countdown_details_ok` ↔ `src/lib/countdown-kinds.ts`, `countdown_units_ok` ↔ `src/lib/countdown-units.ts`,
   `avatar_ok` ↔ `src/lib/avatar.ts`, `media_objects` checks and `media_quota_bytes()` ↔ `src/lib/media.ts`, `feedback` checks ↔ `src/lib/feedback.ts`,
-  `display_name_ok` ↔ `src/lib/profile-rules.ts`, leaderboard periods ↔ `periodBounds` in
+  `display_name_ok` ↔ `src/lib/profile-rules.ts`, `xp_by_day`/`xp_freeze_cost`/`xp_freeze_max` ↔ `src/lib/xp.ts`,
+  leaderboard periods ↔ `periodBounds` in
   `src/lib/data/leaderboard.ts`.
   `timeLeft()` in `src/lib/countdown-units.ts` is also copied to `mobile/src/countdown-units.ts` (the widget counts
   on the phone): change both.
