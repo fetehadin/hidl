@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MonthGrid } from "@/components/calendar/month-grid";
+import { ShareMonthButton } from "@/components/calendar/share-month-button";
 import { addMonthKey, calendarMonth, monthKeyOf, parseMonthKey } from "@/lib/calendar-months";
 import { listPhotos, signPhotos } from "@/lib/data/photos";
 import { requireUser } from "@/lib/supabase/server";
@@ -51,6 +52,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
               Today
             </Link>
           )}
+          <ShareMonthButton date={isCurrent ? today : month.days[0]} today={today} />
           <Link href={`/calendar/year?y=${month.year}`} className="btn btn-ghost min-h-9 px-2.5 text-sm sm:min-h-10 sm:px-3 sm:text-base">
             Year
           </Link>

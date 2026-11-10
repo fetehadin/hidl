@@ -5,9 +5,22 @@ import { VideoBadge } from "@/components/calendar/video-badge";
 import { Lightbox, UploadSheet, usePreloadPhotoTools } from "@/components/calendar/lazy";
 import type { PhotoView } from "@/lib/data/photos";
 import { useCalendarPref } from "@/components/calendar-pref";
+import { ShareIcon } from "@/components/icons";
 import { Mascot } from "@/components/mascot";
 import { formatEthiopianDay } from "@/lib/ethiopian";
-import { layoutMemories, memoriesBounds, type MemoryCluster } from "@/lib/memories";
+import {
+  type MemoryCluster,
+  type MemoryGroupBy,
+  UNSORTED,
+  boardRegion,
+  clampToRegion,
+  layoutMemories,
+  memoriesBounds,
+} from "@/lib/memories";
+import type { PhotoGroup } from "@/lib/photo-groups";
+import { setPhotoGroupList } from "@/components/calendar/photo-groups-store";
+import { GroupsSheet } from "./groups-sheet";
+import { ShareSheet, type SharedView } from "./share-sheet";
 
 type Camera = { tx: number; ty: number; scale: number };
 type UploadMode = { kind: "add"; date: string } | { kind: "replace"; date: string; photoId: string };
@@ -15,6 +28,11 @@ type UploadMode = { kind: "add"; date: string } | { kind: "replace"; date: strin
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 1.8;
 const DRAG_THRESHOLD = 6;
+/**
+ * How far (screen px) a drag can pull the board past its edge. It gets stiffer the further you
+ * pull and springs back on release, so the edge is felt rather than hit like a wall.
+ */
+const MAX_PULL = 72;
 /**
  * How far past the screen edge islands start loading. 0 on first paint, so a phone on a slow
  * connection spends it on the photos you can actually see; widened once those are in.
@@ -49,6 +67,31 @@ function shortDate(date: string) {
   return new Date(`${date}T00:00:00Z`).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
+const plural = (n: number, word: string) => `${n} ${n === 1 ? word : `${word}s`}`;
+
+/** An island's sticker: a small line above, the big line, and an optional count below. */
+export type StickerText = { small: string; big: string; count?: string };
+
+export function stickerText(
+  cluster: MemoryCluster<PhotoView>,
+  by: MemoryGroupBy,
+  today: string,
+  ethiopian: boolean,
+  groupNames: Map<string, string>,
+): StickerText {
+  const n = cluster.photos.length;
+  if (by === "group") {
+    if (cluster.key === UNSORTED) return { small: "tap a photo to add it", big: "Not in a group", count: plural(n, "photo") };
+    return { small: plural(n, "photo"), big: groupNames.get(cluster.key) ?? "Group" };
+  }
+  const date = cluster.key;
+  // Big line in the chosen calendar; the small line above it is the Gregorian date
+  // (Ethiopian mode) or the weekday (Gregorian mode).
+  const big = ethiopian ? formatEthiopianDay(date) : shortDate(date);
+  const small = date === today ? "today" : ethiopian ? shortDate(date) : weekday(date);
+  return { small, big, count: n > 1 ? plural(n, "photo") : undefined };
+}
+
 /**
  * A pannable, zoomable canvas of every photo, one island per day. Inspired by
  * free-roaming "playground" galleries: drag (with momentum) or scroll to
@@ -58,10 +101,30 @@ function shortDate(date: string) {
  * only re-renders when a new island first comes near the viewport, which is
  * when its images start loading.
  */
-export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; today: string; phone: boolean }) {
+export function MemoryBoard({
+  photos,
+  today,
+  phone,
+  groupBy,
+  groups,
+}: {
+  photos: PhotoView[];
+  today: string;
+  phone: boolean;
+  /** How the page was asked for (`?by=group`); the toggle switches it without a reload. */
+  groupBy: MemoryGroupBy;
+  /** The person's own groups, in their order (first = the middle of the board). */
+  groups: PhotoGroup[];
+}) {
   usePreloadPhotoTools();
-  const clusters = useMemo(() => layoutMemories(photos), [photos]);
-  const indexById = useMemo(() => new Map(photos.map((p, i) => [p.id, i])), [photos]);
+  const ethiopian = useCalendarPref() === "ethiopian";
+  const [by, setBy] = useState<MemoryGroupBy>(groupBy);
+  const groupOrder = useMemo(() => groups.map((g) => g.id), [groups]);
+  const groupNames = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
+  const clusters = useMemo(() => layoutMemories(photos, by, groupOrder), [photos, by, groupOrder]);
+  // Pickers in the photo viewer and upload sheet read the groups from here, without asking again.
+  useLayoutEffect(() => setPhotoGroupList(groups), [groups]);
+  const photoById = useMemo(() => new Map(photos.map((p) => [p.id, p])), [photos]);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
@@ -83,12 +146,20 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
   const suppressClick = useRef(false);
 
   /** Islands near where the camera starts: in the HTML, and fetched first (high priority). */
-  const firstView = useMemo(() => new Set(clusters.filter((c) => inFirstView(c, phone)).map((c) => c.date)), [clusters, phone]);
+  const firstView = useMemo(() => new Set(clusters.filter((c) => inFirstView(c, phone)).map((c) => c.key)), [clusters, phone]);
   const [seen, setSeen] = useState<Set<string>>(() => new Set(firstView));
   const margin = useRef(0);
   const [hint, setHint] = useState(true);
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
-  const [lightbox, setLightbox] = useState<number | null>(null);
+  /**
+   * The open photo, and the photos Prev / Next walk through: every photo by day, the island's by
+   * group. Kept as ids so a refreshed list (a caption, a deletion) shows fresh data in the same order.
+   */
+  const [lightbox, setLightbox] = useState<{ ids: string[]; index: number } | null>(null);
+  /** The view being shared (camera and screen size when Share was tapped), while its sheet is open. */
+  const [sharing, setSharing] = useState<SharedView | null>(null);
+  const [editingGroups, setEditingGroups] = useState(false);
   const [upload, setUpload] = useState<UploadMode | null>(null);
   const returnFocusTo = useRef<HTMLElement | null>(null);
 
@@ -105,7 +176,7 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
       const cx = tx + c.x * scale;
       const cy = ty + c.y * scale;
       const r = c.r * scale;
-      if (cx + r > -m && cx - r < w + m && cy + r > -m && cy - r < h + m) newly.push(c.date);
+      if (cx + r > -m && cx - r < w + m && cy + r > -m && cy - r < h + m) newly.push(c.key);
     }
 
     setSeen((prev) => {
@@ -117,34 +188,68 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
     setZoomPct(Math.round(scale * 100));
   }, [clusters]);
 
-  /** The area the photos cover (world units). The camera may not wander past it. */
-  const bounds = useMemo(() => {
-    if (clusters.length === 0) return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
-    return {
-      minX: Math.min(...clusters.map((c) => c.x - c.r)),
-      maxX: Math.max(...clusters.map((c) => c.x + c.r)),
-      minY: Math.min(...clusters.map((c) => c.y - c.r)),
-      maxY: Math.max(...clusters.map((c) => c.y + c.r)),
-    };
-  }, [clusters]);
+  /** Where the middle of the screen may go (world units): over the photos, never off into empty sky. */
+  const region = useMemo(() => boardRegion(clusters), [clusters]);
 
-  const apply = useCallback(() => {
-    // Keep the middle of the screen over the photos, so a drag or fling can reach the edge of
-    // the board but never carry it off into empty sky where it's hard to find again.
+  /**
+   * How far the middle of the screen is past the edge: `over` in screen px, and the world point
+   * it should be at. Zero inside.
+   */
+  const overshoot = useCallback(() => {
     const board = boardRef.current;
-    if (board) {
+    const c = cam.current;
+    if (!board) return { over: 0, wx: 0, wy: 0, inside: { x: 0, y: 0 } };
+    const wx = (board.clientWidth / 2 - c.tx) / c.scale;
+    const wy = (board.clientHeight / 2 - c.ty) / c.scale;
+    const inside = clampToRegion(region, wx, wy);
+    return { over: Math.hypot(wx - inside.x, wy - inside.y) * c.scale, wx, wy, inside };
+  }, [region]);
+
+  /**
+   * Moves the world layer to the camera. Firm (the default) keeps the middle of the screen inside
+   * the board; `elastic` (a drag, a spring back) lets it out by at most MAX_PULL.
+   */
+  const apply = useCallback(
+    (elastic = false) => {
+      const board = boardRef.current;
+      const { over, wx, wy, inside } = overshoot();
+      if (board && over > 0 && (!elastic || over > MAX_PULL)) {
+        const keep = elastic ? MAX_PULL / over : 0;
+        const c = cam.current;
+        c.tx = board.clientWidth / 2 - (inside.x + (wx - inside.x) * keep) * c.scale;
+        c.ty = board.clientHeight / 2 - (inside.y + (wy - inside.y) * keep) * c.scale;
+      }
+      const { tx, ty, scale } = cam.current;
+      // Only the world layer moves (a compositor-only transform); the sky behind it stays put,
+      // so a pan never repaints the whole screen.
+      if (worldRef.current) worldRef.current.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
+      if (visTick.current === null) visTick.current = requestAnimationFrame(updateVisibility);
+    },
+    [updateVisibility, overshoot],
+  );
+
+  /** A drag by (dx, dy) screen px: free inside, stiffer and stiffer past the edge. */
+  const pan = useCallback(
+    (dx: number, dy: number) => {
       const c = cam.current;
-      const halfW = board.clientWidth / 2;
-      const halfH = board.clientHeight / 2;
-      c.tx = halfW - clamp((halfW - c.tx) / c.scale, bounds.minX, bounds.maxX) * c.scale;
-      c.ty = halfH - clamp((halfH - c.ty) / c.scale, bounds.minY, bounds.maxY) * c.scale;
-    }
-    const { tx, ty, scale } = cam.current;
-    // Only the world layer moves (a compositor-only transform); the sky behind it stays put,
-    // so a pan never repaints the whole screen.
-    if (worldRef.current) worldRef.current.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
-    if (visTick.current === null) visTick.current = requestAnimationFrame(updateVisibility);
-  }, [updateVisibility, bounds]);
+      const { over, wx, wy, inside } = overshoot();
+      if (over > 0) {
+        // The part of the move that pulls further out is damped; moving back in or along the edge isn't.
+        const ox = (wx - inside.x) / (over / c.scale);
+        const oy = (wy - inside.y) / (over / c.scale);
+        const out = -(dx * ox + dy * oy); // the screen center moves opposite to the finger
+        if (out > 0) {
+          const give = (1 - Math.min(1, over / MAX_PULL)) ** 2;
+          dx += ox * out * (1 - give);
+          dy += oy * out * (1 - give);
+        }
+      }
+      c.tx += dx;
+      c.ty += dy;
+      apply(true);
+    },
+    [apply, overshoot],
+  );
 
   const stopAnim = useCallback(() => {
     if (anim.current !== null) cancelAnimationFrame(anim.current);
@@ -187,13 +292,21 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
           ty: from.ty + (to.ty - from.ty) * t,
           scale: from.scale + (to.scale - from.scale) * t,
         };
-        apply();
+        // Elastic on the way (a spring back starts outside the edge), firm on arrival.
+        apply(t < 1);
         anim.current = t < 1 ? requestAnimationFrame(step) : null;
       };
       anim.current = requestAnimationFrame(step);
     },
     [apply, stopAnim],
   );
+
+  /** After a drag or fling that ended past the edge: ease back inside. */
+  const springBack = useCallback(() => {
+    const { over, inside } = overshoot();
+    if (over > 0.5) flyTo(inside.x, inside.y, cam.current.scale, 380);
+    else apply();
+  }, [overshoot, flyTo, apply]);
 
   const fitAll = useCallback(() => {
     const board = boardRef.current;
@@ -213,6 +326,23 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
     // Only on mount: later photo changes (router.refresh after an edit) keep the camera where it is.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Switching between days and groups is a new layout: start again from its middle island.
+  const firstLayout = useRef(true);
+  useLayoutEffect(() => {
+    if (firstLayout.current) {
+      firstLayout.current = false;
+      return;
+    }
+    stopAnim();
+    const board = boardRef.current;
+    if (!board) return;
+    const c = cam.current;
+    cam.current = { tx: board.clientWidth / 2, ty: board.clientHeight / 2, scale: c.scale };
+    apply();
+    // Only when the grouping changes, not when the photos refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [by]);
 
   useEffect(() => {
     updateVisibility();
@@ -247,9 +377,25 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
   }, [updateVisibility]);
 
   useEffect(() => {
-    const t = setTimeout(() => setHint(false), 9000);
-    return () => clearTimeout(t);
+    hintTimer.current = setTimeout(() => setHint(false), 9000);
+    return () => {
+      if (hintTimer.current) clearTimeout(hintTimer.current);
+    };
   }, []);
+
+  function switchGroup(next: MemoryGroupBy) {
+    if (next === by) return;
+    setBy(next);
+    // Remember it in the address (a reload or Back keeps it), without asking the server again.
+    const url = new URL(window.location.href);
+    if (next === "group") url.searchParams.set("by", "group");
+    else url.searchParams.delete("by");
+    window.history.replaceState(window.history.state, "", url);
+    // Say once what an island means now.
+    setHint(true);
+    if (hintTimer.current) clearTimeout(hintTimer.current);
+    hintTimer.current = setTimeout(() => setHint(false), 6000);
+  }
 
   // Wheel needs a non-passive listener so it can stop the page from scrolling.
   useEffect(() => {
@@ -350,9 +496,7 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
     g.lastX = e.clientX;
     g.lastY = e.clientY;
     g.lastT = now;
-    cam.current.tx += dx;
-    cam.current.ty += dy;
-    apply();
+    pan(dx, dy);
   }
 
   function onPointerUp(e: React.PointerEvent) {
@@ -378,7 +522,10 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
     // Momentum: keep gliding and bleed off speed (frame-rate independent).
     let { vx, vy } = g;
     if (performance.now() - g.lastT > 80) vx = vy = 0; // finger rested before lifting
-    if (Math.hypot(vx, vy) < 0.05 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (Math.hypot(vx, vy) < 0.05 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      springBack();
+      return;
+    }
     let last = performance.now();
     const step = (now: number) => {
       const dt = now - last;
@@ -386,9 +533,13 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
       const decay = Math.pow(0.995, dt);
       vx *= decay;
       vy *= decay;
-      cam.current.tx += vx * dt;
-      cam.current.ty += vy * dt;
-      apply();
+      pan(vx * dt, vy * dt);
+      // Gliding into the edge: stop there and ease back, like a pull.
+      if (overshoot().over > 0) {
+        anim.current = null;
+        springBack();
+        return;
+      }
       anim.current = Math.hypot(vx, vy) > 0.02 ? requestAnimationFrame(step) : null;
     };
     anim.current = requestAnimationFrame(step);
@@ -427,10 +578,18 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
     flyTo(wx, wy, c.scale * factor, 260);
   }
 
-  function openPhoto(id: string, trigger: HTMLElement) {
+  function openPhoto(cluster: MemoryCluster<PhotoView>, id: string, trigger: HTMLElement) {
     if (suppressClick.current) return;
     returnFocusTo.current = trigger;
-    setLightbox(indexById.get(id) ?? 0);
+    const ids = by === "group" ? cluster.photos.map((p) => p.photo.id) : photos.map((p) => p.id);
+    setLightbox({ ids, index: Math.max(0, ids.indexOf(id)) });
+  }
+
+  function share() {
+    const board = boardRef.current;
+    if (!board) return;
+    stopAnim();
+    setSharing({ ...cam.current, width: board.clientWidth, height: board.clientHeight });
   }
 
   function closeLightbox() {
@@ -443,7 +602,12 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
     returnFocusTo.current?.focus({ preventScroll: true });
   }
 
-  const totalDays = clusters.length;
+  const lightboxPhotos = lightbox ? lightbox.ids.flatMap((id) => photoById.get(id) ?? []) : [];
+  const lightboxIndex = lightbox ? Math.min(lightbox.index, lightboxPhotos.length - 1) : -1;
+  const summary =
+    by === "group"
+      ? `${plural(photos.length, "photo")} · ${plural(groups.length, "group")}`
+      : `${plural(photos.length, "photo")} · ${plural(clusters.length, "day")}`;
 
   return (
     <>
@@ -472,12 +636,12 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
         <div ref={worldRef} className="absolute top-0 left-0 h-0 w-0 origin-top-left will-change-transform">
           {clusters.map((c) => (
             <Island
-              key={c.date}
+              key={c.key}
               cluster={c}
-              today={today}
-              loaded={seen.has(c.date)}
-              eager={firstView.has(c.date)}
-              onOpen={openPhoto}
+              sticker={stickerText(c, by, today, ethiopian, groupNames)}
+              loaded={seen.has(c.key)}
+              eager={firstView.has(c.key)}
+              onOpen={(id, trigger) => openPhoto(c, id, trigger)}
               onSticker={() => flyTo(c.x, c.y, Math.max(cam.current.scale, 1))}
               onFocusPhoto={(x, y) => flyTo(c.x + x, c.y + y, Math.max(cam.current.scale, 0.8), 380)}
             />
@@ -488,11 +652,46 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
       {/* Overlay: title + controls. The wrapper ignores the pointer so the board stays draggable underneath. */}
       <div className="pointer-events-none fixed inset-x-0 top-[4.75rem] z-10 mx-auto flex max-w-[70rem] justify-between px-5 sm:top-[5.5rem] sm:left-[var(--nav-w,0px)]">
         <div className="clay pointer-events-auto px-4 py-2.5 sm:py-3">
-          <p className="eyebrow">memory lane</p>
-          <h1 className="font-title text-xl leading-tight font-medium sm:text-2xl">Memories</h1>
-          <p className="text-sm text-muted">
-            {photos.length} {photos.length === 1 ? "photo" : "photos"} · {totalDays} {totalDays === 1 ? "day" : "days"}
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="eyebrow">memory lane</p>
+              <h1 className="font-title text-xl leading-tight font-medium sm:text-2xl">Memories</h1>
+              <p className="text-sm text-muted">{summary}</p>
+            </div>
+            <button
+              type="button"
+              className="-mr-1.5 grid size-10 shrink-0 place-items-center rounded-full text-ocean hover:bg-mint"
+              onClick={share}
+              aria-label="Share this view as a picture"
+              title="Share as a picture"
+            >
+              <ShareIcon width={21} height={21} />
+            </button>
+          </div>
+          <div role="group" aria-label="Group photos" className="mt-2 flex rounded-full bg-paper-deep p-0.5">
+            {(["day", "group"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={by === option}
+                onClick={() => switchGroup(option)}
+                className={`flex-1 rounded-full px-3 py-1.5 text-sm font-bold whitespace-nowrap transition-colors ${
+                  by === option ? "bg-teal text-accent-ink" : "text-ink-soft hover:text-ink"
+                }`}
+              >
+                {option === "day" ? "By day" : "By group"}
+              </button>
+            ))}
+          </div>
+          {by === "group" && (
+            <button
+              type="button"
+              onClick={() => setEditingGroups(true)}
+              className="mt-1.5 w-full rounded-full px-3 py-1.5 text-sm font-bold text-ocean hover:bg-mint"
+            >
+              {groups.length === 0 ? "+ Make your first group" : "Edit groups"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -509,7 +708,11 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
           <div className="flex items-center gap-2">
             <Mascot mood="wave" size={60} />
             <p className="bubble w-max max-w-[14rem] text-sm leading-snug font-semibold text-ink-soft">
-              Drag around to explore. Each island is one day.
+              {by === "group"
+                ? groups.length === 0
+                  ? "Make a group, then tap a photo to put it in."
+                  : "Each island is one of your groups. Tap a photo to change its groups."
+                : "Drag around to explore. Each island is one day."}
             </p>
           </div>
         </div>
@@ -526,19 +729,21 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
             All
           </button>
           <button type="button" className="rounded-full bg-teal px-3.5 py-2 text-[15px] font-bold text-accent-ink hover:opacity-90" onClick={() => flyTo(0, 0, 1)}>
-            Latest
+            {by === "group" ? "Middle" : "Latest"}
           </button>
+
         </div>
       </div>
 
-      {lightbox !== null && (
+      {lightbox !== null && lightboxIndex >= 0 && (
         <Lightbox
-          photos={photos}
-          index={lightbox}
-          onIndex={setLightbox}
+          photos={lightboxPhotos}
+          dayPhotos={photos}
+          index={lightboxIndex}
+          onIndex={(index) => setLightbox((l) => (l ? { ...l, index } : l))}
           onClose={closeLightbox}
           onReplace={(photoId) => {
-            const date = photos[lightbox].date;
+            const date = lightboxPhotos[lightboxIndex].date;
             setLightbox(null);
             setUpload({ kind: "replace", date, photoId });
           }}
@@ -548,11 +753,37 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
           }}
         />
       )}
+      {sharing && (
+        <ShareSheet
+          screen={{
+            boardRef,
+            view: sharing,
+            clusters,
+            stickers: clusters.map((c) => stickerText(c, by, today, ethiopian, groupNames)),
+            title: by === "group" ? "Memories by group" : "Memories",
+            summary,
+          }}
+          initialMode="screen"
+          initialDate={photos[photos.length - 1]?.date ?? today}
+          today={today}
+          onClose={() => setSharing(null)}
+        />
+      )}
+      {editingGroups && (
+        <GroupsSheet counts={groupCounts(photos)} onClose={() => setEditingGroups(false)} />
+      )}
       {upload && (
         <UploadSheet key={upload.kind === "replace" ? upload.photoId : upload.date} mode={upload} onClose={closeUpload} />
       )}
     </>
   );
+}
+
+/** How many photos each group has, for the groups sheet. */
+function groupCounts(photos: PhotoView[]) {
+  const counts = new Map<string, number>();
+  for (const p of photos) for (const g of p.groups) counts.set(g, (counts.get(g) ?? 0) + 1);
+  return counts;
 }
 
 /**
@@ -601,7 +832,7 @@ function SkyClouds() {
 
 function Island({
   cluster,
-  today,
+  sticker: text,
   loaded,
   eager,
   onOpen,
@@ -609,7 +840,7 @@ function Island({
   onFocusPhoto,
 }: {
   cluster: MemoryCluster<PhotoView>;
-  today: string;
+  sticker: StickerText;
   loaded: boolean;
   /** On screen at first paint: fetch these photos before anything else. */
   eager: boolean;
@@ -617,15 +848,9 @@ function Island({
   onSticker: () => void;
   onFocusPhoto: (x: number, y: number) => void;
 }) {
-  const { date, x, y, sticker, photos } = cluster;
-  const isToday = date === today;
-  const ethiopian = useCalendarPref() === "ethiopian";
-  // Big line in the chosen calendar; the small line above it is the Gregorian date
-  // (Ethiopian mode) or the weekday (Gregorian mode).
-  const big = ethiopian ? formatEthiopianDay(date) : shortDate(date);
-  const small = isToday ? "today" : ethiopian ? shortDate(date) : weekday(date);
+  const { x, y, sticker, photos } = cluster;
   return (
-    <section aria-label={`${big}, ${photos.length} ${photos.length === 1 ? "photo" : "photos"}`} className="absolute" style={{ left: x, top: y }}>
+    <section aria-label={`${text.big}, ${plural(photos.length, "photo")}`} className="absolute" style={{ left: x, top: y }}>
       {photos.map(({ photo, x: px, y: py, width, rotate }, i) => (
         <button
           key={photo.id}
@@ -634,7 +859,7 @@ function Island({
           onFocus={(e) => {
             if (e.currentTarget.matches(":focus-visible")) onFocusPhoto(px, py);
           }}
-          aria-label={`${photo.caption ?? "Photo"}, ${shortDate(date)}. Open photo`}
+          aria-label={`${photo.caption ?? "Photo"}, ${shortDate(photo.date)}. Open photo`}
           className="memory-photo absolute cursor-pointer hover:scale-[1.06] focus-visible:scale-[1.06]"
           style={{
             left: px,
@@ -674,11 +899,9 @@ function Island({
         className={`memory-sticker absolute z-[6] bg-white cursor-pointer px-4 py-2.5 text-center whitespace-nowrap`}
         style={{ left: sticker.x, top: sticker.y, transform: `translate(-50%, -50%) rotate(${sticker.rotate}deg)` }}
       >
-        <span className="block text-[11px] font-extrabold tracking-wider text-accent uppercase">
-          {small}
-        </span>
-        <span className="block font-display text-lg leading-tight font-semibold text-ink">{big}</span>
-        {photos.length > 1 && <span className="block text-xs font-bold text-muted">{photos.length} photos</span>}
+        <span className="block text-[11px] font-extrabold tracking-wider text-accent uppercase">{text.small}</span>
+        <span className="block font-display text-lg leading-tight font-semibold text-ink">{text.big}</span>
+        {text.count && <span className="block text-xs font-bold text-muted">{text.count}</span>}
       </button>
     </section>
   );

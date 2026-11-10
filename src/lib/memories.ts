@@ -1,9 +1,16 @@
 /**
- * Layout for the memories board: every day becomes one "island" of photos, and
- * islands are packed outward along a spiral with the most recent day at the
- * center (world origin). Pure and deterministic (seeded by the date and photo
- * ids), so the board looks the same on every visit and on the server.
+ * Layout for the memories board: photos are gathered into "islands" (one per day, or one per
+ * group the person made), and islands are packed outward along a spiral with the first one (the
+ * most recent day, or the person's first group) at the center (world origin). Pure and
+ * deterministic (seeded by the group key and photo ids), so the board looks the same on every
+ * visit and on the server.
  */
+
+/** How the board gathers photos into islands. */
+export type MemoryGroupBy = "day" | "group";
+
+/** The island for photos that aren't in any group. */
+export const UNSORTED = "unsorted";
 
 export type PlacedPhoto<T> = {
   photo: T;
@@ -15,7 +22,8 @@ export type PlacedPhoto<T> = {
 };
 
 export type MemoryCluster<T> = {
-  date: string;
+  /** The day ("YYYY-MM-DD"), or a group's id (or UNSORTED). */
+  key: string;
   /** Cluster center in world coordinates. */
   x: number;
   y: number;
@@ -57,8 +65,8 @@ function ringCapacity(i: number) {
   return Math.max(4, Math.floor((2 * Math.PI * radius) / 152));
 }
 
-function arrangeCluster<T extends { id: string }>(date: string, photos: T[]) {
-  const rand = rng(hash(date));
+function arrangeCluster<T extends { id: string }>(key: string, photos: T[]) {
+  const rand = rng(hash(key));
   const placed: PlacedPhoto<T>[] = [];
   const width = (p: T) => 140 + (hash(p.id) % 40); // 140–179px, a little variety
 
@@ -104,22 +112,56 @@ function arrangeCluster<T extends { id: string }>(date: string, photos: T[]) {
   };
 }
 
-export function layoutMemories<T extends { id: string; date: string }>(photos: T[]): MemoryCluster<T>[] {
-  const byDate = new Map<string, T[]>();
-  for (const p of photos) {
-    const list = byDate.get(p.date);
+type Groupable = { id: string; date: string; groups?: readonly string[] };
+
+/**
+ * The islands, in the order they're placed (the first goes in the middle).
+ * By day: newest day first, photos in upload order. By group: the person's groups in their own
+ * order (empty ones left out), then the photos in no group; newest photos first. A photo in two
+ * groups is on both islands.
+ */
+export function groupMemories<T extends Groupable>(
+  photos: T[],
+  by: MemoryGroupBy,
+  groupOrder: readonly string[] = [],
+): { key: string; photos: T[] }[] {
+  const groups = new Map<string, T[]>();
+  const add = (key: string, p: T) => {
+    const list = groups.get(key);
     if (list) list.push(p);
-    else byDate.set(p.date, [p]);
+    else groups.set(key, [p]);
+  };
+
+  if (by === "day") {
+    for (const p of photos) add(p.date, p);
+    return [...groups.keys()].sort().reverse().map((key) => ({ key, photos: groups.get(key)! }));
   }
-  const dates = [...byDate.keys()].sort().reverse(); // newest first → center
+
+  // Newest first: input is oldest → newest (date, then upload order), so flip both.
+  const known = new Set(groupOrder);
+  const newest = photos.map((p, i) => ({ p, i })).sort((a, b) => (a.p.date === b.p.date ? b.i - a.i : a.p.date < b.p.date ? 1 : -1));
+  for (const { p } of newest) {
+    const mine = (p.groups ?? []).filter((g) => known.has(g));
+    if (mine.length === 0) add(UNSORTED, p);
+    for (const g of new Set(mine)) add(g, p);
+  }
+  return [...groupOrder, UNSORTED].filter((key) => groups.has(key)).map((key) => ({ key, photos: groups.get(key)! }));
+}
+
+export function layoutMemories<T extends Groupable>(
+  photos: T[],
+  by: MemoryGroupBy = "day",
+  groupOrder: readonly string[] = [],
+): MemoryCluster<T>[] {
+  const groups = groupMemories(photos, by, groupOrder);
 
   const clusters: MemoryCluster<T>[] = [];
   // Archimedean spiral r = a·t; one loop apart ≈ one typical cluster diameter.
   const a = 520 / (2 * Math.PI);
   let lastT = 0;
 
-  for (const date of dates) {
-    const { placed, r, sticker } = arrangeCluster(date, byDate.get(date)!);
+  for (const group of groups) {
+    const { placed, r, sticker } = arrangeCluster(group.key, group.photos);
 
     let x = 0;
     let y = 0;
@@ -142,7 +184,7 @@ export function layoutMemories<T extends { id: string; date: string }>(photos: T
     const px = Math.round;
     const deg = (d: number) => Math.round(d * 100) / 100;
     clusters.push({
-      date,
+      key: group.key,
       x: px(x),
       y: px(y),
       r: Math.ceil(r),
@@ -163,4 +205,32 @@ export function memoriesBounds(clusters: MemoryCluster<unknown>[]) {
     maxX: Math.max(...clusters.map((c) => c.x + c.r)),
     maxY: Math.max(...clusters.map((c) => c.y + c.r)),
   };
+}
+
+/**
+ * Where the middle of the screen may go: inside the photos' bounding box and inside the circle
+ * around the center that holds every island. The spiral makes the board roughly round, so the
+ * box alone would leave its empty corners in reach, where no photo is in sight.
+ */
+export type BoardRegion = { minX: number; minY: number; maxX: number; maxY: number; radius: number };
+
+export function boardRegion(clusters: MemoryCluster<unknown>[]): BoardRegion {
+  return {
+    ...memoriesBounds(clusters),
+    radius: clusters.length === 0 ? 0 : Math.max(...clusters.map((c) => Math.hypot(c.x, c.y) + c.r)),
+  };
+}
+
+/** The nearest point to (x, y) inside the region. */
+export function clampToRegion(region: BoardRegion, x: number, y: number) {
+  // The box holds the origin (the first island sits there) and is convex, so pulling a point in
+  // the box toward the origin keeps it in the box.
+  let cx = Math.min(region.maxX, Math.max(region.minX, x));
+  let cy = Math.min(region.maxY, Math.max(region.minY, y));
+  const d = Math.hypot(cx, cy);
+  if (d > region.radius) {
+    cx = (cx / d) * region.radius;
+    cy = (cy / d) * region.radius;
+  }
+  return { x: cx, y: cy };
 }

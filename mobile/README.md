@@ -46,6 +46,11 @@ website, because they come from the same place. Native screens can replace web o
      fresh account feed link) and posts `{ type: "pin-widget", feedUrl }`. The app saves the link
      (same site only), then calls `requestPinWidget`, and answers with a `hidl-app` event. Launchers that don't allow
      apps to place widgets get the manual steps instead.
+   - **Sharing pictures:** the memories board's "Share as a picture" can't use Web Share or downloads in a web view,
+     so the page posts `{ type: "share-image", name, data }` (a base64 JPEG) and the app writes it to its cache and
+     opens Android's share sheet (`src/share-image.ts`, `expo-sharing`). The page only offers it when
+     `window.hidlApp.shareImage` is true, which needs an APK built with those modules (0.4.0 and later); an older APK
+     that gets this code over the air just doesn't announce it.
 
 ```
 App.tsx                          loading → sign-in → journal
@@ -53,6 +58,7 @@ src/auth.ts                      calls to the website's /api/app/* routes
 src/config.ts                    SITE_URL (EXPO_PUBLIC_SITE_URL per build in eas.json)
 src/screens/SignInScreen.tsx     Google + email code sign-in
 src/screens/WebShell.tsx         the journal in a web view
+src/share-image.ts               shares a picture the page made (memories) via the share sheet
 src/widget/                      widget UI, headless renderer, connect/disconnect
 src/feed.ts                      widget feed fetch + cache
 ```

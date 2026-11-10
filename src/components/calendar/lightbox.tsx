@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { setPhotoGroups } from "@/actions/photo-groups";
 import { deletePhoto, setCoverPhoto, updateCaption } from "@/actions/photos";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PinIcon } from "@/components/icons";
@@ -9,16 +10,21 @@ import { dayLabel } from "@/lib/calendar";
 import type { PhotoView } from "@/lib/data/photos";
 import { useCalendarPref } from "@/components/calendar-pref";
 import { formatEthiopianDay } from "@/lib/ethiopian";
+import { PhotoGroupPicker } from "./photo-group-picker";
 
 export function Lightbox({
   photos,
+  dayPhotos,
   index,
   onIndex,
   onClose,
   onReplace,
   onAddAnother,
 }: {
+  /** What Prev / Next walk through. */
   photos: PhotoView[];
+  /** Every photo the page has, when `photos` is only some of them (to know a day's other photos). */
+  dayPhotos?: PhotoView[];
   index: number;
   onIndex: (i: number) => void;
   onClose: () => void;
@@ -37,7 +43,17 @@ export function Lightbox({
   const [pending, startTransition] = useTransition();
 
   const [pinnedId, setPinnedId] = useState<string | null | undefined>(undefined);
-  const sameDay = photo ? photos.filter((p) => p.date === photo.date) : [];
+  const sameDay = photo ? (dayPhotos ?? photos).filter((p) => p.date === photo.date) : [];
+
+  // Groups save as they're tapped; shown from here until the page's photo list catches up, which
+  // happens once, on close, so the board doesn't regroup under the viewer while you sort.
+  const [groupEdits, setGroupEdits] = useState<Record<string, string[]>>({});
+  const groupsChanged = useRef(false);
+  useEffect(() => {
+    return () => {
+      if (groupsChanged.current) router.refresh();
+    };
+  }, [router]);
   // Optimistic until the refreshed photo list arrives with the new pin.
   const isPinned = photo ? (pinnedId === undefined ? photo.isCover : pinnedId === photo.id) : false;
 
@@ -72,6 +88,25 @@ export function Lightbox({
       }
       router.refresh();
     });
+  }
+
+  function changeGroups(next: string[]) {
+    const id = photo.id;
+    const before = groupEdits[id] ?? photo.groups;
+    setError(null);
+    setGroupEdits((prev) => ({ ...prev, [id]: next }));
+    groupsChanged.current = true;
+    setPhotoGroups({ photoId: id, groupIds: next }).then(
+      (res) => {
+        if (res.ok) return;
+        setGroupEdits((prev) => ({ ...prev, [id]: before }));
+        setError(res.message);
+      },
+      () => {
+        setGroupEdits((prev) => ({ ...prev, [id]: before }));
+        setError("Couldn't save that. Try again.");
+      },
+    );
   }
 
   function go(i: number) {
@@ -204,6 +239,7 @@ export function Lightbox({
               {photo.caption ?? <span className="text-muted">Add a caption…</span>}
             </button>
           )}
+          <PhotoGroupPicker value={groupEdits[photo.id] ?? photo.groups} onChange={changeGroups} oneRow className="mt-3" />
           {error && <p role="alert" className="mt-2 text-sm text-wax">{error}</p>}
 
           <div className="mt-3 flex items-center justify-between text-sm">

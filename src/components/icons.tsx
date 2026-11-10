@@ -194,6 +194,14 @@ export const CameraIcon = (p: IconProps) => (
   </svg>
 );
 
+/** A tray with an arrow leaving it: share or save a picture. */
+export const ShareIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M12 15V4M8 7.5 12 3.5l4 4" />
+    <path d="M7 11H6a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5v-6A1.5 1.5 0 0 0 18 11h-1" />
+  </svg>
+);
+
 export const PinIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
   <svg {...base} {...p}>
     <path d="M9 3.5h6M10 3.5v5.2L7 12.5h10l-3-3.8V3.5Z" fill={filled ? "currentColor" : "none"} />

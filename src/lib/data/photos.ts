@@ -13,6 +13,8 @@ export type PhotoRow = {
   /** Pinned as the day's "wallpaper": the one the calendar shows for that day. */
   is_cover: boolean;
   created_at: string;
+  /** Its groups (photo_group_items, embedded). */
+  photo_group_items?: { group_id: string }[];
 };
 
 export type PhotoView = {
@@ -21,13 +23,15 @@ export type PhotoView = {
   caption: string | null;
   isCover: boolean;
   isVideo: boolean;
+  /** Ids of the person's groups this photo is in. */
+  groups: string[];
   /** Always an image (a still frame, for videos). */
   thumbUrl: string;
   /** The full image, or the video file. */
   fullUrl: string;
 };
 
-const COLUMNS = "id, date, media_type, image_path, thumb_path, caption, is_cover, created_at";
+const COLUMNS = "id, date, media_type, image_path, thumb_path, caption, is_cover, created_at, photo_group_items(group_id)";
 
 /** Multiple rows can share a date; ordered by date, then upload order within the day. */
 export async function listPhotos(supabase: SupabaseClient, from: string, to: string) {
@@ -74,6 +78,7 @@ export async function signPhotos(supabase: SupabaseClient, userId: string, rows:
     caption: r.caption,
     isCover: r.is_cover,
     isVideo: r.media_type === "video",
+    groups: (r.photo_group_items ?? []).map((i) => i.group_id),
     thumbUrl: byPath.get(r.thumb_path) ?? "",
     fullUrl: byPath.get(r.image_path) ?? "",
   }));

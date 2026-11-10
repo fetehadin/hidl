@@ -16,12 +16,14 @@ import { pathFromLink } from '../deep-link';
 import { getWidgetInfo, requestPinWidget } from 'react-native-android-widget';
 import { fetchFeed, saveFeedUrl } from '../feed';
 import { type Palette, THEME_KEY, type ThemeName, palettes, parseTheme } from '../theme';
+import { canShareImages, shareImage } from '../share-image';
 import { refreshWidgets } from '../widget/connect';
 import { WIDGET_NAME, WIDGET_NAMES } from '../widget/CountdownWidget';
 
-// Tells the page, before its own scripts run, what this app can do (read in app-widget-help.tsx).
-// `widgets` (how many hidl widgets are on the home screen) is filled in once the page has loaded.
-const ANNOUNCE = `window.hidlApp = { pinWidget: true, widgets: null }; true;`;
+// Tells the page, before its own scripts run, what this app can do (read in app-widget-help.tsx
+// and the memories share sheet). `widgets` (how many hidl widgets are on the home screen) is filled
+// in once the page has loaded. `shareImage` only where this APK has the native share modules.
+const ANNOUNCE = `window.hidlApp = { pinWidget: true, widgets: null, shareImage: ${canShareImages} }; true;`;
 
 /** Answers the page with a "hidl-app" event. */
 function answerScript(detail: Record<string, unknown>) {
@@ -79,7 +81,7 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
   }, []);
 
   function onMessage(e: WebViewMessageEvent) {
-    let msg: { type?: string; theme?: unknown; feedUrl?: unknown };
+    let msg: { type?: string; theme?: unknown; feedUrl?: unknown; name?: unknown; data?: unknown };
     try {
       msg = JSON.parse(e.nativeEvent.data);
     } catch {
@@ -91,6 +93,11 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
       AsyncStorage.setItem(THEME_KEY, next).catch(() => {});
     }
     if (msg.type === 'pin-widget' && typeof msg.feedUrl === 'string') pinWidget(msg.feedUrl);
+    if (msg.type === 'share-image') {
+      shareImage(msg.name, msg.data)
+        .catch(() => false)
+        .then((ok) => web.current?.injectJavaScript(answerScript({ type: 'share-image', ok })));
+    }
   }
 
   /**

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { IMAGE_EXTS, MAX_UPLOAD_BYTES, VIDEO_EXTS } from "@/lib/media";
+import { MAX_PHOTO_GROUPS, PHOTO_GROUP_NAME_MAX } from "@/lib/photo-groups";
 
 export const isoDate = z
   .string()
@@ -21,6 +22,30 @@ export const caption = z
 
 export const photoIdSchema = z.uuid();
 
+/** The groups a photo is in (the database checks they're the person's own). */
+export const photoGroupIds = z
+  .array(z.uuid())
+  .max(MAX_PHOTO_GROUPS)
+  .transform((ids) => [...new Set(ids)])
+  .default([]);
+
+export const setPhotoGroupsSchema = z.object({ photoId: photoIdSchema, groupIds: photoGroupIds });
+
+/** Mirrors photo_group_name_ok: spaces tidied, 1–30 characters, no control characters. */
+export const photoGroupName = z
+  .string()
+  .transform((s) => s.replace(/\s+/g, " ").trim())
+  .pipe(
+    z
+      .string()
+      .min(1, "Give the group a name.")
+      .max(PHOTO_GROUP_NAME_MAX, `Keep it under ${PHOTO_GROUP_NAME_MAX + 1} characters.`)
+      .regex(/^[^\u0000-\u001f\u007f]*$/, "That name has characters it can't use."),
+  );
+
+export const renamePhotoGroupSchema = z.object({ id: photoIdSchema, name: photoGroupName });
+export const photoGroupOrderSchema = z.array(z.uuid()).min(1).max(MAX_PHOTO_GROUPS);
+
 export const mediaTypeSchema = z.enum(["image", "video"]).default("image");
 
 export const addPhotoSchema = z.object({
@@ -29,6 +54,7 @@ export const addPhotoSchema = z.object({
   imagePath: z.string().min(1).max(200),
   thumbPath: z.string().min(1).max(200),
   caption,
+  groupIds: photoGroupIds,
 });
 
 export const replacePhotoSchema = z.object({
