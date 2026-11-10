@@ -6,7 +6,9 @@
  */
 import { TZDate } from '@date-fns/tz';
 import { addMonths, addYears, differenceInMonths, differenceInYears } from 'date-fns';
-import type { Unit } from './feed';
+/** A countdown's display unit. Defined here (not in feed.ts) so this file and widget/mood.ts
+ *  load without React Native, for the web app's tests. */
+export type Unit = 'years' | 'months' | 'days' | 'hours';
 
 const UNITS: Unit[] = ['years', 'months', 'days', 'hours'];
 const HOUR = 3_600_000;

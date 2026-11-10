@@ -9,4 +9,4 @@ export const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || (Constants.expoConf
 export const SITE_ORIGIN = new URL(SITE_URL).origin;
 
 /** Appended to the web view's user agent, so the site can tell it's running inside the app. */
-export const APP_UA = 'hidl-app/0.3';
+export const APP_UA = 'hidl-app/0.4';

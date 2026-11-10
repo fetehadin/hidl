@@ -62,7 +62,7 @@ export default async function DashboardPage() {
     .filter((c) => new Date(c.target_at).getTime() > now)
     .map((c) => ({ ...c, days: daysUntil(c.target_at, timeZone, new Date(now)) }))
     .sort((a, b) => a.days - b.days);
-  // The hero: the starred one while it's ahead, else the nearest. A finished one only when
+  // The hero: the nearest one ahead. A finished one only when
   // nothing is ahead, and only for a few days (or while an exam waits for its score).
   const lastDone = countdowns
     .filter((c) => new Date(c.target_at).getTime() <= now)
@@ -70,7 +70,7 @@ export default async function DashboardPage() {
   const keepDone =
     lastDone &&
     (now - new Date(lastDone.target_at).getTime() < DONE_SHOWN_MS || (lastDone.kind === "exam" && lastDone.actual_score === null));
-  const countdown = upcoming.find((c) => c.is_widget) ?? upcoming[0] ?? (keepDone ? lastDone : null);
+  const countdown = upcoming[0] ?? (keepDone ? lastDone : null);
   const comingUp = upcoming.filter((c) => c.id !== countdown?.id);
 
   // One picture per day: the pinned one, else the latest.

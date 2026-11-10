@@ -263,6 +263,11 @@
   .card-interactive:active {
     transform: translateY(0) scale(0.99);
   }
+  /* The countdown a widget tap opened (/countdown#c-<id>). */
+  .card:target {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal) 30%, transparent);
+  }
 
   /* Surface tints for cards/islands. */
   .tint-white {

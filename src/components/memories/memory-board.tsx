@@ -117,13 +117,34 @@ export function MemoryBoard({ photos, today, phone }: { photos: PhotoView[]; tod
     setZoomPct(Math.round(scale * 100));
   }, [clusters]);
 
+  /** The area the photos cover (world units). The camera may not wander past it. */
+  const bounds = useMemo(() => {
+    if (clusters.length === 0) return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+    return {
+      minX: Math.min(...clusters.map((c) => c.x - c.r)),
+      maxX: Math.max(...clusters.map((c) => c.x + c.r)),
+      minY: Math.min(...clusters.map((c) => c.y - c.r)),
+      maxY: Math.max(...clusters.map((c) => c.y + c.r)),
+    };
+  }, [clusters]);
+
   const apply = useCallback(() => {
+    // Keep the middle of the screen over the photos, so a drag or fling can reach the edge of
+    // the board but never carry it off into empty sky where it's hard to find again.
+    const board = boardRef.current;
+    if (board) {
+      const c = cam.current;
+      const halfW = board.clientWidth / 2;
+      const halfH = board.clientHeight / 2;
+      c.tx = halfW - clamp((halfW - c.tx) / c.scale, bounds.minX, bounds.maxX) * c.scale;
+      c.ty = halfH - clamp((halfH - c.ty) / c.scale, bounds.minY, bounds.maxY) * c.scale;
+    }
     const { tx, ty, scale } = cam.current;
     // Only the world layer moves (a compositor-only transform); the sky behind it stays put,
     // so a pan never repaints the whole screen.
     if (worldRef.current) worldRef.current.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`;
     if (visTick.current === null) visTick.current = requestAnimationFrame(updateVisibility);
-  }, [updateVisibility]);
+  }, [updateVisibility, bounds]);
 
   const stopAnim = useCallback(() => {
     if (anim.current !== null) cancelAnimationFrame(anim.current);

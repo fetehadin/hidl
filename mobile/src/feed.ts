@@ -15,7 +15,7 @@ export type CountdownFeed = {
   remaining: Partial<Record<Unit, number>>;
   /** The owner's IANA time zone the numbers were computed in (added with per-user time zones). */
   timeZone?: string;
-  /** Every countdown still to come, starred first (the account's feed only; added for the list widget). */
+  /** Every countdown still to come (and ones that ended in the last week), soonest first (the account's feed only). */
   countdowns?: FeedItem[];
 };
 
@@ -28,13 +28,17 @@ export type FeedItem = {
   targetScore: number | null;
   maxScore: number | null;
   actualScore: number | null;
+  /** Kept for old app versions; the widget ignores it (no starring any more). */
   starred?: boolean;
+  /** When it was made: the start of the widget's progress bar (added with the chunky widget). */
+  createdAt?: string;
   done: boolean;
   units: Unit[];
   remaining?: Partial<Record<Unit, number>>;
 };
 
-export type Unit = 'years' | 'months' | 'days' | 'hours';
+export type { Unit } from './countdown-units';
+import type { Unit } from './countdown-units';
 
 /** The last good answer, so the widget still shows something offline. */
 export type CachedFeed = { feed: CountdownFeed; fetchedAt: number };

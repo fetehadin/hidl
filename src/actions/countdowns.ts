@@ -140,24 +140,9 @@ export async function deleteCountdown(id: string): Promise<{ ok: true } | Fail> 
   return { ok: true };
 }
 
-/** Flags one countdown as the widget feed's, atomically clearing any previous choice. */
-export async function setWidgetCountdown(id: string): Promise<{ ok: true } | Fail> {
-  const parsed = countdownIdSchema.safeParse(id);
-  if (!parsed.success) return { ok: false, message: "Invalid countdown." };
-
-  const { supabase } = await requireUser();
-  const { error } = await supabase.rpc("set_widget_countdown", { countdown_id: parsed.data });
-  if (error) {
-    console.error("setWidgetCountdown", error);
-    return { ok: false, message: "Couldn't update. Try again." };
-  }
-  revalidate();
-  return { ok: true };
-}
-
 type TokenResult = { ok: true; token: string } | Fail;
 
-/** `undefined`/null means the starred-countdown feed; otherwise one countdown's own feed. */
+/** `undefined`/null means the account feed (the next countdown); otherwise one countdown's own feed. */
 function widgetTarget(countdownId: string | null | undefined): { ok: true; id: string | null } | Fail {
   if (countdownId == null) return { ok: true, id: null };
   const parsed = countdownIdSchema.safeParse(countdownId);
@@ -166,7 +151,7 @@ function widgetTarget(countdownId: string | null | undefined): { ok: true; id: s
 
 /**
  * Creates (or replaces) a bearer token for the read-only widget feed
- * (src/app/api/widget/countdown): either the account's "starred countdown" feed, or one
+ * (src/app/api/widget/countdown): either the account feed (whichever countdown is next), or one
  * countdown's own feed when `countdownId` is given. Only its hash is stored; the raw
  * token is returned once and never retrievable again.
  */
@@ -186,8 +171,8 @@ export async function generateWidgetToken(countdownId?: string | null): Promise<
 }
 
 /**
- * "Add to home screen" inside the phone app: a fresh account feed link (every countdown still to
- * come, starred first) for the app's widget to read, so it works even if the app never got one at
+ * "Add to home screen" inside the phone app: a fresh account feed link (every countdown, soonest
+ * first) for the app's widget to read, so it works even if the app never got one at
  * sign-in. Replacing that link stops any older copy of it (an earlier phone, or KWGT set up with
  * the account feed); per-countdown KWGT links are untouched.
  */

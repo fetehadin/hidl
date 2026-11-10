@@ -67,11 +67,14 @@ layer physically cannot violate it, even with a bug:
   the zod schema (`parseCountdown`) is built from; change both together. `kind` has no `UPDATE` grant,
   so it can't be changed after creation. A partial unique index, `countdowns (user_id) where is_widget`, allows
   at most one starred countdown per user; `set_widget_countdown(id)` flips it atomically (clear-then-set in one
-  function call) so that index is never transiently violated.
+  function call) so that index is never transiently violated. Starring is no longer offered anywhere (the site and
+  the widget put the soonest countdown first); the column, index and function stay so nothing old breaks.
 - *Cover photos*: `photos.is_cover` marks a day's pinned "wallpaper"; a partial unique index allows one per
   `(user_id, date)`, and `set_cover_photo(id, pinned)` moves it (clear-then-set, like `set_widget_countdown`).
   The calendar, dashboard and month grid show the pinned photo, falling back to the first one.
-- *Widget tokens*: one row per feed. `countdown_id` null is the "starred countdown" feed; otherwise the token
+- *Widget tokens*: one row per feed. `countdown_id` null is the account feed (the next countdown, plus
+  the `countdowns` list the phone widget flips through: soonest first, including ones that ended in the last 7 days,
+  each with `createdAt` for the progress bar); otherwise the token
   serves only that countdown (composite FK `(countdown_id, user_id)` → `countdowns (id, user_id)`, so it can't
   point at another user's countdown, and deleting the countdown deletes the token; `unique nulls not distinct
   (user_id, countdown_id)`). `widget_tokens.token_hash` has no `SELECT` grant to anyone, including its owner — same
@@ -381,8 +384,8 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   welcome line for someone with nothing yet; never repeating the streak), the streak row (`streak-row.tsx`: a flame
   that lights up once today has a photo, and the week as seven portrait tiles with each day's photo, today's a
   dashed "+" that opens the upload sheet; on phones the count sits on one line above the week so the photos get
-  the width; `weekOf()` in `src/lib/calendar.ts`), the leaderboard card (`board-card.tsx`), the countdown (the starred
-  one while it's ahead, else the nearest, with a progress bar from `created_at` and the next ones as two-per-row
+  the width; `weekOf()` in `src/lib/calendar.ts`), the leaderboard card (`board-card.tsx`), the countdown (the nearest
+  one ahead, with a progress bar from `created_at` and the next ones as two-per-row
   cards; a finished one only when nothing is ahead, for 3 days or until an exam's score is in; with none, a start
   button, plus the kinds to pick from on wider screens), today's photo (`today-photo.tsx`: the picture, or an empty page with a camera) and the letters
   envelope (`letter-tile.tsx`: ready, next sealed, or a blank one that starts a letter). Phones stack these with the

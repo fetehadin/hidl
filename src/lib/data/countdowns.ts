@@ -33,8 +33,8 @@ export async function getCountdown(supabase: SupabaseClient, id: string) {
   return data as Countdown | null;
 }
 
-/** The starred one, else the soonest upcoming, else the soonest overall. `list` is sorted by target_at. */
+/** The soonest upcoming, else the soonest overall. `list` is sorted by target_at. */
 export function pickPrimaryCountdown(list: Countdown[], now = Date.now()) {
   if (list.length === 0) return null;
-  return list.find((c) => c.is_widget) ?? list.find((c) => new Date(c.target_at).getTime() > now) ?? list[0];
+  return list.find((c) => new Date(c.target_at).getTime() > now) ?? list[0];
 }

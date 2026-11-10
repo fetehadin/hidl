@@ -11,12 +11,13 @@ import type { WebViewMessageEvent, WebViewNavigation, WebViewProgressEvent, WebV
 /** The methods we call on the web view. The package types it as a function component without a ref. */
 type WebViewHandle = { goBack(): void; reload(): void; injectJavaScript(script: string): void };
 const WebView = RNWebView as unknown as React.ComponentType<WebViewProps & { ref?: React.Ref<WebViewHandle> }>;
-import { APP_UA, SITE_ORIGIN } from '../config';
+import { APP_UA, SITE_ORIGIN, SITE_URL } from '../config';
+import { pathFromLink } from '../deep-link';
 import { getWidgetInfo, requestPinWidget } from 'react-native-android-widget';
 import { fetchFeed, saveFeedUrl } from '../feed';
 import { type Palette, THEME_KEY, type ThemeName, palettes, parseTheme } from '../theme';
 import { refreshWidgets } from '../widget/connect';
-import { WIDGET_NAME } from '../widget/CountdownWidget';
+import { WIDGET_NAME, WIDGET_NAMES } from '../widget/CountdownWidget';
 
 // Tells the page, before its own scripts run, what this app can do (read in app-widget-help.tsx).
 // `widgets` (how many hidl widgets are on the home screen) is filled in once the page has loaded.
@@ -61,6 +62,15 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
   const p = palettes[theme];
   const styles = useMemo(() => makeStyles(p), [p]);
 
+  // A widget tap while the app is already open: go to the countdown tapped.
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      const path = pathFromLink(url);
+      if (path) web.current?.injectJavaScript(`window.location.assign(${JSON.stringify(SITE_URL + path)}); true;`);
+    });
+    return () => sub.remove();
+  }, []);
+
   // Start in the theme the page showed last time, so the splash doesn't flash the wrong color.
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY)
@@ -88,8 +98,8 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
    * it never says a widget is on after it's been removed.
    */
   async function reportWidgets() {
-    const count = await getWidgetInfo(WIDGET_NAME)
-      .then((list) => list.length)
+    const count = await Promise.all(WIDGET_NAMES.map((name) => getWidgetInfo(name).then((list) => list.length)))
+      .then((counts) => counts.reduce((sum, n) => sum + n, 0))
       .catch(() => null);
     if (count === null) return;
     web.current?.injectJavaScript(

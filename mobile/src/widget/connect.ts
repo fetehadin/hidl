@@ -2,13 +2,15 @@ import { Platform } from 'react-native';
 import { requestWidgetUpdate } from 'react-native-android-widget';
 import { setUpWidget, type AppSession } from '../auth';
 import { clearFeed, fetchFeed, saveFeedUrl } from '../feed';
-import { WIDGET_NAME } from './CountdownWidget';
+import { WIDGET_NAMES } from './CountdownWidget';
 import { renderCountdownWidget } from './task-handler';
 
 /** Re-render every hidl widget already on the home screen with what's saved now. */
 export async function refreshWidgets() {
   if (Platform.OS !== 'android') return;
-  await requestWidgetUpdate({ widgetName: WIDGET_NAME, renderWidget: (info) => renderCountdownWidget(info) }).catch(() => {});
+  for (const widgetName of WIDGET_NAMES) {
+    await requestWidgetUpdate({ widgetName, renderWidget: (info) => renderCountdownWidget(info) }).catch(() => {});
+  }
 }
 
 async function save(feedUrl: string) {

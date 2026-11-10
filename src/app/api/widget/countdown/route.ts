@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 /**
  * Unauthenticated-by-session, authenticated-by-token read-only feed for a home-screen
  * widget (see src/actions/countdowns.ts generateWidgetToken). A token serves exactly one
- * countdown: the one it was made for, or (for the account's starred-feed token) whichever
- * one its owner starred (or, with none starred, the next one coming up). Never letters or photos, and never any other countdown.
+ * countdown: the one it was made for, or (for the account feed) the next one coming up, plus the
+ * list the phone app's widget flips through. Never letters or photos.
  */
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
@@ -32,12 +32,12 @@ export async function GET(request: NextRequest) {
     .eq("user_id", tokenRow.user_id);
   // The owner's zone (no session here), so "days left" matches what they see in the app.
   const [{ data }, { data: settings }] = await Promise.all([
-    (tokenRow.countdown_id ? query.eq("id", tokenRow.countdown_id) : query.eq("is_widget", true)).maybeSingle(),
+    tokenRow.countdown_id ? query.eq("id", tokenRow.countdown_id).maybeSingle() : Promise.resolve({ data: null }),
     admin.from("user_settings").select("time_zone").eq("user_id", tokenRow.user_id).maybeSingle(),
   ]);
   const timeZone = resolveTimeZone(settings?.time_zone);
 
-  // Nothing starred: show the next one coming up, so a fresh widget is never blank.
+  // The account feed shows the next one coming up (there's no starring any more).
   let countdown = data;
   if (!countdown && !tokenRow.countdown_id) {
     ({ data: countdown } = await admin
@@ -49,19 +49,18 @@ export async function GET(request: NextRequest) {
       .limit(1)
       .maybeSingle());
   }
-  // The account's feed (no fixed countdown) also lists every countdown still to come, so the
-  // phone app's one widget can scroll through them all. Starred first, then soonest; one that
-  // ended in the last day stays, so "Done!" shows for a while.
+  // The account's feed (no fixed countdown) also lists every countdown still to come, soonest
+  // first, so the phone app's widgets can flip through them all. Ones that ended in the last 7
+  // days stay, so the widget can say "+2 days ago".
   let countdowns: Record<string, unknown>[] | undefined;
   if (!tokenRow.countdown_id) {
     const { data: all } = await admin
       .from("countdowns")
-      .select("id, kind, title, target_at, target_score, max_score, actual_score, units, is_widget")
+      .select("id, kind, title, target_at, target_score, max_score, actual_score, units, created_at")
       .eq("user_id", tokenRow.user_id)
-      .gt("target_at", new Date(Date.now() - 24 * 3_600_000).toISOString())
-      .order("is_widget", { ascending: false })
+      .gt("target_at", new Date(Date.now() - 7 * 24 * 3_600_000).toISOString())
       .order("target_at", { ascending: true })
-      .limit(20);
+      .limit(30);
     countdowns = (all ?? []).map((c) => {
       const units = normalizeUnits(c.units);
       const ended = new Date(c.target_at).getTime() <= Date.now();
@@ -73,7 +72,9 @@ export async function GET(request: NextRequest) {
         targetScore: c.target_score,
         maxScore: c.max_score,
         actualScore: c.actual_score,
-        starred: c.is_widget,
+        // Kept for app versions that still read it (a public contract); nothing is starred now.
+        starred: false,
+        createdAt: c.created_at,
         done: ended,
         units,
         remaining: Object.fromEntries(ended ? [] : timeLeft(c.target_at, Date.now(), units, timeZone).map((p) => [p.unit, p.value])),
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!countdown) {
-    // Nothing starred or to come. Old widgets read the 404; the list widget reads `countdowns`
+    // Nothing to come. Old widgets read the 404; the list widget reads `countdowns`
     // (empty, or one that just ended).
     return NextResponse.json({ error: "no countdown yet", ...(countdowns ? { countdowns } : {}) }, { status: 404 });
   }

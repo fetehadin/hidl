@@ -16,7 +16,8 @@ export default async function CountdownPage() {
   const { supabase } = await requireUser();
   const [countdowns, widgets] = await Promise.all([listCountdowns(supabase), listCountdownWidgetTokens(supabase)]);
   const now = requestNow();
-  const featured = countdowns.find((c) => c.is_widget);
+  // The soonest one still to come leads (the widget shows the same one first).
+  const featured = countdowns.find((c) => new Date(c.target_at).getTime() > now);
   const rest = countdowns.filter((c) => c.id !== featured?.id);
 
   return (
@@ -25,7 +26,7 @@ export default async function CountdownPage() {
         <div className="flex gap-2">
           <Link
             href="/countdown/settings"
-            title="A home-screen widget that always shows your starred countdown"
+            title="Show your countdowns on your home screen"
             className="btn btn-ghost"
           >
             <WidgetIcon width={18} height={18} />
