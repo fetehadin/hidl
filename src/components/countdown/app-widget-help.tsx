@@ -8,9 +8,15 @@ import { ANDROID_APP_PATH } from "@/lib/android-app";
 
 // What the phone app tells this page (WebShell.tsx in mobile/): `window.hidlApp` before the page
 // loads, then "hidl-app" events: how many hidl widgets are on the home screen, and pin answers.
-// `shareImage` / `saveImage`: the app can share, or save to a folder, a picture the page made (the
-// memories share sheet).
-type HidlApp = { pinWidget?: boolean; widgets?: number | null; shareImage?: boolean; saveImage?: boolean };
+// `shareImage` / `saveImage` / `copyImage`: the app can share, save to a folder, or copy a picture
+// the page made (the share sheets).
+type HidlApp = {
+  pinWidget?: boolean;
+  widgets?: number | null;
+  shareImage?: boolean;
+  saveImage?: boolean;
+  copyImage?: boolean;
+};
 type AppEvent = { type: "pin-widget"; ok: boolean; supported: boolean } | { type: "widgets"; count: number };
 
 declare global {

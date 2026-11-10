@@ -1,9 +1,10 @@
 import { requireOptionalNativeModule } from 'expo';
 
 /**
- * Sharing or saving a picture the page made (the memories "Share as a picture" sheet). A web view
- * has no Web Share and no downloads, so the page hands the picture over (base64) and the app
- * shares it through Android's share sheet, or saves it to a folder the person picks.
+ * Sharing, saving or copying a picture the page made (the "Share as a picture" sheets). A web
+ * view has no Web Share and no downloads, and its clipboard can't hold a picture, so the page
+ * hands the picture over (base64) and the app shares it through Android's share sheet, saves it
+ * to a folder the person picks, or puts it on the clipboard.
  *
  * expo-sharing and expo-file-system are native: an over-the-air update can reach an older APK
  * that doesn't have them, where importing them would crash at startup. So they're only loaded
@@ -12,6 +13,9 @@ import { requireOptionalNativeModule } from 'expo';
 export const canShareImages =
   requireOptionalNativeModule('ExpoSharing') !== null && requireOptionalNativeModule('FileSystem') !== null;
 
+/** expo-clipboard: in every APK (a dependency since the first build). */
+export const canCopyImages = requireOptionalNativeModule('ExpoClipboard') !== null;
+
 /** Only names the page makes (hidl-memories-2026-11-10.jpg): nothing else lands in the cache. */
 const NAME = /^hidl-[a-z0-9-]{1,60}\.jpg$/;
 /** Base64 of a 2400px JPEG is well under this; anything bigger isn't from the page. */
@@ -19,7 +23,6 @@ const MAX_BASE64 = 24 * 1024 * 1024;
 
 function valid(name: unknown, base64: unknown): name is string {
   return (
-    canShareImages &&
     typeof name === 'string' &&
     typeof base64 === 'string' &&
     NAME.test(name) &&
@@ -29,7 +32,7 @@ function valid(name: unknown, base64: unknown): name is string {
 }
 
 export async function shareImage(name: unknown, base64: unknown): Promise<boolean> {
-  if (!valid(name, base64)) return false;
+  if (!canShareImages || !valid(name, base64)) return false;
   /* eslint-disable @typescript-eslint/no-require-imports */
   const { File, Paths } = require('expo-file-system') as typeof import('expo-file-system');
   const Sharing = require('expo-sharing') as typeof import('expo-sharing');
@@ -49,7 +52,7 @@ export type SaveResult = { ok: boolean; cancelled?: boolean };
  * permission), and the picture is written there. Picking nothing isn't a failure.
  */
 export async function saveImage(name: unknown, base64: unknown): Promise<SaveResult> {
-  if (!valid(name, base64)) return { ok: false };
+  if (!canShareImages || !valid(name, base64)) return { ok: false };
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Directory } = require('expo-file-system') as typeof import('expo-file-system');
   let folder: InstanceType<typeof Directory>;
@@ -63,4 +66,13 @@ export async function saveImage(name: unknown, base64: unknown): Promise<SaveRes
   const file = folder.createFile(name, 'image/jpeg');
   file.write(base64 as string, { encoding: 'base64' });
   return { ok: true };
+}
+
+/** "Copy": the picture onto Android's clipboard, ready to paste into a chat. */
+export async function copyImage(name: unknown, base64: unknown): Promise<boolean> {
+  if (!canCopyImages || !valid(name, base64)) return false;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Clipboard = require('expo-clipboard') as typeof import('expo-clipboard');
+  await Clipboard.setImageAsync(base64 as string);
+  return true;
 }

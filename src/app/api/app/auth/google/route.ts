@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { APP_SECRET_COOKIE, APP_SECRET_PATTERN } from "@/lib/app-auth";
 import { publicEnv } from "@/lib/env";
+import { googleDirect, startGoogle } from "@/lib/google-oauth";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,9 @@ export async function GET(request: NextRequest) {
     path: "/api/app/auth",
     maxAge: 10 * 60,
   });
+
+  // Through hidl's own address when it's set up, so Google says "continue to hidl" (google-oauth.ts).
+  if (googleDirect()) return NextResponse.redirect(await startGoogle("app"));
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({

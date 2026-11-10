@@ -52,6 +52,8 @@ website, because they come from the same place. Native screens can replace web o
      writes it there (`expo-file-system`, no storage permission needed). Both live in `src/share-image.ts`. The page
      only offers them when `window.hidlApp.shareImage` / `saveImage` is true, which needs an APK built with those
      modules (0.4.0 from Nov 10, 2026 on); an older APK that gets this code over the air just doesn't announce them.
+     Copy is `{ type: "copy-image" }`, put on Android's clipboard with `expo-clipboard` (in every APK, so it shipped
+     over the air; `hidlApp.copyImage`).
 
 ```
 App.tsx                          loading → sign-in → journal
@@ -59,7 +61,7 @@ src/auth.ts                      calls to the website's /api/app/* routes
 src/config.ts                    SITE_URL (EXPO_PUBLIC_SITE_URL per build in eas.json)
 src/screens/SignInScreen.tsx     Google + email code sign-in
 src/screens/WebShell.tsx         the journal in a web view
-src/share-image.ts               shares or saves a picture the page made (memories)
+src/share-image.ts               shares, saves or copies a picture the page made
 src/widget/                      widget UI, headless renderer, connect/disconnect
 src/feed.ts                      widget feed fetch + cache
 ```

@@ -310,6 +310,13 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   (`src/lib/auth-providers.ts`) sees Google enabled in Auth's public `/auth/v1/settings`. Because OAuth creates the
   `auth.users` row before the allowlist check, `/auth/confirm` deletes a just-created (< 2 min old) account that
   fails `ALLOWED_EMAIL`. Local Google is off in `supabase/config.toml`; see the comment there to enable it.
+  **Through hidl's own address** (`src/lib/google-oauth.ts`, on when `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are
+  set): Google's account chooser names whatever domain it sends people back to, so instead of Supabase's callback,
+  `startGoogle()` sends Google back to `/auth/google/callback` (website) or `/api/app/auth/google/callback` (phone
+  app), with PKCE, a `state` and a hashed nonce kept in one httpOnly cookie (`hidl-google`, 10 min). The callback
+  checks the state, swaps the code for Google's ID token on the server, and calls `signInWithIdToken` with the raw
+  nonce; Supabase verifies the token against the same client. The allowlist check and cleanup are the same as
+  above.
 - The login page accepts two magic-link formats from Supabase (PKCE `?code=` from the default template, or a
   cross-device-safe link from the custom template in `supabase/templates/magic_link.html`) — see `/auth/confirm`.
 - Mixing `pnpm build` and `pnpm dev` against the same `.next` directory can leave a stale cache that breaks
@@ -394,8 +401,12 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   async clipboard), **downloaded** (a JPEG) or **shared** (Web Share with files). In the Android app the web view can do
   none of these, so the page posts the picture to the app: `share-image` (Android's share sheet, `expo-sharing`) or
   `save-image` (Android's folder picker, then the file is written there); see `mobile/src/share-image.ts`. Both are
-  only announced (`hidlApp.shareImage` / `saveImage`) when the APK has those native modules. The Calendar page has a
-  Share button too (`share-month-button.tsx`), opening on the month shown.
+  only announced (`hidlApp.shareImage` / `saveImage`) when the APK has those native modules. Copy in the app goes
+  through the app too (`copy-image`, `expo-clipboard`, already in every APK, `hidlApp.copyImage`): a web view's clipboard
+  can say it took a picture and still hold nothing, so without it the Copy button is hidden in the app. The Calendar
+  page's Share button (`share-month-button.tsx`) opens the same sheet in calendar mode: only the calendar's month as
+  the page shows it (`drawCalendarPicture`: each day's wallpaper filling its square, the date, "+N", today
+  outlined), with arrows for other months; Memory Lane pictures are shared from Memories.
 - The month calendar (`src/components/calendar/month-grid.tsx`) is sized to fit the viewport without scrolling:
   its height is `min(100dvh - --chrome, 1.8 x square-cell height)` using container query units (the page wrapper is an
   `@container`), so the cells stretch to fill the screen: tall on phones, wide on laptops. There is no card around

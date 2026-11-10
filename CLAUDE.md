@@ -18,7 +18,7 @@ README's "How the important rules are enforced" table (every hard rule and the P
   widget (three sizes, Hidi in five moods) through a token-authenticated JSON feed.
 - **Photo calendar**: any number of photos or short videos (≤ 5 MB each, 2 GB per person) per day, a pinned "wallpaper" per day, a
   year view, and `/memories`, a pannable board of past photos grouped by day or by the person's own groups
-  (named and ordered by them), shared as a Memory Lane picture of a day, a week or a month (or the board as it is), to copy, download or share.
+  (named and ordered by them), shared as a Memory Lane picture of a day, a week or a month (or the board as it is), to copy, download or share; the calendar shares its month as it looks.
 - Gregorian or Ethiopian date display, a buildable avatar ("buddy") based on the mascot Hidi, account self-deletion,
   a landing page and install guide for signed-out visitors.
 - **Feedback** (`/feedback`): anyone signed in can send a bug, idea or praise and see replies to it.
@@ -254,8 +254,12 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   (`useLetterWriter` / `useLetterReader`). Never send or store the email half of the email key anywhere but the
   one email (`emailLetterKey`), and never log it. Older letters
   (`encrypted = false`) are plain text and stay that way.
-- **`ALLOWED_EMAIL` is checked in three places:** the login action, `/auth/confirm` (which also deletes a
-  just-created Google account that isn't allowed), and `requireUser()`.
+- **`ALLOWED_EMAIL` is checked in four places:** the login action, `/auth/confirm` and `/auth/google/callback`
+  (which also delete a just-created Google account that isn't allowed), and `requireUser()`.
+- **Google sign-in has two paths.** With `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` set, hidl runs the Google side
+  itself (`src/lib/google-oauth.ts`, callbacks `/auth/google/callback` and `/api/app/auth/google/callback`) and signs
+  in with `signInWithIdToken`, so Google's screen names hidl, not `supabase.co`. Without them, Supabase's
+  `signInWithOAuth`. Both redirect URIs must be on the Google client.
 - **Safe areas:** use `var(--safe-top)` / `var(--safe-bottom)`, never `env(safe-area-inset-*)`. Inside the phone app
   (`data-app` on `<html>`, from the user agent) they're zero, because the app pads its web view natively and
   Android's web view reports the insets anyway (the status bar was counted twice).

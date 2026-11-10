@@ -5,6 +5,7 @@
  * - `drawMemorySnapshot`: the board exactly as on screen (sky and clouds, the photos on screen
  *   with frames and captions, island stickers, the title card and a small hidl mark).
  * - `drawLanePicture`: a day, a week or a month as Memory Lane, every photo fitted to the screen.
+ * - `drawCalendarPicture`: the calendar page's month, each day's wallpaper in its square.
  *
  * Photos come from the media store with CORS (allowed for this site's origin, see
  * deploy/media/tools/set-cors.mjs), which is what lets a canvas with them still be saved.
@@ -621,4 +622,158 @@ function drawDayTag(
   ctx.fillText(text, 0, 1);
   ctx.restore();
   if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The calendar page as a picture: the month's grid with each day's wallpaper, as on screen.  */
+/* ------------------------------------------------------------------------------------------ */
+
+export type CalendarPictureInput = {
+  /** "November 2026" (or the Ethiopian month). */
+  label: string;
+  /** "8 photos · 6 days". */
+  summary: string;
+  /** Every real day of the month, its number in the chosen calendar, and its photos (wallpaper first). */
+  days: { date: string; number: number; photos: PhotoView[] }[];
+  /** Empty cells before the first day (Monday first). */
+  leadingBlanks: number;
+  today: string;
+  screen: { width: number; height: number };
+};
+
+const WEEKDAY_LETTERS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+
+export async function drawCalendarPicture(input: CalendarPictureInput): Promise<HTMLCanvasElement> {
+  let w = Math.max(320, input.screen.width);
+  let h = Math.max(320, input.screen.height);
+  if (h >= w) h = Math.min(Math.max(h, w * 1.25), w * 2.2);
+  else w = Math.min(Math.max(w, h * 1.25), h * 1.9);
+  const k = LANE_SHORT_SIDE / Math.min(w, h);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(w * k);
+  canvas.height = Math.round(h * k);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("no canvas");
+  ctx.scale(k, k);
+
+  const css = getComputedStyle(document.documentElement);
+  const color = (name: string) => css.getPropertyValue(name).trim();
+  const shadow = (alpha: number) => `rgb(${color("--shadow")} / ${alpha})`;
+  const fonts = await readyFonts();
+
+  // The grid: 7 columns across, cells at most 1.8× taller than wide (as on the page), fitted
+  // between the heading and the hidl mark.
+  const pad = Math.max(10, w * 0.03);
+  const gap = Math.max(3, w * 0.008);
+  const top = 16 + 40 + 22 + 18;
+  const headerH = 22;
+  const bottom = h - (16 + 48 + 12);
+  const rows = Math.ceil((input.leadingBlanks + input.days.length) / 7);
+  const cellW = (w - pad * 2 - gap * 6) / 7;
+  const cellH = Math.min(cellW * 1.8, (bottom - top - headerH - gap * (rows - 1)) / rows);
+  const gridH = headerH + rows * cellH + (rows - 1) * gap;
+  const gridTop = top + Math.max(0, (bottom - top - gridH) / 2);
+  const radius = Math.min(10, cellW * 0.14);
+
+  const covers = input.days.map((d) => d.photos[0] ?? null);
+  const urls = covers.map((p) => (p ? (cellW * k > 420 && !p.isVideo ? p.fullUrl : p.thumbUrl) : ""));
+  const [images, icon] = await Promise.all([loadAll(urls), loadSameOrigin("/icon-192.png")]);
+
+  ctx.fillStyle = color("--paper");
+  ctx.fillRect(0, 0, w, h);
+
+  // Heading, like the page's: the month in the title font, the counts below.
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.font = `500 34px ${fonts.title}`;
+  const labelSize = Math.max(22, Math.min(34, (34 * (w - pad * 2)) / ctx.measureText(input.label).width));
+  ctx.font = `500 ${labelSize}px ${fonts.title}`;
+  ctx.fillStyle = color("--heading");
+  ctx.fillText(fit(ctx, input.label, w - pad * 2), pad, 16 + 34);
+  ctx.font = `400 15px ${fonts.body}`;
+  ctx.fillStyle = color("--muted");
+  ctx.fillText(input.summary, pad, 16 + 34 + 26);
+
+  // Weekdays.
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `700 ${Math.min(12, cellW * 0.22)}px ${fonts.body}`;
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "0.8px";
+  ctx.fillStyle = color("--muted");
+  WEEKDAY_LETTERS.forEach((d, i) => {
+    const label = cellW < 44 ? d.charAt(0) : d;
+    ctx.fillText(label, pad + i * (cellW + gap) + cellW / 2, gridTop + headerH / 2 - 2);
+  });
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+
+  const numberSize = Math.max(10, Math.min(16, cellW * 0.24));
+  input.days.forEach((d, i) => {
+    const cell = input.leadingBlanks + i;
+    const x = pad + (cell % 7) * (cellW + gap);
+    const y = gridTop + headerH + Math.floor(cell / 7) * (cellH + gap);
+    const image = images[i];
+    const isToday = d.date === input.today;
+    // Days still to come are just a number, as on the page.
+    const future = d.date > input.today;
+    ctx.save();
+    if (!future) {
+      roundRect(ctx, x, y, cellW, cellH, radius);
+      ctx.fillStyle = color("--paper-deep");
+      ctx.fill();
+    }
+    if (image) {
+      ctx.save();
+      roundRect(ctx, x, y, cellW, cellH, radius);
+      ctx.clip();
+      drawCover(ctx, image, x, y, cellW, cellH);
+      // A soft shade under the date so it reads on bright photos.
+      const shade = ctx.createLinearGradient(0, y, 0, y + numberSize * 2.4);
+      shade.addColorStop(0, "rgb(0 0 0 / 0.38)");
+      shade.addColorStop(1, "rgb(0 0 0 / 0)");
+      ctx.fillStyle = shade;
+      ctx.fillRect(x, y, cellW, numberSize * 2.4);
+      ctx.restore();
+    }
+    if (isToday) {
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = color("--accent");
+      roundRect(ctx, x + 1.25, y + 1.25, cellW - 2.5, cellH - 2.5, radius);
+      ctx.stroke();
+    }
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.font = `800 ${numberSize}px ${fonts.body}`;
+    if (image) {
+      ctx.fillStyle = color("--snow");
+      setShadow(ctx, "rgb(0 0 0 / 0.6)", 3, 1, k);
+    } else {
+      ctx.fillStyle = color(isToday ? "--accent" : "--muted");
+      if (future) ctx.globalAlpha = 0.5;
+    }
+    ctx.fillText(String(d.number), x + numberSize * 0.45, y + numberSize * 0.4);
+    ctx.globalAlpha = 1;
+    clearShadow(ctx);
+
+    if (image && d.photos.length > 1) {
+      const text = `+${d.photos.length - 1}`;
+      const size = Math.max(8, numberSize * 0.72);
+      ctx.font = `700 ${size}px ${fonts.body}`;
+      const bw = ctx.measureText(text).width + size;
+      const bh = size * 1.6;
+      ctx.globalAlpha = 0.72;
+      ctx.fillStyle = color("--scrim");
+      roundRect(ctx, x + cellW - bw - 4, y + cellH - bh - 4, bw, bh, bh / 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = color("--snow");
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, x + cellW - bw / 2 - 4, y + cellH - bh / 2 - 4);
+    }
+    ctx.restore();
+  });
+
+  drawMark(ctx, { tx: 0, ty: 0, scale: 1, width: w, height: h }, icon, fonts, color, shadow, k);
+  return canvas;
 }

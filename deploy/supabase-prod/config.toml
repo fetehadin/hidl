@@ -356,7 +356,9 @@ email_optional = false
 [auth.external.google]
 # On since 2026-11-08: Google Cloud project "hidl", web client "hidl web" (redirect URI
 # https://rwgvutoecjwypzoaexcy.supabase.co/auth/v1/callback). The phone app signs in through the
-# website, so this one web client covers both.
+# website, so this one web client covers both. With GOOGLE_CLIENT_ID/SECRET set on the server, hidl
+# runs the Google side itself (src/lib/google-oauth.ts) and passes Google's ID token to Supabase,
+# which still checks it against this client.
 enabled = true
 client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
