@@ -8,7 +8,7 @@ import { Mascot } from "@/components/mascot";
 import type { PhotoView } from "@/lib/data/photos";
 import { pickForPicture } from "@/lib/lane-layout";
 import type { MemoryCluster } from "@/lib/memories";
-import { type SharePeriod, dayTag, periodRange, periodTitle, stepPeriod } from "@/lib/share-periods";
+import { type SharePeriod, dayTag, periodDays, periodRange, periodTitle, stepPeriod } from "@/lib/share-periods";
 import type { StickerText } from "./memory-board";
 
 /** The board's camera and size (CSS px) at the moment Share was tapped. */
@@ -24,12 +24,15 @@ export type ScreenShare = {
   summary: string;
 };
 
-export type ShareMode = "screen" | SharePeriod;
+/** "calendar": the calendar page's month as it looks there (from the Calendar page only). */
+export type ShareMode = "screen" | SharePeriod | "calendar";
 
 type Picture = { canvas: HTMLCanvasElement; blob: Blob; url: string; file: File };
 type State = { status: "drawing" } | ({ status: "ready" } & Picture) | { status: "empty" } | { status: "error"; message?: string };
 
-const MODE_LABEL: Record<ShareMode, string> = { screen: "This view", day: "Day", week: "Week", month: "Month" };
+const MODE_LABEL: Record<ShareMode, string> = { screen: "This view", day: "Day", week: "Week", month: "Month", calendar: "Month" };
+/** The period a mode steps through with the arrows. */
+const periodOf = (mode: Exclude<ShareMode, "screen">): SharePeriod => (mode === "calendar" ? "month" : mode);
 const EMPTY: Record<SharePeriod, string> = {
   day: "No photos on this day.",
   week: "No photos this week.",
@@ -40,7 +43,7 @@ const MAX_IN_PICTURE = 48;
 
 /** The phone app (mobile/src/screens/WebShell.tsx) shares and saves pictures for the page: a web view can't. */
 const inApp = () => typeof window !== "undefined" && Boolean(window.ReactNativeWebView);
-const appCan = (what: "shareImage" | "saveImage") => inApp() && Boolean(window.hidlApp?.[what]);
+const appCan = (what: "shareImage" | "saveImage" | "copyImage") => inApp() && Boolean(window.hidlApp?.[what]);
 
 const plural = (n: number, word: string) => `${n} ${n === 1 ? word : `${word}s`}`;
 
@@ -65,13 +68,15 @@ function toBase64(blob: Blob) {
 
 /**
  * "Share as a picture": a day, a week or a month of photos drawn as Memory Lane (the board's sky,
- * every photo framed and fitted to the screen), or the board exactly as it is on screen. It draws
+ * every photo framed and fitted to the screen), or the board exactly as it is on screen; from the
+ * Calendar page, the calendar's month as it looks there. It draws
  * the picture, shows it, and then copies, downloads or shares it. Drawing happens here rather than
  * on tap, because a browser only lets a page open the share sheet straight after a tap, and
  * loading the photos can take longer than that allows.
  */
 export function ShareSheet({
   screen,
+  calendar = false,
   initialMode,
   initialDate,
   today,
@@ -79,6 +84,8 @@ export function ShareSheet({
 }: {
   /** Given on the memories board: offers "This view". */
   screen?: ScreenShare;
+  /** The Calendar page: only the calendar month picture. */
+  calendar?: boolean;
   initialMode: ShareMode;
   /** A day inside the period to start on. */
   initialDate: string;
@@ -87,11 +94,13 @@ export function ShareSheet({
 }) {
   const pref = useCalendarPref();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [mode, setMode] = useState<ShareMode>(screen ? initialMode : initialMode === "screen" ? "month" : initialMode);
+  const [mode, setMode] = useState<ShareMode>(
+    calendar ? "calendar" : screen ? initialMode : initialMode === "screen" ? "month" : initialMode,
+  );
   const [date, setDate] = useState(initialDate);
   const [state, setState] = useState<State>({ status: "drawing" });
   const [note, setNote] = useState<{ text: string; ok?: boolean } | null>(null);
-  const [busy, setBusy] = useState<"share" | "save" | null>(null);
+  const [busy, setBusy] = useState<"share" | "save" | "copy" | null>(null);
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -120,6 +129,35 @@ export function ShareSheet({
       import("./snapshot")
         .then(({ drawMemorySnapshot }) => drawMemorySnapshot({ ...screen, board }))
         .then((canvas) => done(canvas, `hidl-memories-${today}.jpg`))
+        .catch(fail);
+    } else if (mode === "calendar") {
+      const { from, to } = periodRange("month", date, pref);
+      Promise.all([photosForShare(from, to), import("./snapshot")])
+        .then(([res, { drawCalendarPicture }]) => {
+          if (cancelled) return null;
+          if (!res.ok) {
+            setState({ status: "error", message: res.message });
+            return null;
+          }
+          const { days, dayNumbers, leadingBlanks } = periodDays("month", date, pref);
+          const byDay = days.map((d, i) => ({
+            date: d,
+            number: dayNumbers[i],
+            // The day's pinned wallpaper first, as the calendar shows it.
+            photos: res.photos.filter((p) => p.date === d).sort((a, b) => Number(b.isCover) - Number(a.isCover)),
+          }));
+          const withPhotos = byDay.filter((d) => d.photos.length > 0).length;
+          // An empty month is still a calendar worth showing, so it's drawn either way.
+          return drawCalendarPicture({
+            label: periodTitle("month", date, pref),
+            summary: `${plural(res.photos.length, "photo")} · ${plural(withPhotos, "day")}`,
+            days: byDay,
+            leadingBlanks,
+            today,
+            screen: { width: window.innerWidth, height: window.innerHeight },
+          });
+        })
+        .then((canvas) => done(canvas, `hidl-calendar-${from}.jpg`))
         .catch(fail);
     } else {
       const period = mode;
@@ -167,6 +205,9 @@ export function ShareSheet({
       if (detail?.type === "share-image") {
         setBusy(null);
         if (!detail.ok) setNote({ text: "Couldn't open sharing. Try again." });
+      } else if (detail?.type === "copy-image") {
+        setBusy(null);
+        setNote(detail.ok ? { text: "Copied. Paste it into a chat or a post.", ok: true } : { text: "Couldn't copy it. Download it instead." });
       } else if (detail?.type === "save-image") {
         setBusy(null);
         if (detail.ok) setNote({ text: "Saved.", ok: true });
@@ -188,22 +229,25 @@ export function ShareSheet({
     if (mode === "screen") return;
     setNote(null);
     setState({ status: "drawing" });
-    setDate(stepPeriod(mode, date, pref, delta));
+    setDate(stepPeriod(periodOf(mode), date, pref, delta));
   }
 
   const picture = state.status === "ready" ? state : null;
   const appShare = appCan("shareImage");
   const appSave = appCan("saveImage");
+  // A web view's clipboard can say it took a picture and still hold nothing, so in the app only
+  // the app copies (`hidlApp.copyImage`, announced by the app since this update).
+  const showCopy = inApp() ? appCan("copyImage") : true;
   const webShare = picture && !inApp() ? canWebShare(picture.file) : false;
   const showShare = appShare || webShare;
   // A web view can't download a file; the app saves it, or (an older app) the browser has to.
   const showSave = !inApp() || appSave;
-  const modes: ShareMode[] = screen ? ["day", "week", "month", "screen"] : ["day", "week", "month"];
-  const atLatest = mode !== "screen" && periodRange(mode, date, pref).to >= today;
+  const modes: ShareMode[] = calendar ? ["calendar"] : screen ? ["day", "week", "month", "screen"] : ["day", "week", "month"];
+  const atLatest = mode !== "screen" && periodRange(periodOf(mode), date, pref).to >= today;
 
-  async function postToApp(type: "share-image" | "save-image") {
+  async function postToApp(type: "share-image" | "save-image" | "copy-image") {
     if (!picture) return;
-    setBusy(type === "share-image" ? "share" : "save");
+    setBusy(type === "share-image" ? "share" : type === "save-image" ? "save" : "copy");
     try {
       const data = await toBase64(picture.blob);
       window.ReactNativeWebView!.postMessage(JSON.stringify({ type, name: picture.file.name, data }));
@@ -241,6 +285,7 @@ export function ShareSheet({
   async function copy() {
     if (!picture) return;
     setNote(null);
+    if (inApp()) return postToApp("copy-image");
     try {
       if (!canCopy()) throw new Error("no clipboard");
       const { canvasBlob } = await import("./snapshot");
@@ -271,7 +316,7 @@ export function ShareSheet({
           <div>
             <p className="eyebrow">share as a picture</p>
             <h2 id="share-memories-title" className="font-display text-xl font-semibold">
-              Share your memories
+              {calendar ? "Share your calendar" : "Share your memories"}
             </h2>
           </div>
           <button type="button" onClick={onClose} className="btn btn-ghost min-h-9 px-3" aria-label="Close">
@@ -279,6 +324,7 @@ export function ShareSheet({
           </button>
         </div>
 
+        {modes.length > 1 && (
         <div role="group" aria-label="What to share" className="mt-4 flex rounded-full bg-paper-deep p-0.5">
           {modes.map((m) => (
             <button
@@ -294,21 +340,22 @@ export function ShareSheet({
             </button>
           ))}
         </div>
+        )}
 
         {mode !== "screen" && (
           <div className="mt-2 flex items-center justify-between gap-2">
-            <button type="button" onClick={() => step(-1)} className="grid size-10 place-items-center rounded-full text-xl text-ocean hover:bg-mint" aria-label={`Previous ${mode}`}>
+            <button type="button" onClick={() => step(-1)} className="grid size-10 place-items-center rounded-full text-xl text-ocean hover:bg-mint" aria-label={`Previous ${periodOf(mode)}`}>
               ‹
             </button>
             <p className="min-w-0 truncate text-center font-semibold" aria-live="polite">
-              {periodTitle(mode, date, pref)}
+              {periodTitle(periodOf(mode), date, pref)}
             </p>
             <button
               type="button"
               onClick={() => step(1)}
               disabled={atLatest}
               className="grid size-10 place-items-center rounded-full text-xl text-ocean hover:bg-mint disabled:opacity-25"
-              aria-label={`Next ${mode}`}
+              aria-label={`Next ${periodOf(mode)}`}
             >
               ›
             </button>
@@ -322,7 +369,7 @@ export function ShareSheet({
           ) : state.status === "empty" && mode !== "screen" ? (
             <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
               <Mascot mood="curious" size={64} />
-              <p className="text-ink-soft">{EMPTY[mode]}</p>
+              <p className="text-ink-soft">{EMPTY[periodOf(mode)]}</p>
             </div>
           ) : state.status === "error" ? (
             <p role="alert" className="px-6 py-10 text-center text-ink-soft">
@@ -346,10 +393,12 @@ export function ShareSheet({
         )}
 
         <div className="mt-4 flex gap-2">
-          <button type="button" className={`${actionClass} btn-ghost`} onClick={copy} disabled={!picture}>
-            <CopyIcon width={18} height={18} />
-            Copy
-          </button>
+          {showCopy && (
+            <button type="button" className={`${actionClass} btn-ghost`} onClick={copy} disabled={!picture || busy !== null}>
+              <CopyIcon width={18} height={18} />
+              {busy === "copy" ? "Copying…" : "Copy"}
+            </button>
+          )}
           {showSave && (
             <button
               type="button"

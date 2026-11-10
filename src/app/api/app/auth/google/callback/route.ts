@@ -1,8 +1,10 @@
+import type { Session } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { APP_SECRET_COOKIE, APP_SECRET_PATTERN, sealForApp, toAppSession } from "@/lib/app-auth";
 import { isAllowedEmail } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { finishGoogle, isDirectCallback } from "@/lib/google-oauth";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -27,17 +29,32 @@ export async function GET(request: NextRequest) {
   };
 
   if (!APP_SECRET_PATTERN.test(secret)) return back("error=expired");
-  if (!code) {
-    forgetTab();
-    return back(params.get("error") === "access_denied" ? "error=cancelled" : "error=google-failed");
-  }
-
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error || !data.session) {
+  let session: Session | null = null;
+
+  if (isDirectCallback(params)) {
+    // Google came straight back to hidl (src/lib/google-oauth.ts).
+    const result = await finishGoogle("app", params);
+    if (!result.ok) {
+      forgetTab();
+      return back(result.reason === "cancelled" ? "error=cancelled" : result.reason === "expired" ? "error=expired" : "error=google-failed");
+    }
+    const { data, error } = await supabase.auth.signInWithIdToken({ provider: "google", token: result.idToken, nonce: result.nonce });
+    if (error) console.error("app google sign-in", error.message);
+    session = data.session;
+  } else {
+    if (!code) {
+      forgetTab();
+      return back(params.get("error") === "access_denied" ? "error=cancelled" : "error=google-failed");
+    }
+    const { data } = await supabase.auth.exchangeCodeForSession(code);
+    session = data.session;
+  }
+  if (!session) {
     forgetTab();
     return back("error=google-failed");
   }
+  const data = { session };
 
   const user = data.session.user;
   if (!isAllowedEmail(user.email)) {

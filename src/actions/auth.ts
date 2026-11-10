@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient, requireUser } from "@/lib/supabase/server";
 import { removeUserFiles } from "@/lib/user-files";
 import { emailCodeSchema, loginSchema } from "@/lib/validation/auth";
+import { googleDirect, startGoogle } from "@/lib/google-oauth";
 
 export type LoginState = { status: "idle" | "sent" | "error"; message?: string; email?: string };
 
@@ -68,11 +69,14 @@ export async function verifyEmailCode(_prev: CodeState, formData: FormData): Pro
 }
 
 /**
- * Starts "Continue with Google". Supabase handles the Google side; Google sends the person
+ * Starts "Continue with Google". With GOOGLE_CLIENT_ID/SECRET set, hidl talks to Google itself
+ * (src/lib/google-oauth.ts → /auth/google/callback). Otherwise Supabase handles the Google side; Google sends the person
  * back to /auth/confirm with a one-time code (PKCE; the verifier is stored in a cookie
  * here), which is exchanged for a session and checked against ALLOWED_EMAIL there.
  */
 export async function signInWithGoogle() {
+  // Through hidl's own address when it's set up, so Google says "continue to hidl" (google-oauth.ts).
+  if (googleDirect()) redirect(await startGoogle("web", "/"));
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",

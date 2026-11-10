@@ -153,6 +153,7 @@ Fill `.env.local` from the `db:status` output:
 | `NEXT_PUBLIC_POSTHOG_HOST` | optional: PostHog ingestion host, default `https://us.i.posthog.com` (EU: `https://eu.i.posthog.com`) |
 | `POSTHOG_PERSONAL_API_KEY` | optional, server only: a PostHog personal API key with the `query:read` scope, for the admin Analytics tab |
 | `POSTHOG_PROJECT_ID` | optional: the PostHog project id the Analytics tab reads (with the key above) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | optional, server only: the Google client Supabase uses, so "Continue with Google" goes through your own domain (see step 7) |
 | `STORAGE_PROVIDER` | where photo/video files live: `supabase` (default, the `photos` bucket) or `s3` (Garage on the VPS in production; [docs/storage.md](docs/storage.md)) |
 | `S3_PUBLIC_URL`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET` | with `s3`: the store's address for browsers (links are signed for it), optionally another one for the server, region (`garage`) and bucket (`hidl-media`) |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | with `s3`, server only: the app's own key for the bucket |
@@ -221,7 +222,13 @@ Open http://localhost:3000 and enter your email. Local Supabase doesn't send rea
      "This journal is private", and the account that attempt created is deleted again (`/auth/confirm`).
    - If you turned off **Allow new users to sign up** (step 5), Google works for your existing account (Supabase
      links a Google login to the account with the same verified email) but can't create new ones.
-   - Google's screen says "continue to `<project-ref>.supabase.co`" unless you add a Supabase custom domain (paid).
+   - **Your name on Google's screen.** By default Google says "continue to `<project-ref>.supabase.co`", because
+     that's where it sends people back. To have it say your app instead, for free: in the same Google client, add
+     the redirect URIs `https://<your-domain>/auth/google/callback` and `https://<your-domain>/api/app/auth/google/callback`,
+     then set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on the server (same values as in Supabase) and restart.
+     hidl then talks to Google itself and signs in with Google's ID token (`src/lib/google-oauth.ts`). Google shows
+     your domain at once, and the app name ("hidl") after **Branding → Verify branding** (your domain must be an
+     authorized domain verified in Search Console, with the home page and `/privacy` linked; a few days, no cost).
 
 > Supabase's built-in email sender is rate-limited (a few emails per hour) and only delivers to members of your
 > Supabase organisation, which is fine for a single owner. Set up custom SMTP if you need more.
