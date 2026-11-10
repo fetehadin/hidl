@@ -29,15 +29,24 @@ layer physically cannot violate it, even with a bug:
   the future (`..._letter_date_any_direction.sql`; `changeLetterDate` / `ChangeDateForm`). `src/lib/data/letters.ts` mirrors this: `LETTER_META_COLUMNS`
   never includes `body`; reading it goes through `openLetter()` → the RPC, with `LetterSealedError` thrown on the
   `hint: "sealed"` error code.
-- *Letter encryption* (`..._letter_encryption.sql`, `src/lib/e2ee.ts`): new letter bodies are end-to-end
-  encrypted in the browser (`e2e1.<iv>.<ct>`, AES-256-GCM) with a per-user letter key. `letter_keys` holds that
-  key only wrapped twice: by PBKDF2(passphrase) and by a recovery key shown once. The server never sees the
-  passphrase, recovery key, raw key, or text: `createLetter` only accepts the ciphertext shape and sets
-  `encrypted = true`. Anything that writes or reads an encrypted body sits inside `<LetterKeyGate>`
-  (`src/components/letters/letter-key.tsx`: setup → recovery key → unlock), which provides `useLetterKey()`.
-  The unlocked key is remembered per device as a non-extractable CryptoKey in IndexedDB (`src/lib/key-store.ts`),
-  wiped on `/login` with the photo cache. Changing the passphrase re-wraps the *same* key (needs the current
-  passphrase or the recovery key), so old letters still open. `open_letter` predates `encrypted`; read the flag
+- *Letter encryption* (`..._letter_encryption.sql`, `..._letter_keys_ways_in.sql`, `src/lib/e2ee.ts`): letter
+  bodies are end-to-end encrypted in the browser. Each person has a letter key (AES-256-GCM) and an ECDH P-256
+  key pair: the public half is stored plain and new letters are encrypted to it (`e2e2.<ephemeral>.<iv>.<ct>`), so
+  **writing never asks for anything**; the private half is stored encrypted with the letter key, so reading needs
+  the letter key. Older bodies (`e2e1.<iv>.<ct>`) use the letter key directly. `letter_keys` holds the letter key
+  only wrapped, once per way in: the **email key** (HKDF of a 32-byte half emailed to the person, never stored,
+  and a 32-byte `email_share` stored here; the email at `/letters/key#k=…` keeps the half in the URL fragment,
+  which never reaches the server; `src/lib/letter-key-email.ts`, sent by `emailLetterKey`), **passkeys**
+  (`letter_passkeys`: wrapped by the WebAuthn PRF secret, fingerprint / Face ID, `src/lib/passkey.ts`), an optional
+  **passphrase** (PBKDF2-SHA256, 600k) and, for early accounts, a **recovery key**. Setup asks for nothing: it makes
+  the keys, emails the key and offers a passkey. Accounts from before get the key pair and email key on their next
+  unlock (`upgradeLetterKeys`; the pair can never be replaced, trigger `letter_keys_guard`). The server never
+  sees the raw letter key or text; it sees the email half once, in transit, to send it. Anything that writes or
+  reads an encrypted body sits inside `<LetterKeyGate need="write" | "read">` (`src/components/letters/letter-key.tsx`),
+  which provides `useLetterWriter()` / `useLetterReader()`. The unlocked key is remembered per device as a
+  non-extractable CryptoKey in IndexedDB (`src/lib/key-store.ts`), wiped on `/login` with the photo cache. Adding
+  or changing a way in (Account) unlocks first with any way that works, then wraps the *same* key, so old letters
+  still open. `open_letter` predates `encrypted`; read the flag
   from the letter's meta. Older letters (`encrypted = false`) stay plain text: they're immutable once sealed.
 - *Photos*: a day can hold any number of photos (no per-day limit); `photos_before_write` rejects future dates
   using the database clock in the owner's time zone (`user_settings.time_zone`, else Africa/Addis_Ababa) as the

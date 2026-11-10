@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { decryptBody } from "@/lib/e2ee";
 import type { CalendarPref } from "@/lib/dates";
-import { useLetterKey } from "./letter-key";
+import { useLetterReader } from "./letter-key";
 import { LetterPaper } from "./letter-paper";
 
 /** An opened, end-to-end encrypted letter: the page gets ciphertext, this decrypts it here. */
@@ -16,20 +15,20 @@ export function DecryptedLetter(props: {
   calendar: CalendarPref;
   timeZone: string;
 }) {
-  const key = useLetterKey();
+  const { decrypt } = useLetterReader();
   const [text, setText] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let live = true;
-    decryptBody(key, props.body).then(
+    decrypt(props.body).then(
       (t) => live && setText(t),
       () => live && setFailed(true),
     );
     return () => {
       live = false;
     };
-  }, [key, props.body]);
+  }, [decrypt, props.body]);
 
   if (failed) {
     return (

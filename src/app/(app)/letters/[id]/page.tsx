@@ -6,10 +6,10 @@ import { letterState, sealInitial } from "@/components/letters/letter-card";
 import { DeleteLetterButton, ChangeDateForm } from "@/components/letters/letter-manage";
 import { LetterPaper } from "@/components/letters/letter-paper";
 import { DecryptedLetter } from "@/components/letters/decrypted-letter";
-import { LetterKeyGate } from "@/components/letters/letter-key";
+import { type KeyUser, LetterKeyGate } from "@/components/letters/letter-key";
 import { EncryptedLetterReveal, LetterReveal } from "@/components/letters/letter-reveal";
 import { LiveRelative } from "@/components/live-relative";
-import { getKeyBundle } from "@/lib/data/letter-keys";
+import { type LetterPasskey, getKeyBundle, getLetterPasskeys } from "@/lib/data/letter-keys";
 import { type LetterMeta, getLetterMeta, openLetter } from "@/lib/data/letters";
 import type { KeyBundle } from "@/lib/e2ee";
 import { formatDay, formatFullDate } from "@/lib/dates";
@@ -28,7 +28,11 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
   const letter = await getLetterMeta(supabase, parsed.data);
   if (!letter) notFound();
   // Only an encrypted letter that's ready to read needs the key on this page.
-  const bundle = letter.encrypted && letterState(letter) !== "sealed" ? await getKeyBundle(supabase) : null;
+  const needsKey = letter.encrypted && letterState(letter) !== "sealed";
+  const [bundle, passkeys] = needsKey
+    ? await Promise.all([getKeyBundle(supabase), getLetterPasskeys(supabase)])
+    : [null, [] as LetterPasskey[]];
+  const keyUser = { id: user.id, email: user.email ?? "" };
 
   const state = letterState(letter);
   const initial = sealInitial(letter.recipient);
@@ -63,7 +67,7 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
 
         {state === "ready" &&
           (letter.encrypted ? (
-            <LetterKeyGate userId={user.id} bundle={bundle}>
+            <LetterKeyGate user={keyUser} bundle={bundle} passkeys={passkeys} need="read">
               <EncryptedLetterReveal {...revealProps(letter, initial)} />
             </LetterKeyGate>
           ) : (
@@ -71,7 +75,7 @@ export default async function LetterPage({ params }: PageProps<"/letters/[id]">)
           ))}
 
         {state === "opened" && (
-          <OpenedLetter id={letter.id} encrypted={letter.encrypted} userId={user.id} bundle={bundle} />
+          <OpenedLetter id={letter.id} encrypted={letter.encrypted} keyUser={keyUser} bundle={bundle} passkeys={passkeys} />
         )}
       </div>
     </div>
@@ -90,11 +94,12 @@ function revealProps(letter: LetterMeta, initial: string) {
   };
 }
 
-async function OpenedLetter({ id, encrypted, userId, bundle }: {
+async function OpenedLetter({ id, encrypted, keyUser, bundle, passkeys }: {
   id: string;
   encrypted: boolean;
-  userId: string;
+  keyUser: KeyUser;
   bundle: KeyBundle | null;
+  passkeys: LetterPasskey[];
 }) {
   const { supabase, calendar, timeZone } = await requireUser();
   const letter = await openLetter(supabase, id);
@@ -110,7 +115,7 @@ async function OpenedLetter({ id, encrypted, userId, bundle }: {
   return (
     <div className="space-y-6">
       {encrypted ? (
-        <LetterKeyGate userId={userId} bundle={bundle}>
+        <LetterKeyGate user={keyUser} bundle={bundle} passkeys={passkeys} need="read">
           <DecryptedLetter {...paper} />
         </LetterKeyGate>
       ) : (

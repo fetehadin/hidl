@@ -11,6 +11,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Dev logs every server action with its arguments; those include letter key material
+  // (emailLetterKey), which must never be written to any log.
+  logging: { serverFunctions: false },
   // A self-contained server build for the Docker image (Dockerfile).
   output: "standalone",
   // Hidi's quick menu owns the bottom-right corner and the side nav the left edge; keep the

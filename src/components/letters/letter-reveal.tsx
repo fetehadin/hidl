@@ -4,8 +4,7 @@ import { useState, useTransition } from "react";
 import { openLetterAction } from "@/actions/letters";
 import { Envelope } from "@/components/envelope";
 import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
-import { decryptBody } from "@/lib/e2ee";
-import { useLetterKey } from "./letter-key";
+import { useLetterReader } from "./letter-key";
 import { LetterPaper } from "./letter-paper";
 
 type Props = {
@@ -20,8 +19,8 @@ type Props = {
 
 /** An end-to-end encrypted letter: same reveal, decrypted on this device once it's released. */
 export function EncryptedLetterReveal(props: Props) {
-  const key = useLetterKey();
-  return <LetterReveal {...props} decrypt={(body) => decryptBody(key, body)} />;
+  const { decrypt } = useLetterReader();
+  return <LetterReveal {...props} decrypt={decrypt} />;
 }
 
 export function LetterReveal(props: Props & { decrypt?: (body: string) => Promise<string> }) {

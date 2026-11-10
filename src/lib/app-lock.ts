@@ -6,6 +6,8 @@
 // unlocked phone or computer from browsing your journal. It doesn't encrypt anything (the
 // letter passphrase does that), and someone with full access to the browser's storage could
 // remove it. Forgetting it is fine: signing out clears it, and signing in again needs your email.
+// Fingerprint / Face ID can be added on top (a passkey, src/lib/passkey.ts); the PIN or pattern
+// stays as the fallback, like on a phone.
 
 export type LockKind = "pin" | "pattern";
 
@@ -30,6 +32,8 @@ export type LockConfig = {
   /** Wrong tries in a row, and when the next try is allowed (ms epoch) after too many. */
   failures: number;
   blockedUntil: number;
+  /** A passkey (fingerprint / Face ID) that also opens the lock; the PIN or pattern stays the fallback. */
+  passkeyId?: string;
 };
 
 export const LOCK_COOKIE = "hidl-lock";
@@ -124,6 +128,7 @@ export function parseLockConfig(raw: string | null): LockConfig | null {
       timeout,
       failures: Number(c.failures) || 0,
       blockedUntil: Number(c.blockedUntil) || 0,
+      ...(typeof c.passkeyId === "string" && /^[A-Za-z0-9_-]{16,1400}$/.test(c.passkeyId) ? { passkeyId: c.passkeyId } : {}),
     };
   } catch {
     return null;

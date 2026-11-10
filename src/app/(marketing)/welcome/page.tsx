@@ -163,8 +163,8 @@ export default function WelcomePage() {
             <h2 className="font-display text-4xl font-semibold tracking-tight">Yours, and only yours</h2>
             <ul className="mt-6 grid gap-4 sm:grid-cols-2">
               <Point title="Letters are end-to-end encrypted">
-                They&apos;re locked on your device with a passphrase only you know, before they&apos;re saved. Nobody
-                else can read them, including us.
+                They&apos;re locked on your device before they&apos;re saved, and open with your fingerprint or the key
+                in your email. Nobody else can read them, including us.
               </Point>
               <Point title="Sealed means sealed">
                 The unlock date is checked by the database&apos;s own clock, so changing your phone&apos;s time
