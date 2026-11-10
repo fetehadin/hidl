@@ -70,20 +70,6 @@ export function HidiMenu() {
       ref={rootRef}
       className="fixed bottom-[calc(4.6rem+var(--safe-bottom))] right-3 z-40 size-16 sm:right-5 sm:bottom-4"
     >
-      {/* Soft mint glow behind the fan. On phones it's cut off at Hidi's bottom edge (7.5rem =
-          half the 19rem glow minus half of Hidi's 4rem) so it never washes over the tab bar. */}
-      <div
-        aria-hidden
-        className={`pointer-events-none absolute top-1/2 left-1/2 size-[19rem] rounded-full [clip-path:inset(0_0_7.5rem_0)] transition-[opacity,scale] duration-300 sm:[clip-path:none] ${
-          open ? "scale-100 opacity-100" : "scale-50 opacity-0"
-        }`}
-        style={{
-          translate: "-50% -50%",
-          background:
-            "radial-gradient(circle, rgb(255 255 255 / 0.97) 0%, color-mix(in oklab, var(--hidi-light) 92%, transparent) 38%, color-mix(in oklab, var(--mint) 60%, transparent) 55%, transparent 70%)",
-        }}
-      />
-
       <ul id="hidi-menu" aria-label="Shortcuts" className={open ? "" : "pointer-events-none"}>
         {ACTIONS.map(({ href, hint, Icon }, i) => {
           const angle = ANGLES[i];
