@@ -97,19 +97,20 @@ export function MonthGrid({
       {/*
         Sized to the viewport: as tall as the screen allows (minus the app header, month row
         and tab bar, which is --chrome), so the photos get as much room as possible. Cells are
-        never more than 1.8x taller than wide; the page wrapper (calendar/page.tsx) sets the width:
-        portrait cells on tablets, a little wider than tall on computers. --rows is the month's number of
+        never more than 1.8x taller than wide; on tablets the page wrapper (calendar/page.tsx)
+        narrows it so cells stay portrait. Computers get a fixed 1200 × 950 board instead (it
+        scrolls on short screens): photos edge to edge, thin lines between days, a teal weekday band. --rows is the month's number of
         weeks (4 to 6), set by the page. --chrome also leaves room below the grid for Hidi's
         corner menu (above the tab bar on phones), so it never covers a day.
       */}
       <div
-        className="calendar-grid grid h-[max(14rem,min(calc(100dvh-var(--chrome)),calc(100cqw*var(--rows)/7*1.8)))] grid-cols-7 grid-rows-[auto_repeat(var(--rows),minmax(0,1fr))] gap-[3px] px-[3px] [--chrome:21.5rem] sm:gap-1.5 sm:px-0 sm:[--chrome:16.5rem]"
+        className="calendar-grid grid h-[max(14rem,min(calc(100dvh-var(--chrome)),calc(100cqw*var(--rows)/7*1.8)))] grid-cols-7 grid-rows-[auto_repeat(var(--rows),minmax(0,1fr))] gap-[3px] px-[3px] [--chrome:21.5rem] sm:gap-1.5 sm:px-0 sm:[--chrome:16.5rem] lg:aspect-[1200/950] lg:h-auto lg:gap-[2px] lg:overflow-hidden lg:rounded-card lg:border-2 lg:border-line lg:bg-line"
         role="grid"
         aria-label="Days of the month"
       >
         <div role="row" className="contents">
           {WEEKDAYS.map((d) => (
-            <div key={d} role="columnheader" className="pb-1 text-center text-[11px] font-semibold tracking-wider text-muted uppercase">
+            <div key={d} role="columnheader" className="pb-1 text-center text-[11px] font-semibold tracking-wider text-muted uppercase lg:bg-teal lg:py-2.5 lg:text-left lg:pl-3 lg:font-display lg:text-base lg:font-extrabold lg:text-accent-ink">
               <span className="sm:hidden">{d.charAt(0)}</span>
               <span className="hidden sm:inline">{d}</span>
             </div>
@@ -117,7 +118,7 @@ export function MonthGrid({
         </div>
         <div role="row" className="contents">
           {Array.from({ length: month.leadingBlanks }, (_, i) => (
-            <div key={`blank-${i}`} aria-hidden />
+            <div key={`blank-${i}`} aria-hidden className="lg:bg-white" />
           ))}
           {days.map((date, i) => {
             const dayPhotos = byDate.get(date);
@@ -125,9 +126,10 @@ export function MonthGrid({
             const isToday = date === today;
             const isFuture = date > today;
             const tabIndex = i === focusedIndex ? 0 : -1;
-            const ring = isToday ? "ring-2 ring-accent ring-offset-2 ring-offset-paper" : "";
-            const cell = "relative min-h-0 overflow-hidden rounded-[7px] sm:rounded-control";
-            const number = "absolute top-1 left-1.5 text-[12px] leading-none font-extrabold tabular-nums sm:top-1.5 sm:left-2 sm:text-sm";
+            // Computers draw the days edge to edge, so today's ring goes inside the photo there.
+            const ring = isToday ? "ring-2 ring-accent ring-offset-2 ring-offset-paper lg:ring-4 lg:ring-inset lg:ring-offset-0" : "";
+            const cell = "relative min-h-0 overflow-hidden rounded-[7px] sm:rounded-control lg:rounded-none";
+            const number = "absolute top-1 left-1.5 text-[12px] leading-none font-extrabold tabular-nums sm:top-1.5 sm:left-2 sm:text-sm lg:top-2.5 lg:left-3 lg:text-base";
 
             if (dayPhotos && dayPhotos.length > 0) {
               // The pinned "wallpaper" if the day has one, else its first photo.
@@ -175,7 +177,7 @@ export function MonthGrid({
                   tabIndex={tabIndex}
                   onFocus={() => setFocusedIndex(i)}
                   onKeyDown={(e) => onGridKeyDown(e, i)}
-                  className={`${cell} text-muted/50`}
+                  className={`${cell} text-muted/50 lg:bg-white`}
                 >
                   <span className={number}>{day}</span>
                 </div>
@@ -198,7 +200,7 @@ export function MonthGrid({
                 className={`${cell} transition-colors ${
                   isToday
                     ? "border-2 border-dashed border-accent bg-accent-soft text-accent"
-                    : "bg-paper-deep text-muted hover:bg-accent-soft hover:text-accent"
+                    : "bg-paper-deep text-muted hover:bg-accent-soft hover:text-accent lg:bg-white lg:text-accent"
                 }`}
               >
                 <span className={number}>{day}</span>
