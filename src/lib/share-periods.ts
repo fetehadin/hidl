@@ -39,13 +39,18 @@ export function stepPeriod(period: SharePeriod, date: string, pref: CalendarPref
   return calendarMonth(pref, addMonthKey(pref, monthKeyOf(pref, date), delta)).days[0];
 }
 
-/** "Monday, November 10, 2026" · "Nov 3, 2026 – Nov 9, 2026" · "November 2026" (or Ethiopian). */
+/** "Monday, November 10, 2026" · "Nov 9 – 15, 2026" · "November 2026" (or Ethiopian). */
 export function periodTitle(period: SharePeriod, date: string, pref: CalendarPref) {
   const fmt = (d: string) => (pref === "ethiopian" ? formatEthiopianDay(d) : shortDay(d));
   if (period === "day") return pref === "ethiopian" ? formatEthiopianDay(date) : dayLabel(date);
   if (period === "week") {
-    const week = weekOf(date);
-    return `${fmt(week[0])} – ${fmt(week[6])}`;
+    const [first, , , , , , last] = weekOf(date);
+    if (pref === "ethiopian") return `${fmt(first)} – ${fmt(last)}`;
+    // Short enough for a phone: "Nov 9 – 15, 2026", "Oct 26 – Nov 1, 2026", "Dec 28, 2026 – Jan 3, 2027".
+    const md = (d: string) => shortDay(d).replace(/, \d{4}$/, "");
+    if (first.slice(0, 4) !== last.slice(0, 4)) return `${fmt(first)} – ${fmt(last)}`;
+    const end = first.slice(0, 7) === last.slice(0, 7) ? String(Number(last.slice(8))) : md(last);
+    return `${md(first)} – ${end}, ${last.slice(0, 4)}`;
   }
   return calendarMonth(pref, monthKeyOf(pref, date)).label;
 }
@@ -54,4 +59,11 @@ export function periodTitle(period: SharePeriod, date: string, pref: CalendarPre
 export function periodRange(period: SharePeriod, date: string, pref: CalendarPref) {
   const { days } = periodDays(period, date, pref);
   return { from: days[0], to: days[days.length - 1] };
+}
+
+const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+/** The tag on a day's first photo in a week or month picture: "SAT 7" (the day in the chosen calendar). */
+export function dayTag(date: string, pref: CalendarPref) {
+  return `${WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()]} ${dayNumber(pref, date)}`;
 }

@@ -202,6 +202,32 @@ export const ShareIcon = (p: IconProps) => (
   </svg>
 );
 
+/** Two overlapping sheets: copy. */
+export const CopyIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2" />
+    <path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5" />
+  </svg>
+);
+
+/** An arrow down onto a tray: download / save. */
+export const DownloadIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M12 4v11M7.5 10.5 12 15l4.5-4.5" />
+    <path d="M4.5 16.5v1.5A2 2 0 0 0 6.5 20h11a2 2 0 0 0 2-2v-1.5" />
+  </svg>
+);
+
+/** Four tiles: how photos are gathered (by day or by group). */
+export const GatherIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <rect x="4" y="4" width="7" height="7" rx="2" />
+    <rect x="13" y="4" width="7" height="7" rx="2" />
+    <rect x="4" y="13" width="7" height="7" rx="2" />
+    <rect x="13" y="13" width="7" height="7" rx="3.5" />
+  </svg>
+);
+
 export const PinIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
   <svg {...base} {...p}>
     <path d="M9 3.5h6M10 3.5v5.2L7 12.5h10l-3-3.8V3.5Z" fill={filled ? "currentColor" : "none"} />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { periodDays, periodRange, periodTitle, stepPeriod } from "@/lib/share-periods";
+import { dayTag, periodDays, periodRange, periodTitle, stepPeriod } from "@/lib/share-periods";
 
 describe("share periods", () => {
   it("a day is just that day", () => {
@@ -12,7 +12,9 @@ describe("share periods", () => {
     expect(days[0]).toBe("2026-10-26");
     expect(days[6]).toBe("2026-11-01");
     expect(dayNumbers).toEqual([26, 27, 28, 29, 30, 31, 1]);
-    expect(periodTitle("week", "2026-11-01", "gregorian")).toBe("Oct 26, 2026 – Nov 1, 2026");
+    expect(periodTitle("week", "2026-11-01", "gregorian")).toBe("Oct 26 – Nov 1, 2026");
+    expect(periodTitle("week", "2026-11-10", "gregorian")).toBe("Nov 9 – 15, 2026");
+    expect(periodTitle("week", "2026-12-30", "gregorian")).toBe("Dec 28, 2026 – Jan 3, 2027");
   });
 
   it("a Gregorian month has its days and the blanks before a Monday-first grid", () => {
@@ -36,5 +38,13 @@ describe("share periods", () => {
     expect(stepPeriod("week", "2026-11-12", "gregorian", 1)).toBe("2026-11-16");
     expect(stepPeriod("month", "2026-11-10", "gregorian", -1)).toBe("2026-10-01");
     expect(stepPeriod("month", "2026-01-15", "gregorian", -1)).toBe("2025-12-01");
+  });
+});
+
+describe("dayTag", () => {
+  it("names the weekday and the day in the chosen calendar", () => {
+    expect(dayTag("2026-11-07", "gregorian")).toBe("SAT 7");
+    // Nov 7, 2026 is Tikimt 28, 2019 in the Ethiopian calendar.
+    expect(dayTag("2026-11-07", "ethiopian")).toBe("SAT 28");
   });
 });

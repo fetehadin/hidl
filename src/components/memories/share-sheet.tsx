@@ -3,10 +3,12 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { photosForShare } from "@/actions/photos";
 import { useCalendarPref } from "@/components/calendar-pref";
+import { CopyIcon, DownloadIcon, ShareIcon } from "@/components/icons";
 import { Mascot } from "@/components/mascot";
 import type { PhotoView } from "@/lib/data/photos";
+import { pickForPicture } from "@/lib/lane-layout";
 import type { MemoryCluster } from "@/lib/memories";
-import { type SharePeriod, periodDays, periodRange, periodTitle, stepPeriod } from "@/lib/share-periods";
+import { type SharePeriod, dayTag, periodRange, periodTitle, stepPeriod } from "@/lib/share-periods";
 import type { StickerText } from "./memory-board";
 
 /** The board's camera and size (CSS px) at the moment Share was tapped. */
@@ -24,7 +26,7 @@ export type ScreenShare = {
 
 export type ShareMode = "screen" | SharePeriod;
 
-type Picture = { blob: Blob; url: string; file: File };
+type Picture = { canvas: HTMLCanvasElement; blob: Blob; url: string; file: File };
 type State = { status: "drawing" } | ({ status: "ready" } & Picture) | { status: "empty" } | { status: "error"; message?: string };
 
 const MODE_LABEL: Record<ShareMode, string> = { screen: "This view", day: "Day", week: "Week", month: "Month" };
@@ -33,10 +35,12 @@ const EMPTY: Record<SharePeriod, string> = {
   week: "No photos this week.",
   month: "No photos this month.",
 };
+/** Photos in one picture at most: past this they'd be too small to make out on a phone. */
+const MAX_IN_PICTURE = 48;
 
-/** The phone app (mobile/src/screens/WebShell.tsx) shares pictures for the page: a web view can't. */
+/** The phone app (mobile/src/screens/WebShell.tsx) shares and saves pictures for the page: a web view can't. */
 const inApp = () => typeof window !== "undefined" && Boolean(window.ReactNativeWebView);
-const appCanShare = () => inApp() && Boolean(window.hidlApp?.shareImage);
+const appCan = (what: "shareImage" | "saveImage") => inApp() && Boolean(window.hidlApp?.[what]);
 
 const plural = (n: number, word: string) => `${n} ${n === 1 ? word : `${word}s`}`;
 
@@ -48,6 +52,8 @@ function canWebShare(file: File) {
   }
 }
 
+const canCopy = () => typeof ClipboardItem !== "undefined" && typeof navigator.clipboard?.write === "function";
+
 function toBase64(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -58,10 +64,11 @@ function toBase64(blob: Blob) {
 }
 
 /**
- * "Share as a picture": the memories board as it is on screen, or a classic card of one day, a
- * week or a month. It draws the picture, shows it, and then shares it (the phone's share sheet)
- * or saves it. Drawing happens here rather than on tap, because a browser only lets a page open
- * the share sheet straight after a tap, and loading the photos can take longer than that allows.
+ * "Share as a picture": a day, a week or a month of photos drawn as Memory Lane (the board's sky,
+ * every photo framed and fitted to the screen), or the board exactly as it is on screen. It draws
+ * the picture, shows it, and then copies, downloads or shares it. Drawing happens here rather than
+ * on tap, because a browser only lets a page open the share sheet straight after a tap, and
+ * loading the photos can take longer than that allows.
  */
 export function ShareSheet({
   screen,
@@ -83,8 +90,8 @@ export function ShareSheet({
   const [mode, setMode] = useState<ShareMode>(screen ? initialMode : initialMode === "screen" ? "month" : initialMode);
   const [date, setDate] = useState(initialDate);
   const [state, setState] = useState<State>({ status: "drawing" });
-  const [note, setNote] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ text: string; ok?: boolean } | null>(null);
+  const [busy, setBusy] = useState<"share" | "save" | null>(null);
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -94,10 +101,13 @@ export function ShareSheet({
   useEffect(() => {
     let cancelled = false;
     let url: string | null = null;
-    const done = (blob: Blob, name: string) => {
+    const done = async (canvas: HTMLCanvasElement | null, name: string) => {
+      if (cancelled || !canvas) return;
+      const { canvasBlob } = await import("./snapshot");
+      const blob = await canvasBlob(canvas);
       if (cancelled) return;
       url = URL.createObjectURL(blob);
-      setState({ status: "ready", blob, url, file: new File([blob], name, { type: "image/jpeg" }) });
+      setState({ status: "ready", canvas, blob, url, file: new File([blob], name, { type: "image/jpeg" }) });
     };
     const fail = (error: unknown) => {
       console.error("sharePicture", error);
@@ -109,12 +119,13 @@ export function ShareSheet({
       if (!screen || !board) return;
       import("./snapshot")
         .then(({ drawMemorySnapshot }) => drawMemorySnapshot({ ...screen, board }))
-        .then((blob) => done(blob, `hidl-memories-${today}.jpg`), fail);
+        .then((canvas) => done(canvas, `hidl-memories-${today}.jpg`))
+        .catch(fail);
     } else {
       const period = mode;
       const { from, to } = periodRange(period, date, pref);
       Promise.all([photosForShare(from, to), import("./snapshot")])
-        .then(([res, { drawPeriodCard }]) => {
+        .then(([res, { drawLanePicture }]) => {
           if (cancelled) return null;
           if (!res.ok) {
             setState({ status: "error", message: res.message });
@@ -124,25 +135,22 @@ export function ShareSheet({
             setState({ status: "empty" });
             return null;
           }
-          const { days, dayNumbers, leadingBlanks } = periodDays(period, date, pref);
-          const byDay = days.map((d, i) => ({
-            date: d,
-            number: dayNumbers[i],
-            // The day's pinned wallpaper first, then upload order.
-            photos: res.photos.filter((p) => p.date === d).sort((a, b) => Number(b.isCover) - Number(a.isCover)),
-          }));
-          const withPhotos = byDay.filter((d) => d.photos.length > 0).length;
-          const count = plural(res.photos.length, "photo");
-          return drawPeriodCard({
-            period,
-            eyebrow: `my ${period}`,
+          // Oldest first, and each day's wallpaper first within its day.
+          const ordered = [...res.photos].sort(
+            (a, b) => a.date.localeCompare(b.date) || Number(b.isCover) - Number(a.isCover),
+          );
+          const days = new Set(ordered.map((p) => p.date)).size;
+          const count = plural(ordered.length, "photo");
+          return drawLanePicture({
             title: periodTitle(period, date, pref),
-            summary: period === "day" ? count : `${count} · ${plural(withPhotos, "day")}`,
-            days: byDay,
-            leadingBlanks,
+            summary: period === "day" ? count : `${count} · ${plural(days, "day")}`,
+            photos: pickForPicture(ordered, MAX_IN_PICTURE),
+            dayTag: period === "day" ? undefined : (d) => dayTag(d, pref),
+            screen: { width: window.innerWidth, height: window.innerHeight },
           });
         })
-        .then((blob) => blob && done(blob, `hidl-${period}-${periodRange(period, date, pref).from}.jpg`), fail);
+        .then((canvas) => done(canvas, `hidl-${period}-${from}.jpg`))
+        .catch(fail);
     }
     return () => {
       cancelled = true;
@@ -152,13 +160,18 @@ export function ShareSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, date, pref]);
 
-  // The app answers a share with a "hidl-app" event.
+  // The app answers a share or a save with a "hidl-app" event.
   useEffect(() => {
     const onAnswer = (e: Event) => {
-      const detail = (e as CustomEvent<{ type?: string; ok?: boolean }>).detail;
-      if (detail?.type !== "share-image") return;
-      setBusy(false);
-      if (!detail.ok) setNote("Couldn't open sharing. Try again.");
+      const detail = (e as CustomEvent<{ type?: string; ok?: boolean; cancelled?: boolean }>).detail;
+      if (detail?.type === "share-image") {
+        setBusy(null);
+        if (!detail.ok) setNote({ text: "Couldn't open sharing. Try again." });
+      } else if (detail?.type === "save-image") {
+        setBusy(null);
+        if (detail.ok) setNote({ text: "Saved.", ok: true });
+        else if (!detail.cancelled) setNote({ text: "Couldn't save it there. Try another folder." });
+      }
     };
     window.addEventListener("hidl-app", onAnswer);
     return () => window.removeEventListener("hidl-app", onAnswer);
@@ -179,38 +192,44 @@ export function ShareSheet({
   }
 
   const picture = state.status === "ready" ? state : null;
-  const webShare = picture ? canWebShare(picture.file) : false;
-  const appShare = appCanShare();
-  // A web view can't save a file either; an older app can only point to the browser.
-  const canSave = !inApp();
-  const modes: ShareMode[] = screen ? ["screen", "day", "week", "month"] : ["day", "week", "month"];
+  const appShare = appCan("shareImage");
+  const appSave = appCan("saveImage");
+  const webShare = picture && !inApp() ? canWebShare(picture.file) : false;
+  const showShare = appShare || webShare;
+  // A web view can't download a file; the app saves it, or (an older app) the browser has to.
+  const showSave = !inApp() || appSave;
+  const modes: ShareMode[] = screen ? ["day", "week", "month", "screen"] : ["day", "week", "month"];
   const atLatest = mode !== "screen" && periodRange(mode, date, pref).to >= today;
+
+  async function postToApp(type: "share-image" | "save-image") {
+    if (!picture) return;
+    setBusy(type === "share-image" ? "share" : "save");
+    try {
+      const data = await toBase64(picture.blob);
+      window.ReactNativeWebView!.postMessage(JSON.stringify({ type, name: picture.file.name, data }));
+    } catch {
+      setBusy(null);
+      setNote({ text: "Something went wrong. Try again." });
+    }
+  }
 
   async function share() {
     if (!picture) return;
     setNote(null);
-    if (appShare) {
-      setBusy(true);
-      try {
-        const data = await toBase64(picture.blob);
-        window.ReactNativeWebView!.postMessage(JSON.stringify({ type: "share-image", name: picture.file.name, data }));
-      } catch {
-        setBusy(false);
-        setNote("Couldn't open sharing. Try again.");
-      }
-      return;
-    }
+    if (appShare) return postToApp("share-image");
     try {
       await navigator.share({ files: [picture.file], title: "My hidl memories" });
     } catch (error) {
       // Closing the share sheet without picking anything isn't a failure.
       if (error instanceof DOMException && error.name === "AbortError") return;
-      setNote(canSave ? "Couldn't open sharing here. Save the picture instead." : "Couldn't open sharing. Try again.");
+      setNote({ text: "Couldn't open sharing here. Download the picture instead." });
     }
   }
 
   function save() {
     if (!picture) return;
+    setNote(null);
+    if (inApp()) return postToApp("save-image");
     const a = document.createElement("a");
     a.href = picture.url;
     a.download = picture.file.name;
@@ -218,6 +237,24 @@ export function ShareSheet({
     a.click();
     a.remove();
   }
+
+  async function copy() {
+    if (!picture) return;
+    setNote(null);
+    try {
+      if (!canCopy()) throw new Error("no clipboard");
+      const { canvasBlob } = await import("./snapshot");
+      // Clipboards take PNG. The item gets a promise so Safari still counts this as the tap's action.
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": canvasBlob(picture.canvas, "image/png") })]);
+      setNote({ text: "Copied. Paste it into a chat or a post.", ok: true });
+    } catch {
+      setNote({
+        text: showSave ? "Copying pictures doesn't work here. Download it instead." : "Copying pictures doesn't work here. Use Share instead.",
+      });
+    }
+  }
+
+  const actionClass = "btn flex-1 gap-2 px-3";
 
   return (
     <dialog
@@ -259,7 +296,7 @@ export function ShareSheet({
         </div>
 
         {mode !== "screen" && (
-          <div className="mt-3 flex items-center justify-between gap-2">
+          <div className="mt-2 flex items-center justify-between gap-2">
             <button type="button" onClick={() => step(-1)} className="grid size-10 place-items-center rounded-full text-xl text-ocean hover:bg-mint" aria-label={`Previous ${mode}`}>
               ‹
             </button>
@@ -278,10 +315,10 @@ export function ShareSheet({
           </div>
         )}
 
-        <div className="mt-3 grid min-h-48 place-items-center overflow-hidden rounded-card bg-paper-deep">
+        <div className="mt-2 grid min-h-48 place-items-center overflow-hidden rounded-card bg-paper-deep">
           {picture ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={picture.url} alt="The picture to share" className="max-h-[50dvh] w-auto max-w-full object-contain" />
+            <img src={picture.url} alt="The picture to share" className="max-h-[48dvh] w-auto max-w-full object-contain" />
           ) : state.status === "empty" && mode !== "screen" ? (
             <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
               <Mascot mood="curious" size={64} />
@@ -299,29 +336,35 @@ export function ShareSheet({
           )}
         </div>
 
-        {picture && inApp() && !appShare && (
-          <p className="mt-3 text-sm text-muted">To share it, update the hidl app, or open hidl in your phone&apos;s browser.</p>
+        {picture && inApp() && !appShare && !appSave && (
+          <p className="mt-3 text-sm text-muted">To share or save it, update the hidl app, or open hidl in your phone&apos;s browser.</p>
         )}
         {note && (
-          <p role="alert" className="mt-3 rounded-control bg-accent-soft px-3 py-2 text-sm">
-            {note}
+          <p role={note.ok ? "status" : "alert"} className={`mt-3 rounded-control px-3 py-2 text-sm ${note.ok ? "bg-mint" : "bg-accent-soft"}`}>
+            {note.text}
           </p>
         )}
 
-        <div className="mt-5 flex justify-end gap-2">
-          {canSave && (
-            <button type="button" className={`btn ${webShare ? "btn-ghost" : "btn-primary"}`} onClick={save} disabled={!picture}>
-              Save picture
+        <div className="mt-4 flex gap-2">
+          <button type="button" className={`${actionClass} btn-ghost`} onClick={copy} disabled={!picture}>
+            <CopyIcon width={18} height={18} />
+            Copy
+          </button>
+          {showSave && (
+            <button
+              type="button"
+              className={`${actionClass} ${showShare ? "btn-ghost" : "btn-primary"}`}
+              onClick={save}
+              disabled={!picture || busy !== null}
+            >
+              <DownloadIcon width={18} height={18} />
+              {busy === "save" ? "Saving…" : "Download"}
             </button>
           )}
-          {(webShare || appShare) && (
-            <button type="button" className="btn btn-primary" onClick={share} disabled={!picture || busy}>
-              {busy ? "Opening…" : "Share"}
-            </button>
-          )}
-          {!canSave && !appShare && (
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
-              Close
+          {showShare && (
+            <button type="button" className={`${actionClass} btn-primary`} onClick={share} disabled={!picture || busy !== null}>
+              <ShareIcon width={18} height={18} />
+              {busy === "share" ? "Opening…" : "Share"}
             </button>
           )}
         </div>

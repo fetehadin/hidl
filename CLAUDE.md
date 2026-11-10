@@ -18,7 +18,7 @@ README's "How the important rules are enforced" table (every hard rule and the P
   widget (three sizes, Hidi in five moods) through a token-authenticated JSON feed.
 - **Photo calendar**: any number of photos or short videos (≤ 5 MB each, 2 GB per person) per day, a pinned "wallpaper" per day, a
   year view, and `/memories`, a pannable board of past photos grouped by day or by the person's own groups
-  (named and ordered by them), shared as a picture of the board or as a classic day, week or month card.
+  (named and ordered by them), shared as a Memory Lane picture of a day, a week or a month (or the board as it is), to copy, download or share.
 - Gregorian or Ethiopian date display, a buildable avatar ("buddy") based on the mascot Hidi, account self-deletion,
   a landing page and install guide for signed-out visitors.
 - **Feedback** (`/feedback`): anyone signed in can send a bug, idea or praise and see replies to it.
@@ -101,7 +101,7 @@ src/lib/data/                Typed read queries per table
 src/lib/validation/          zod schemas used by every action and route handler (server only)
 src/lib/                     Pure helpers: time, dates, ethiopian, calendar, calendar-months (Gregorian or Ethiopian
                              months for the photo calendar), names, countdown-kinds/units, e2ee,
-                             key-store, image, media, memories, photo-groups, share-periods, avatar, env, public-env, feedback, csv,
+                             key-store, image, media, memories, photo-groups, share-periods, lane-layout, avatar, env, public-env, feedback, csv,
                              admin-format, user-files, profile-rules, app-lock, media-sniff
 src/components/              UI, grouped by feature (letters/, countdown/, calendar/, account/, ...)
 public/sw.js                 Service worker: caches photo files, offline page; never caches pages
