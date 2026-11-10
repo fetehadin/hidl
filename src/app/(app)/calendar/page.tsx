@@ -26,9 +26,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const rows = Math.ceil((month.leadingBlanks + month.days.length) / 7);
 
   return (
-    // On wide screens the month narrows so its cells stay portrait (about 4:5), like photos.
+    // Tablets: the month narrows so its cells stay portrait (about 4:5), like photos. Computers:
+    // cells get wider than tall (about 6:5) so pinned photos show bigger, up to 72rem, centered.
     <div
-      className="@container -mx-3 -mb-[6.5rem] sm:mx-auto sm:-mb-[5.5rem] sm:max-w-[calc((100dvh-16.5rem)/var(--rows)*7*0.8)]"
+      className="@container -mx-3 -mb-[6.5rem] sm:mx-auto sm:-mb-[5.5rem] sm:max-w-[calc((100dvh-16.5rem)/var(--rows)*7*0.8)] lg:max-w-[min(72rem,calc((100dvh-16.5rem)/var(--rows)*7*1.2))]"
       style={{ "--rows": rows } as React.CSSProperties}
     >
       {/* One short row, so the month itself gets the room. Phones show chevrons only. */}
