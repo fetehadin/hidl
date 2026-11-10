@@ -51,31 +51,31 @@ describe("layoutMemories", () => {
   });
 });
 
-describe("grouping by kind", () => {
+describe("grouping by the person's own groups", () => {
   const input = [
-    { id: "a", date: "2026-10-01", tags: ["food"] },
-    { id: "b", date: "2026-10-02", tags: ["family", "food"] },
-    { id: "c", date: "2026-10-02", tags: [] },
-    { id: "d", date: "2026-10-03", tags: ["nature"] },
-    { id: "e", date: "2026-10-03", tags: ["food"] },
+    { id: "a", date: "2026-10-01", groups: ["g-food"] },
+    { id: "b", date: "2026-10-02", groups: ["g-family", "g-food"] },
+    { id: "c", date: "2026-10-02", groups: [] },
+    { id: "d", date: "2026-10-03", groups: ["g-trips"] },
+    { id: "e", date: "2026-10-03", groups: ["g-food", "g-deleted"] },
     { id: "f", date: "2026-10-04" },
   ];
+  const order = ["g-trips", "g-empty", "g-food", "g-family"];
 
-  it("puts the biggest kind in the middle and the unsorted photos last", () => {
-    const groups = groupMemories(input, "kind");
-    expect(groups.map((g) => g.key)).toEqual(["food", "nature", "family", UNSORTED]);
+  it("follows the person's order, skips empty groups, and puts photos in no group last", () => {
+    expect(groupMemories(input, "group", order).map((g) => g.key)).toEqual(["g-trips", "g-food", "g-family", UNSORTED]);
   });
 
-  it("puts a photo with two kinds on both islands, newest first", () => {
-    const groups = new Map(groupMemories(input, "kind").map((g) => [g.key, g.photos.map((p) => p.id)]));
-    expect(groups.get("food")).toEqual(["e", "b", "a"]);
-    expect(groups.get("family")).toEqual(["b"]);
+  it("puts a photo in two groups on both islands, newest first", () => {
+    const groups = new Map(groupMemories(input, "group", order).map((g) => [g.key, g.photos.map((p) => p.id)]));
+    expect(groups.get("g-food")).toEqual(["e", "b", "a"]);
+    expect(groups.get("g-family")).toEqual(["b"]);
     expect(groups.get(UNSORTED)).toEqual(["f", "c"]);
   });
 
-  it("lays kind islands out without overlap, the first at the center", () => {
-    const clusters = layoutMemories(input, "kind");
-    expect([clusters[0].key, clusters[0].x, clusters[0].y]).toEqual(["food", 0, 0]);
+  it("lays group islands out without overlap, the first group at the center", () => {
+    const clusters = layoutMemories(input, "group", order);
+    expect([clusters[0].key, clusters[0].x, clusters[0].y]).toEqual(["g-trips", 0, 0]);
     for (let i = 0; i < clusters.length; i++) {
       for (let j = i + 1; j < clusters.length; j++) {
         const [a, b] = [clusters[i], clusters[j]];
@@ -84,8 +84,8 @@ describe("grouping by kind", () => {
     }
   });
 
-  it("ignores kinds it doesn't know", () => {
-    expect(groupMemories([{ id: "x", date: "2026-10-01", tags: ["cars"] }], "kind").map((g) => g.key)).toEqual([UNSORTED]);
+  it("treats groups it doesn't know (deleted ones) as no group", () => {
+    expect(groupMemories([{ id: "x", date: "2026-10-01", groups: ["gone"] }], "group", order).map((g) => g.key)).toEqual([UNSORTED]);
   });
 });
 

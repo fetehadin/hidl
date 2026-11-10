@@ -2,15 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { deletePhoto, setCoverPhoto, updateCaption, updatePhotoTags } from "@/actions/photos";
+import { setPhotoGroups } from "@/actions/photo-groups";
+import { deletePhoto, setCoverPhoto, updateCaption } from "@/actions/photos";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PinIcon } from "@/components/icons";
 import { dayLabel } from "@/lib/calendar";
 import type { PhotoView } from "@/lib/data/photos";
 import { useCalendarPref } from "@/components/calendar-pref";
 import { formatEthiopianDay } from "@/lib/ethiopian";
-import type { PhotoTag } from "@/lib/photo-tags";
-import { PhotoTagPicker } from "./photo-tag-picker";
+import { PhotoGroupPicker } from "./photo-group-picker";
 
 export function Lightbox({
   photos,
@@ -45,13 +45,13 @@ export function Lightbox({
   const [pinnedId, setPinnedId] = useState<string | null | undefined>(undefined);
   const sameDay = photo ? (dayPhotos ?? photos).filter((p) => p.date === photo.date) : [];
 
-  // Kinds save as they're tapped; shown from here until the page's photo list catches up, which
+  // Groups save as they're tapped; shown from here until the page's photo list catches up, which
   // happens once, on close, so the board doesn't regroup under the viewer while you sort.
-  const [tagEdits, setTagEdits] = useState<Record<string, PhotoTag[]>>({});
-  const tagsChanged = useRef(false);
+  const [groupEdits, setGroupEdits] = useState<Record<string, string[]>>({});
+  const groupsChanged = useRef(false);
   useEffect(() => {
     return () => {
-      if (tagsChanged.current) router.refresh();
+      if (groupsChanged.current) router.refresh();
     };
   }, [router]);
   // Optimistic until the refreshed photo list arrives with the new pin.
@@ -90,20 +90,20 @@ export function Lightbox({
     });
   }
 
-  function changeTags(next: PhotoTag[]) {
+  function changeGroups(next: string[]) {
     const id = photo.id;
-    const before = tagEdits[id] ?? photo.tags;
+    const before = groupEdits[id] ?? photo.groups;
     setError(null);
-    setTagEdits((prev) => ({ ...prev, [id]: next }));
-    tagsChanged.current = true;
-    updatePhotoTags({ id, tags: next }).then(
+    setGroupEdits((prev) => ({ ...prev, [id]: next }));
+    groupsChanged.current = true;
+    setPhotoGroups({ photoId: id, groupIds: next }).then(
       (res) => {
         if (res.ok) return;
-        setTagEdits((prev) => ({ ...prev, [id]: before }));
+        setGroupEdits((prev) => ({ ...prev, [id]: before }));
         setError(res.message);
       },
       () => {
-        setTagEdits((prev) => ({ ...prev, [id]: before }));
+        setGroupEdits((prev) => ({ ...prev, [id]: before }));
         setError("Couldn't save that. Try again.");
       },
     );
@@ -239,7 +239,7 @@ export function Lightbox({
               {photo.caption ?? <span className="text-muted">Add a caption…</span>}
             </button>
           )}
-          <PhotoTagPicker value={tagEdits[photo.id] ?? photo.tags} onChange={changeTags} oneRow className="mt-3" />
+          <PhotoGroupPicker value={groupEdits[photo.id] ?? photo.groups} onChange={changeGroups} oneRow className="mt-3" />
           {error && <p role="alert" className="mt-2 text-sm text-wax">{error}</p>}
 
           <div className="mt-3 flex items-center justify-between text-sm">

@@ -2,7 +2,7 @@
 
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { getPhotoById } from "@/lib/data/photos";
+import { type PhotoView, getPhotoById, listPhotos, signPhotos } from "@/lib/data/photos";
 import { CONTENT_TYPE_OF_EXT, type ImageExt, MEDIA_QUOTA_BYTES, type MediaExt, type MediaType, formatSize } from "@/lib/media";
 import { type UploadTarget, discardMedia, mediaStore, mediaUsage, ownPaths, reserveMedia, verifyUploads } from "@/lib/storage";
 import { requireUser } from "@/lib/supabase/server";
@@ -10,8 +10,8 @@ import { todayISO } from "@/lib/time";
 import {
   addPhotoSchema,
   captionSchema,
+  isoDate,
   photoIdSchema,
-  photoTagsSchema,
   prepareUploadSchema,
   replacePhotoSchema,
   uploadPathsOk,
@@ -80,6 +80,25 @@ export async function photoSpace(): Promise<{ used: number; quota: number } | nu
   }
 }
 
+/**
+ * One day, week or month of the person's photos, with view links, for a share picture.
+ * Reads only. At most about six weeks at a time (a month in either calendar fits).
+ */
+export async function photosForShare(from: string, to: string): Promise<{ ok: true; photos: PhotoView[] } | Fail> {
+  const a = isoDate.safeParse(from);
+  const b = isoDate.safeParse(to);
+  if (!a.success || !b.success || a.data > b.data) return { ok: false, message: "Invalid dates." };
+  const days = (Date.parse(b.data) - Date.parse(a.data)) / 86_400_000;
+  if (days > 45) return { ok: false, message: "Invalid dates." };
+  const { supabase, user } = await requireUser();
+  try {
+    return { ok: true, photos: await signPhotos(supabase, user.id, await listPhotos(supabase, a.data, b.data)) };
+  } catch (error) {
+    console.error("photosForShare", error);
+    return { ok: false, message: "Couldn't load your photos. Try again." };
+  }
+}
+
 /** Step 2a: record a new photo (or video) for a day. A day can have any number of them. */
 export async function addPhoto(input: {
   date: string;
@@ -87,11 +106,11 @@ export async function addPhoto(input: {
   imagePath: string;
   thumbPath: string;
   caption?: string | null;
-  tags?: string[];
+  groupIds?: string[];
 }): Promise<{ ok: true } | Fail> {
   const parsed = addPhotoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid photo." };
-  const { date, mediaType, imagePath, thumbPath, caption, tags } = parsed.data;
+  const { date, mediaType, imagePath, thumbPath, caption, groupIds } = parsed.data;
   const { supabase, user, timeZone } = await requireUser();
   if (date > todayISO(timeZone)) return { ok: false, message: "That day hasn't happened yet." };
 
@@ -104,11 +123,21 @@ export async function addPhoto(input: {
     return { ok: false, message: "The upload didn't finish. Try again." };
   }
 
-  const { error } = await supabase.from("photos").insert({ date, media_type: mediaType, image_path: imagePath, thumb_path: thumbPath, caption, tags });
+  const { data: saved, error } = await supabase
+    .from("photos")
+    .insert({ date, media_type: mediaType, image_path: imagePath, thumb_path: thumbPath, caption })
+    .select("id")
+    .single();
   if (error) {
     console.error("addPhoto", error);
     await discardMedia(store, [imagePath, thumbPath]);
     return { ok: false, message: "Couldn't save the photo." };
+  }
+
+  // The photo is saved either way; a group that couldn't be joined is only logged.
+  if (groupIds.length > 0) {
+    const { error: groupError } = await supabase.rpc("set_photo_groups", { photo: saved.id, group_ids: groupIds });
+    if (groupError) console.error("addPhoto groups", groupError);
   }
 
   revalidate();
@@ -163,24 +192,6 @@ export async function updateCaption(input: { id: string; caption?: string | null
     .update({ caption: parsed.data.caption }, { count: "exact" })
     .eq("id", parsed.data.id);
   if (error || count === 0) return { ok: false, message: "Couldn't save the caption." };
-  revalidate();
-  return { ok: true };
-}
-
-/** Sets what a photo shows (its kinds on the memories board). An empty list = not sorted yet. */
-export async function updatePhotoTags(input: { id: string; tags: string[] }): Promise<{ ok: true } | Fail> {
-  const parsed = photoTagsSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid kinds." };
-
-  const { supabase } = await requireUser();
-  const { error, count } = await supabase
-    .from("photos")
-    .update({ tags: parsed.data.tags }, { count: "exact" })
-    .eq("id", parsed.data.id);
-  if (error || count === 0) {
-    if (error) console.error("updatePhotoTags", error);
-    return { ok: false, message: "Couldn't save that. Try again." };
-  }
   revalidate();
   return { ok: true };
 }

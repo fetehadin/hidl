@@ -1,18 +1,16 @@
 /**
  * Layout for the memories board: photos are gathered into "islands" (one per day, or one per
- * kind of photo: nature, food, family...), and islands are packed outward along a spiral with the
- * first group (the most recent day, or the biggest kind) at the center (world origin). Pure and
+ * group the person made), and islands are packed outward along a spiral with the first one (the
+ * most recent day, or the person's first group) at the center (world origin). Pure and
  * deterministic (seeded by the group key and photo ids), so the board looks the same on every
  * visit and on the server.
  */
-import { PHOTO_TAGS, type PhotoTag } from "@/lib/photo-tags";
 
 /** How the board gathers photos into islands. */
-export type MemoryGroupBy = "day" | "kind";
+export type MemoryGroupBy = "day" | "group";
 
-/** The kind-island for photos nobody has sorted yet. */
+/** The island for photos that aren't in any group. */
 export const UNSORTED = "unsorted";
-export type MemoryKind = PhotoTag | typeof UNSORTED;
 
 export type PlacedPhoto<T> = {
   photo: T;
@@ -24,7 +22,7 @@ export type PlacedPhoto<T> = {
 };
 
 export type MemoryCluster<T> = {
-  /** The day ("YYYY-MM-DD") or the kind (a PhotoTag, or UNSORTED). */
+  /** The day ("YYYY-MM-DD"), or a group's id (or UNSORTED). */
   key: string;
   /** Cluster center in world coordinates. */
   x: number;
@@ -114,14 +112,19 @@ function arrangeCluster<T extends { id: string }>(key: string, photos: T[]) {
   };
 }
 
-type Groupable = { id: string; date: string; tags?: readonly string[] };
+type Groupable = { id: string; date: string; groups?: readonly string[] };
 
 /**
  * The islands, in the order they're placed (the first goes in the middle).
- * By day: newest day first, photos in upload order. By kind: the biggest kind first and the
- * unsorted ones last, newest photos first. A photo with two kinds is on both islands.
+ * By day: newest day first, photos in upload order. By group: the person's groups in their own
+ * order (empty ones left out), then the photos in no group; newest photos first. A photo in two
+ * groups is on both islands.
  */
-export function groupMemories<T extends Groupable>(photos: T[], by: MemoryGroupBy): { key: string; photos: T[] }[] {
+export function groupMemories<T extends Groupable>(
+  photos: T[],
+  by: MemoryGroupBy,
+  groupOrder: readonly string[] = [],
+): { key: string; photos: T[] }[] {
   const groups = new Map<string, T[]>();
   const add = (key: string, p: T) => {
     const list = groups.get(key);
@@ -135,23 +138,22 @@ export function groupMemories<T extends Groupable>(photos: T[], by: MemoryGroupB
   }
 
   // Newest first: input is oldest → newest (date, then upload order), so flip both.
+  const known = new Set(groupOrder);
   const newest = photos.map((p, i) => ({ p, i })).sort((a, b) => (a.p.date === b.p.date ? b.i - a.i : a.p.date < b.p.date ? 1 : -1));
   for (const { p } of newest) {
-    const kinds = PHOTO_TAGS.filter((t) => p.tags?.includes(t));
-    if (kinds.length === 0) add(UNSORTED, p);
-    for (const k of kinds) add(k, p);
+    const mine = (p.groups ?? []).filter((g) => known.has(g));
+    if (mine.length === 0) add(UNSORTED, p);
+    for (const g of new Set(mine)) add(g, p);
   }
-  const order = (key: string) => (key === UNSORTED ? PHOTO_TAGS.length : PHOTO_TAGS.indexOf(key as PhotoTag));
-  return [...groups.entries()]
-    .sort(([a, pa], [b, pb]) => {
-      if (a === UNSORTED || b === UNSORTED) return order(a) - order(b);
-      return pb.length - pa.length || order(a) - order(b);
-    })
-    .map(([key, list]) => ({ key, photos: list }));
+  return [...groupOrder, UNSORTED].filter((key) => groups.has(key)).map((key) => ({ key, photos: groups.get(key)! }));
 }
 
-export function layoutMemories<T extends Groupable>(photos: T[], by: MemoryGroupBy = "day"): MemoryCluster<T>[] {
-  const groups = groupMemories(photos, by);
+export function layoutMemories<T extends Groupable>(
+  photos: T[],
+  by: MemoryGroupBy = "day",
+  groupOrder: readonly string[] = [],
+): MemoryCluster<T>[] {
+  const groups = groupMemories(photos, by, groupOrder);
 
   const clusters: MemoryCluster<T>[] = [];
   // Archimedean spiral r = a·t; one loop apart ≈ one typical cluster diameter.

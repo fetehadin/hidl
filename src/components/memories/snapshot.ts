@@ -413,3 +413,302 @@ function drawMark(
   ctx.textBaseline = "middle";
   ctx.fillText("hidl", x + 10 + iconSize + (icon ? 8 : 6), y + height / 2 + 1);
 }
+
+/* ------------------------------------------------------------------------------------------ */
+/* Classic cards: one day, a week or a month, laid out like a printed photo card.              */
+/* ------------------------------------------------------------------------------------------ */
+
+export type PeriodCardInput = {
+  period: "day" | "week" | "month";
+  /** "my day" / "my week" / "my month". */
+  eyebrow: string;
+  title: string;
+  /** "12 photos · 5 days". */
+  summary: string;
+  /** Every day of the period, with its photos (cover first) and the number to print on it. */
+  days: { date: string; number: number; photos: PhotoView[] }[];
+  /** Empty cells before the month's first day (Monday-first). */
+  leadingBlanks: number;
+};
+
+/** A 4:5 portrait, the shape most feeds show whole. */
+const CARD_W = 1080;
+const CARD_H = 1350;
+const PAD = 72;
+const WEEKDAY_SHORT = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+
+export async function drawPeriodCard(input: PeriodCardInput): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = CARD_W;
+  canvas.height = CARD_H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("no canvas");
+
+  const css = getComputedStyle(document.documentElement);
+  const color = (name: string) => css.getPropertyValue(name).trim();
+  const shadow = (alpha: number) => `rgb(${color("--shadow")} / ${alpha})`;
+  const fonts = await readyFonts();
+
+  // Which picture each slot shows: a day card shows its photos; week and month show each day's cover.
+  const shown =
+    input.period === "day"
+      ? (input.days[0]?.photos ?? []).slice(0, 6)
+      : input.days.map((d) => d.photos[0] ?? null);
+  // Sharp enough for the slot: a big single photo uses the full image (not for videos: that's the video file).
+  const big = input.period === "day" && shown.length <= 2;
+  const urls = shown.map((p) => (p ? (big && !p.isVideo ? p.fullUrl : p.thumbUrl) : ""));
+  const [images, icon] = await Promise.all([loadAll(urls), loadSameOrigin("/icon-192.png")]);
+
+  // Paper, warming to mint at the bottom.
+  const bg = ctx.createLinearGradient(0, 0, 0, CARD_H);
+  bg.addColorStop(0, color("--paper"));
+  bg.addColorStop(1, color("--mint"));
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
+
+  // Heading.
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.font = `800 28px ${fonts.body}`;
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "3px";
+  ctx.fillStyle = color("--accent");
+  ctx.fillText(input.eyebrow.toUpperCase(), PAD, 112);
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+  ctx.font = `500 ${input.title.length > 26 ? 52 : 64}px ${fonts.title}`;
+  ctx.fillStyle = color("--heading");
+  ctx.fillText(fit(ctx, input.title, CARD_W - PAD * 2), PAD, 186);
+  ctx.font = `400 30px ${fonts.body}`;
+  ctx.fillStyle = color("--muted");
+  ctx.fillText(input.summary, PAD, 236);
+
+  const body = { x: PAD, y: 280, w: CARD_W - PAD * 2, h: CARD_H - 280 - 150 };
+  const env = { ctx, fonts, color, shadow };
+  if (input.period === "day") drawDayCollage(env, body, shown as PhotoView[], images, input.days[0]?.photos.length ?? 0);
+  else if (input.period === "week") drawWeek(env, body, input.days, images);
+  else drawMonth(env, body, input, images);
+
+  // Footer: the hidl mark, a little larger than on the screen picture.
+  // drawMark keeps 16px from the corner; at 1.5× and 48px in, that's the card's own margin.
+  ctx.save();
+  ctx.scale(1.5, 1.5);
+  const markArea = { tx: 0, ty: 0, scale: 1, width: (CARD_W - 48) / 1.5, height: (CARD_H - 30) / 1.5 };
+  drawMark(ctx, markArea, icon, fonts, color, shadow, 1.5);
+  ctx.restore();
+
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))), "image/jpeg", 0.92),
+  );
+}
+
+type Env = { ctx: Ctx; fonts: Fonts; color: (name: string) => string; shadow: (alpha: number) => string };
+type Box = { x: number; y: number; w: number; h: number };
+
+/** Draws `image` filling the box, cropped from its middle (CSS object-fit: cover). */
+function drawCover(ctx: Ctx, image: ImageBitmap, x: number, y: number, w: number, h: number) {
+  const scale = Math.max(w / image.width, h / image.height);
+  const sw = w / scale;
+  const sh = h / scale;
+  ctx.drawImage(image, (image.width - sw) / 2, (image.height - sh) / 2, sw, sh, x, y, w, h);
+}
+
+/** A white print with a photo (or an empty space) inside; `label` under the photo, if any. */
+function drawPrint(
+  { ctx, fonts, color, shadow }: Env,
+  box: Box,
+  image: ImageBitmap | null,
+  opts: { border: number; label?: string; labelSize?: number; hand?: boolean; video?: boolean; empty?: boolean },
+) {
+  const labelH = opts.label ? (opts.labelSize ?? 26) * 1.9 : 0;
+  ctx.save();
+  setShadow(ctx, shadow(0.28), 30, 14, 1);
+  ctx.fillStyle = color("--card");
+  roundRect(ctx, box.x, box.y, box.w, box.h, 22);
+  ctx.fill();
+  clearShadow(ctx);
+
+  const px = box.x + opts.border;
+  const py = box.y + opts.border;
+  const pw = box.w - opts.border * 2;
+  const ph = box.h - opts.border - (opts.label ? labelH : opts.border);
+  ctx.save();
+  roundRect(ctx, px, py, pw, ph, 14);
+  ctx.clip();
+  ctx.fillStyle = color("--paper-deep");
+  ctx.fillRect(px, py, pw, ph);
+  if (image) drawCover(ctx, image, px, py, pw, ph);
+  ctx.restore();
+
+  if (opts.video && image) {
+    ctx.fillStyle = color("--scrim");
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.arc(px + 30, py + 30, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = color("--snow");
+    ctx.beginPath();
+    ctx.moveTo(px + 25, py + 21);
+    ctx.lineTo(px + 38, py + 30);
+    ctx.lineTo(px + 25, py + 39);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  if (opts.label) {
+    ctx.font = opts.hand ? `400 ${opts.labelSize ?? 26}px ${fonts.hand}` : `700 ${opts.labelSize ?? 26}px ${fonts.body}`;
+    ctx.fillStyle = color(opts.empty ? "--muted" : opts.hand ? "--ink-soft" : "--ink");
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(fit(ctx, opts.label, box.w - 16), box.x + box.w / 2, box.y + box.h - labelH / 2 - 2);
+  }
+  ctx.restore();
+}
+
+/** One day: up to six photos as prints, laid out for how many there are. */
+function drawDayCollage(env: Env, body: Box, photos: PhotoView[], images: (ImageBitmap | null)[], total: number) {
+  const { ctx, fonts, color } = env;
+  const n = photos.length;
+  // Only a lone photo gets its caption printed under it; more would crowd the card.
+  if (n === 0) return;
+  const gap = 32;
+  // Rows of columns: 1 → [1], 2 → [2], 3 → [1, 2], 4 → [2, 2], 5 → [2, 3], 6 → [3, 3].
+  const rows = [[1], [2], [1, 2], [2, 2], [2, 3], [3, 3]][n - 1];
+  const single = n === 1 && photos[0].caption;
+  const rowH = (body.h - gap * (rows.length - 1)) / rows.length;
+  let i = 0;
+  rows.forEach((cols, r) => {
+    const w = (body.w - gap * (cols - 1)) / cols;
+    for (let c = 0; c < cols; c++, i++) {
+      const box = { x: body.x + c * (w + gap), y: body.y + r * (rowH + gap), w, h: rowH };
+      drawPrint(env, box, images[i], {
+        border: n === 1 ? 26 : 18,
+        label: single ? (photos[0].caption ?? undefined) : undefined,
+        labelSize: 40,
+        hand: true,
+        video: photos[i].isVideo,
+      });
+    }
+  });
+  if (total > n) {
+    // "+3 more" on the last print.
+    ctx.save();
+    ctx.font = `800 30px ${fonts.body}`;
+    const text = `+${total - n} more`;
+    const w = ctx.measureText(text).width + 36;
+    const x = body.x + body.w - w - 30;
+    const y = body.y + body.h - 50 - 30;
+    ctx.fillStyle = color("--teal");
+    roundRect(ctx, x, y, w, 50, 25);
+    ctx.fill();
+    ctx.fillStyle = color("--accent-ink");
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x + w / 2, y + 26);
+    ctx.restore();
+  }
+}
+
+/** A week: seven prints, Monday first, four on top and three below with a little Hidi. */
+function drawWeek(env: Env, body: Box, days: PeriodCardInput["days"], images: (ImageBitmap | null)[]) {
+  const { ctx, fonts, color } = env;
+  const gap = 24;
+  const cols = 4;
+  const w = (body.w - gap * (cols - 1)) / cols;
+  const h = Math.min((body.h - gap) / 2, w * 1.55);
+  const top = body.y + (body.h - (h * 2 + gap)) / 2;
+  days.forEach((d, i) => {
+    const box = { x: body.x + (i % cols) * (w + gap), y: top + Math.floor(i / cols) * (h + gap), w, h };
+    drawPrint(env, box, images[i], {
+      border: 12,
+      label: `${WEEKDAY_SHORT[i]} ${d.number}`,
+      labelSize: 24,
+      video: d.photos[0]?.isVideo,
+      empty: d.photos.length === 0,
+    });
+    if (d.photos.length > 1) {
+      ctx.save();
+      ctx.font = `800 22px ${fonts.body}`;
+      const text = `${d.photos.length}`;
+      const bw = Math.max(40, ctx.measureText(text).width + 22);
+      ctx.fillStyle = color("--card");
+      roundRect(ctx, box.x + box.w - bw - 20, box.y + 20, bw, 40, 20);
+      ctx.fill();
+      ctx.fillStyle = color("--ocean");
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, box.x + box.w - bw / 2 - 20, box.y + 41);
+      ctx.restore();
+    }
+  });
+  // The eighth cell: how many days had a photo.
+  const withPhotos = days.filter((d) => d.photos.length > 0).length;
+  const x = body.x + 3 * (w + gap) + w / 2;
+  const y = top + h + gap + h / 2;
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `600 96px ${fonts.brand}`;
+  ctx.fillStyle = color("--teal");
+  ctx.fillText(`${withPhotos}/7`, x, y - 20);
+  ctx.font = `700 24px ${fonts.body}`;
+  ctx.fillStyle = color("--muted");
+  ctx.fillText("days captured", x, y + 52);
+  ctx.restore();
+}
+
+/** A month: a photo calendar, each day's cover in its square, Monday first. */
+function drawMonth(env: Env, body: Box, input: PeriodCardInput, images: (ImageBitmap | null)[]) {
+  const { ctx, fonts, color, shadow } = env;
+  const gap = 10;
+  const headerH = 44;
+  const cells = input.leadingBlanks + input.days.length;
+  const rows = Math.ceil(cells / 7);
+  const size = Math.min((body.w - gap * 6) / 7, (body.h - headerH - gap * (rows - 1)) / rows);
+  const gridW = size * 7 + gap * 6;
+  const left = body.x + (body.w - gridW) / 2;
+  const top = body.y + (body.h - (headerH + rows * size + (rows - 1) * gap)) / 2;
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `800 22px ${fonts.body}`;
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "2px";
+  ctx.fillStyle = color("--muted");
+  WEEKDAY_SHORT.forEach((d, i) => ctx.fillText(d, left + i * (size + gap) + size / 2, top + headerH / 2 - 4));
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+
+  input.days.forEach((d, i) => {
+    const cell = input.leadingBlanks + i;
+    const x = left + (cell % 7) * (size + gap);
+    const y = top + headerH + Math.floor(cell / 7) * (size + gap);
+    const image = images[i];
+    ctx.save();
+    if (image) setShadow(ctx, shadow(0.25), 14, 6, 1);
+    roundRect(ctx, x, y, size, size, 16);
+    ctx.fillStyle = color(image ? "--card" : "--paper-deep");
+    ctx.fill();
+    clearShadow(ctx);
+    if (image) {
+      ctx.save();
+      roundRect(ctx, x + 4, y + 4, size - 8, size - 8, 12);
+      ctx.clip();
+      drawCover(ctx, image, x + 4, y + 4, size - 8, size - 8);
+      ctx.restore();
+      // The day number on a small white tab, readable on any photo.
+      ctx.font = `800 22px ${fonts.body}`;
+      const text = String(d.number);
+      const tw = Math.max(34, ctx.measureText(text).width + 16);
+      ctx.fillStyle = color("--card");
+      roundRect(ctx, x + 8, y + 8, tw, 32, 16);
+      ctx.fill();
+      ctx.fillStyle = color("--ink");
+      ctx.fillText(text, x + 8 + tw / 2, y + 25);
+    } else {
+      ctx.font = `700 26px ${fonts.body}`;
+      ctx.fillStyle = color("--muted");
+      ctx.fillText(String(d.number), x + size / 2, y + size / 2 + 1);
+    }
+    ctx.restore();
+  });
+  ctx.restore();
+}

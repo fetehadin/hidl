@@ -361,13 +361,19 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   around the start position (`FIRST_VIEW`, a smaller box when the page says `phone`, from the user agent) are in
   the server HTML with `fetchPriority="high"`, so their photos download while the JS loads; islands just off
   screen are only added after those have loaded.
-- **Memories by kind.** Photos carry `tags` (what they show: nature, historic places, family, friends, food, pets,
-  celebrations, me; `src/lib/photo-tags.ts`, checked by `photo_tags_ok()`), picked in the upload sheet or tapped in
-  the photo viewer (`PhotoTagPicker`, saved per tap by `updatePhotoTags`; the viewer refreshes the page once, on
-  close, so the board doesn't regroup under it). The board's "By day / By kind" toggle re-runs `layoutMemories(photos,
-  by)` on the client and records `?by=kind` with `history.replaceState` (no server round trip); by kind, the biggest
-  kind is in the middle, a photo with two kinds is on both islands, and untagged ones gather on "Not sorted yet".
-  Opening a photo from a kind island walks that island only.
+- **Memories by group.** Each person makes their own groups ("Family", "Trips", anything; no suggestions), in
+  `photo_groups` (name rules in `src/lib/photo-groups.ts` ↔ `photo_group_name_ok()`, names unique ignoring case, 50
+  per person) with `position` as their priority. A photo joins any number of them through `photo_group_items`, whose
+  composite keys `(group_id, user_id)` and `(photo_id, user_id)` mean a photo and a group can only meet if they're the
+  same person's. Membership is set in one call (`set_photo_groups`), the order too (`set_photo_group_order`). Groups
+  are picked in the upload sheet or tapped in the photo viewer (`PhotoGroupPicker`, with "New group"; saved per tap by
+  `setPhotoGroups`; the viewer refreshes the page once, on close, so the board doesn't regroup under it), and
+  renamed, deleted and reordered in the board's "Edit groups" sheet (`groups-sheet.tsx`). Every picker reads one list
+  (`photo-groups-store.ts`), so a group made in one place shows up everywhere. The board's "By day / By group" toggle
+  re-runs `layoutMemories(photos, by, groupOrder)` on the client and records `?by=group` with `history.replaceState`; by
+  group, the first group is in the middle and the rest spiral out in the person's order, a photo in two groups is on
+  both islands, and ungrouped ones gather on "Not in a group". Opening a photo from a group island walks that island
+  only.
 - **The board's edge.** The middle of the screen is kept inside `boardRegion()` (the photos' bounding box *and* the
   circle around the origin holding every island, since the spiral is round and the box's corners are empty). A drag
   may pull up to `MAX_PULL` (72 px) past it, stiffer the further it goes, and springs back on release; a fling
@@ -379,6 +385,11 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   shares it (Web Share with files) or saves it. In the Android app the web view can't do either, so the page posts
   the picture to the app (`share-image` message), which shares it with `expo-sharing`
   (`mobile/src/share-image.ts`; only announced as `hidlApp.shareImage` when the APK has those native modules).
+  The same sheet makes **classic cards** of a day (a collage), a week (seven tiles, Monday first) or a month (a
+  calendar grid with each day's cover), 1080×1350, in the person's calendar (Gregorian or Ethiopian;
+  `src/lib/share-periods.ts`), with arrows to step back and forward. `photosForShare(from, to)` loads the period's
+  photos (at most 45 days). The Calendar page has a Share button too (`share-month-button.tsx`), opening on the month
+  shown.
 - The month calendar (`src/components/calendar/month-grid.tsx`) is sized to fit the viewport without scrolling:
   its height is `min(100dvh - --chrome, 1.8 x square-cell height)` using container query units (the page wrapper is an
   `@container`), so the cells stretch to fill the screen: tall on phones, wide on laptops. There is no card around

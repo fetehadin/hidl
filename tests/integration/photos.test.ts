@@ -235,38 +235,68 @@ describe("videos", () => {
   });
 });
 
-describe("photo kinds (tags)", () => {
-  const TAG_DAY = "2026-09-25";
-  let id: string;
+describe("photo groups", () => {
+  const GROUP_DAY = "2026-09-25";
+  let photoId: string;
+  let family: string;
+  let trips: string;
 
   beforeAll(async () => {
-    const { data, error } = await me.client.from("photos").insert({ date: TAG_DAY, ...paths(me, TAG_DAY, 1) }).select("id, tags").single();
-    expect(error).toBeNull();
-    expect(data?.tags).toEqual([]);
-    id = data!.id;
+    const photo = await me.client.from("photos").insert({ date: GROUP_DAY, ...paths(me, GROUP_DAY, 1) }).select("id").single();
+    expect(photo.error).toBeNull();
+    photoId = photo.data!.id;
+    const a = await me.client.from("photo_groups").insert({ name: "Family" }).select("id").single();
+    const b = await me.client.from("photo_groups").insert({ name: "Trips" }).select("id").single();
+    expect(a.error).toBeNull();
+    expect(b.error).toBeNull();
+    [family, trips] = [a.data!.id, b.data!.id];
   });
 
-  it("saves kinds on a new photo and changes them later", async () => {
-    const insert = await me.client.from("photos").insert({ date: TAG_DAY, tags: ["food", "family"], ...paths(me, TAG_DAY, 2) });
-    expect(insert.error).toBeNull();
-    const update = await me.client.from("photos").update({ tags: ["nature"] }).eq("id", id).select("tags").single();
-    expect(update.error).toBeNull();
-    expect(update.data?.tags).toEqual(["nature"]);
-    const cleared = await me.client.from("photos").update({ tags: [] }).eq("id", id);
-    expect(cleared.error).toBeNull();
+  it("puts new groups last, and saves the person's order", async () => {
+    let { data } = await me.client.from("photo_groups").select("id, position").order("position");
+    expect(data!.map((g) => g.id)).toEqual([family, trips]);
+    expect((await me.client.rpc("set_photo_group_order", { ids: [trips, family] })).error).toBeNull();
+    ({ data } = await me.client.from("photo_groups").select("id, position").order("position"));
+    expect(data!.map((g) => g.id)).toEqual([trips, family]);
   });
 
-  it("refuses unknown kinds, repeats, too many, and null", async () => {
-    for (const tags of [["cars"], ["food", "food"], ["nature", "places", "family", "friends", "food"], [null]]) {
-      const { error } = await me.client.from("photos").update({ tags }).eq("id", id);
-      expect(error?.code, JSON.stringify(tags)).toBe("23514");
+  it("refuses a name used twice (ignoring case), blank, too long or untrimmed", async () => {
+    expect((await me.client.from("photo_groups").insert({ name: "family" })).error?.code).toBe("23505");
+    for (const name of ["", " Family2", "x".repeat(31), "a\tb"]) {
+      expect((await me.client.from("photo_groups").insert({ name })).error?.code, name).toBe("23514");
     }
-    const nulled = await me.client.from("photos").update({ tags: null }).eq("id", id);
-    expect(nulled.error).not.toBeNull();
   });
 
-  it("can't tag someone else's photo", async () => {
-    const { count } = await other.client.from("photos").update({ tags: ["food"] }, { count: "exact" }).eq("id", id);
-    expect(count ?? 0).toBe(0);
+  it("sets a photo's groups, and the photo comes back with them", async () => {
+    expect((await me.client.rpc("set_photo_groups", { photo: photoId, group_ids: [family, trips] })).error).toBeNull();
+    let { data } = await me.client.from("photos").select("id, photo_group_items(group_id)").eq("id", photoId).single();
+    expect(data!.photo_group_items.map((i: { group_id: string }) => i.group_id).sort()).toEqual([family, trips].sort());
+    expect((await me.client.rpc("set_photo_groups", { photo: photoId, group_ids: [trips] })).error).toBeNull();
+    ({ data } = await me.client.from("photos").select("id, photo_group_items(group_id)").eq("id", photoId).single());
+    expect(data!.photo_group_items.map((i: { group_id: string }) => i.group_id)).toEqual([trips]);
+  });
+
+  it("can't put someone else's photo in a group, or a photo in someone else's group", async () => {
+    const theirs = await other.client.from("photo_groups").insert({ name: "Mine" }).select("id").single();
+    expect((await other.client.rpc("set_photo_groups", { photo: photoId, group_ids: [theirs.data!.id] })).error).not.toBeNull();
+    expect((await me.client.rpc("set_photo_groups", { photo: photoId, group_ids: [theirs.data!.id] })).error).not.toBeNull();
+    const { data } = await other.client.from("photo_groups").select("name");
+    expect(data!.map((g) => g.name)).toEqual(["Mine"]);
+  });
+
+  it("deleting a group keeps the photo; deleting the photo empties its groups", async () => {
+    expect((await me.client.from("photo_groups").delete().eq("id", trips)).error).toBeNull();
+    const photo = await me.client.from("photos").select("id, photo_group_items(group_id)").eq("id", photoId).single();
+    expect(photo.data?.photo_group_items).toEqual([]);
+    await me.client.rpc("set_photo_groups", { photo: photoId, group_ids: [family] });
+    await me.client.from("photos").delete().eq("id", photoId);
+    const { count } = await me.client.from("photo_group_items").select("photo_id", { count: "exact", head: true });
+    expect(count).toBe(0);
+  });
+
+  it("stops at 50 groups", async () => {
+    const rows = Array.from({ length: 49 }, (_, i) => ({ name: `G${i}` }));
+    expect((await me.client.from("photo_groups").insert(rows)).error).toBeNull();
+    expect((await me.client.from("photo_groups").insert({ name: "One too many" })).error?.code).toBe("53400");
   });
 });

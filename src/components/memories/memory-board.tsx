@@ -17,7 +17,9 @@ import {
   layoutMemories,
   memoriesBounds,
 } from "@/lib/memories";
-import { PHOTO_TAG_INFO, type PhotoTag } from "@/lib/photo-tags";
+import type { PhotoGroup } from "@/lib/photo-groups";
+import { setPhotoGroupList } from "@/components/calendar/photo-groups-store";
+import { GroupsSheet } from "./groups-sheet";
 import { ShareSheet, type SharedView } from "./share-sheet";
 
 type Camera = { tx: number; ty: number; scale: number };
@@ -70,12 +72,17 @@ const plural = (n: number, word: string) => `${n} ${n === 1 ? word : `${word}s`}
 /** An island's sticker: a small line above, the big line, and an optional count below. */
 export type StickerText = { small: string; big: string; count?: string };
 
-export function stickerText(cluster: MemoryCluster<PhotoView>, by: MemoryGroupBy, today: string, ethiopian: boolean): StickerText {
+export function stickerText(
+  cluster: MemoryCluster<PhotoView>,
+  by: MemoryGroupBy,
+  today: string,
+  ethiopian: boolean,
+  groupNames: Map<string, string>,
+): StickerText {
   const n = cluster.photos.length;
-  if (by === "kind") {
-    if (cluster.key === UNSORTED) return { small: "tap a photo to sort it", big: "Not sorted yet", count: plural(n, "photo") };
-    const info = PHOTO_TAG_INFO[cluster.key as PhotoTag];
-    return { small: plural(n, "photo"), big: `${info.emoji} ${info.label}` };
+  if (by === "group") {
+    if (cluster.key === UNSORTED) return { small: "tap a photo to add it", big: "Not in a group", count: plural(n, "photo") };
+    return { small: plural(n, "photo"), big: groupNames.get(cluster.key) ?? "Group" };
   }
   const date = cluster.key;
   // Big line in the chosen calendar; the small line above it is the Gregorian date
@@ -99,17 +106,24 @@ export function MemoryBoard({
   today,
   phone,
   groupBy,
+  groups,
 }: {
   photos: PhotoView[];
   today: string;
   phone: boolean;
-  /** How the page was asked for (`?by=kind`); the toggle switches it without a reload. */
+  /** How the page was asked for (`?by=group`); the toggle switches it without a reload. */
   groupBy: MemoryGroupBy;
+  /** The person's own groups, in their order (first = the middle of the board). */
+  groups: PhotoGroup[];
 }) {
   usePreloadPhotoTools();
   const ethiopian = useCalendarPref() === "ethiopian";
   const [by, setBy] = useState<MemoryGroupBy>(groupBy);
-  const clusters = useMemo(() => layoutMemories(photos, by), [photos, by]);
+  const groupOrder = useMemo(() => groups.map((g) => g.id), [groups]);
+  const groupNames = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
+  const clusters = useMemo(() => layoutMemories(photos, by, groupOrder), [photos, by, groupOrder]);
+  // Pickers in the photo viewer and upload sheet read the groups from here, without asking again.
+  useLayoutEffect(() => setPhotoGroupList(groups), [groups]);
   const photoById = useMemo(() => new Map(photos.map((p) => [p.id, p])), [photos]);
 
   const boardRef = useRef<HTMLDivElement>(null);
@@ -140,11 +154,12 @@ export function MemoryBoard({
   const [zoomPct, setZoomPct] = useState(100);
   /**
    * The open photo, and the photos Prev / Next walk through: every photo by day, the island's by
-   * kind. Kept as ids so a refreshed list (a caption, a deletion) shows fresh data in the same order.
+   * group. Kept as ids so a refreshed list (a caption, a deletion) shows fresh data in the same order.
    */
   const [lightbox, setLightbox] = useState<{ ids: string[]; index: number } | null>(null);
   /** The view being shared (camera and screen size when Share was tapped), while its sheet is open. */
   const [sharing, setSharing] = useState<SharedView | null>(null);
+  const [editingGroups, setEditingGroups] = useState(false);
   const [upload, setUpload] = useState<UploadMode | null>(null);
   const returnFocusTo = useRef<HTMLElement | null>(null);
 
@@ -312,7 +327,7 @@ export function MemoryBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Switching between days and kinds is a new layout: start again from its middle island.
+  // Switching between days and groups is a new layout: start again from its middle island.
   const firstLayout = useRef(true);
   useLayoutEffect(() => {
     if (firstLayout.current) {
@@ -373,7 +388,7 @@ export function MemoryBoard({
     setBy(next);
     // Remember it in the address (a reload or Back keeps it), without asking the server again.
     const url = new URL(window.location.href);
-    if (next === "kind") url.searchParams.set("by", "kind");
+    if (next === "group") url.searchParams.set("by", "group");
     else url.searchParams.delete("by");
     window.history.replaceState(window.history.state, "", url);
     // Say once what an island means now.
@@ -566,7 +581,7 @@ export function MemoryBoard({
   function openPhoto(cluster: MemoryCluster<PhotoView>, id: string, trigger: HTMLElement) {
     if (suppressClick.current) return;
     returnFocusTo.current = trigger;
-    const ids = by === "kind" ? cluster.photos.map((p) => p.photo.id) : photos.map((p) => p.id);
+    const ids = by === "group" ? cluster.photos.map((p) => p.photo.id) : photos.map((p) => p.id);
     setLightbox({ ids, index: Math.max(0, ids.indexOf(id)) });
   }
 
@@ -590,8 +605,8 @@ export function MemoryBoard({
   const lightboxPhotos = lightbox ? lightbox.ids.flatMap((id) => photoById.get(id) ?? []) : [];
   const lightboxIndex = lightbox ? Math.min(lightbox.index, lightboxPhotos.length - 1) : -1;
   const summary =
-    by === "kind"
-      ? `${plural(photos.length, "photo")} · ${plural(clusters.filter((c) => c.key !== UNSORTED).length, "kind")}`
+    by === "group"
+      ? `${plural(photos.length, "photo")} · ${plural(groups.length, "group")}`
       : `${plural(photos.length, "photo")} · ${plural(clusters.length, "day")}`;
 
   return (
@@ -623,7 +638,7 @@ export function MemoryBoard({
             <Island
               key={c.key}
               cluster={c}
-              sticker={stickerText(c, by, today, ethiopian)}
+              sticker={stickerText(c, by, today, ethiopian, groupNames)}
               loaded={seen.has(c.key)}
               eager={firstView.has(c.key)}
               onOpen={(id, trigger) => openPhoto(c, id, trigger)}
@@ -654,7 +669,7 @@ export function MemoryBoard({
             </button>
           </div>
           <div role="group" aria-label="Group photos" className="mt-2 flex rounded-full bg-paper-deep p-0.5">
-            {(["day", "kind"] as const).map((option) => (
+            {(["day", "group"] as const).map((option) => (
               <button
                 key={option}
                 type="button"
@@ -664,10 +679,19 @@ export function MemoryBoard({
                   by === option ? "bg-teal text-accent-ink" : "text-ink-soft hover:text-ink"
                 }`}
               >
-                {option === "day" ? "By day" : "By kind"}
+                {option === "day" ? "By day" : "By group"}
               </button>
             ))}
           </div>
+          {by === "group" && (
+            <button
+              type="button"
+              onClick={() => setEditingGroups(true)}
+              className="mt-1.5 w-full rounded-full px-3 py-1.5 text-sm font-bold text-ocean hover:bg-mint"
+            >
+              {groups.length === 0 ? "+ Make your first group" : "Edit groups"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -684,8 +708,10 @@ export function MemoryBoard({
           <div className="flex items-center gap-2">
             <Mascot mood="wave" size={60} />
             <p className="bubble w-max max-w-[14rem] text-sm leading-snug font-semibold text-ink-soft">
-              {by === "kind"
-                ? "Each island is one kind of photo. Tap a photo to change its kind."
+              {by === "group"
+                ? groups.length === 0
+                  ? "Make a group, then tap a photo to put it in."
+                  : "Each island is one of your groups. Tap a photo to change its groups."
                 : "Drag around to explore. Each island is one day."}
             </p>
           </div>
@@ -703,7 +729,7 @@ export function MemoryBoard({
             All
           </button>
           <button type="button" className="rounded-full bg-teal px-3.5 py-2 text-[15px] font-bold text-accent-ink hover:opacity-90" onClick={() => flyTo(0, 0, 1)}>
-            {by === "kind" ? "Middle" : "Latest"}
+            {by === "group" ? "Middle" : "Latest"}
           </button>
 
         </div>
@@ -729,21 +755,35 @@ export function MemoryBoard({
       )}
       {sharing && (
         <ShareSheet
-          boardRef={boardRef}
-          view={sharing}
-          clusters={clusters}
-          stickers={clusters.map((c) => stickerText(c, by, today, ethiopian))}
-          title={by === "kind" ? "Memories by kind" : "Memories"}
-          summary={summary}
+          screen={{
+            boardRef,
+            view: sharing,
+            clusters,
+            stickers: clusters.map((c) => stickerText(c, by, today, ethiopian, groupNames)),
+            title: by === "group" ? "Memories by group" : "Memories",
+            summary,
+          }}
+          initialMode="screen"
+          initialDate={photos[photos.length - 1]?.date ?? today}
           today={today}
           onClose={() => setSharing(null)}
         />
+      )}
+      {editingGroups && (
+        <GroupsSheet counts={groupCounts(photos)} onClose={() => setEditingGroups(false)} />
       )}
       {upload && (
         <UploadSheet key={upload.kind === "replace" ? upload.photoId : upload.date} mode={upload} onClose={closeUpload} />
       )}
     </>
   );
+}
+
+/** How many photos each group has, for the groups sheet. */
+function groupCounts(photos: PhotoView[]) {
+  const counts = new Map<string, number>();
+  for (const p of photos) for (const g of p.groups) counts.set(g, (counts.get(g) ?? 0) + 1);
+  return counts;
 }
 
 /**
