@@ -5,6 +5,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // One tsconfig for every file. Tests also load pure files from mobile/, whose own tsconfig extends
+  // Expo's, which isn't installed outside mobile/ (CI).
+  tsconfig: "tsconfig.json",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
