@@ -166,7 +166,7 @@ function CountdownStarter() {
           New countdown
         </Link>
       </div>
-      <ul className="mt-4 grid grid-cols-4 gap-2 sm:gap-3">
+      <ul className="mt-4 hidden grid-cols-4 gap-3 sm:grid">
         {STARTER_KINDS.map((kind, i) => (
           <li key={kind} className="animate-fade-up" style={{ animationDelay: `${120 + i * 70}ms` }}>
             <Link

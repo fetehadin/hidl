@@ -370,11 +370,12 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   (`src/app/(app)/page.tsx`, parts in `src/components/today/`) shows every feature even before it's used, as a
   picture rather than a paragraph, so a new person sees what hidl is for: one date in the chosen calendar, Hidi (a
   welcome line for someone with nothing yet; never repeating the streak), the streak row (`streak-row.tsx`: a flame
-  that lights up once today has a photo, and the week as seven dots, today's a pulsing "+" that opens the upload
-  sheet; `weekOf()` in `src/lib/calendar.ts`), the leaderboard card (`board-card.tsx`), the countdown (the starred
+  that lights up once today has a photo, and the week as seven portrait tiles with each day's photo, today's a
+  dashed "+" that opens the upload sheet; on phones the count sits on one line above the week so the photos get
+  the width; `weekOf()` in `src/lib/calendar.ts`), the leaderboard card (`board-card.tsx`), the countdown (the starred
   one while it's ahead, else the nearest, with a progress bar from `created_at` and the next ones as two-per-row
-  cards; a finished one only when nothing is ahead, for 3 days or until an exam's score is in; with none, the kinds
-  to start one), today's photo (`today-photo.tsx`: the picture, or an empty page with a camera) and the letters
+  cards; a finished one only when nothing is ahead, for 3 days or until an exam's score is in; with none, a start
+  button, plus the kinds to pick from on wider screens), today's photo (`today-photo.tsx`: the picture, or an empty page with a camera) and the letters
   envelope (`letter-tile.tsx`: ready, next sealed, or a blank one that starts a letter). Phones stack these with the
   photo and letter side by side; from `lg` it's a three-column grid with the photo standing tall on the right and
   this month's photo calendar (`month-glance.tsx`, in the chosen calendar) under the countdown. The blocks are the
