@@ -7,6 +7,8 @@ import { PhotoSpaceNotice } from "@/components/photo-space-notice";
 import { dayLabel } from "@/lib/calendar";
 import { type ProcessedMedia, processMedia } from "@/lib/image";
 import { MAX_UPLOAD_BYTES, formatMB } from "@/lib/media";
+import type { PhotoTag } from "@/lib/photo-tags";
+import { PhotoTagPicker } from "./photo-tag-picker";
 import { VideoBadge } from "./video-badge";
 
 type Mode = { kind: "add"; date: string } | { kind: "replace"; date: string; photoId: string };
@@ -74,6 +76,7 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
     itemsRef.current = items;
   }, [items]);
   const [caption, setCaption] = useState(initialCaption ?? "");
+  const [tags, setTags] = useState<PhotoTag[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -165,6 +168,7 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
                 imagePath: files.imagePath,
                 thumbPath: files.thumbPath,
                 caption: count === 1 ? caption : null,
+                tags,
               });
         if (!result.ok) throw new Error(result.message);
         removeItem(item.key, true);
@@ -287,6 +291,15 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
               disabled={busy}
             />
           </>
+        )}
+
+        {!isReplace && items.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-1.5 text-sm font-semibold text-ink-soft">
+              What&apos;s in {items.length === 1 ? "it" : "them"}? <span className="font-normal text-muted">· optional, for Memories</span>
+            </p>
+            <PhotoTagPicker value={tags} onChange={setTags} disabled={busy} />
+          </div>
         )}
 
         {space && <PhotoSpaceNotice used={space.used} quota={space.quota} className="mt-3" />}

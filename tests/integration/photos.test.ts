@@ -234,3 +234,39 @@ describe("videos", () => {
     expect(atLimit.error).toBeNull();
   });
 });
+
+describe("photo kinds (tags)", () => {
+  const TAG_DAY = "2026-09-25";
+  let id: string;
+
+  beforeAll(async () => {
+    const { data, error } = await me.client.from("photos").insert({ date: TAG_DAY, ...paths(me, TAG_DAY, 1) }).select("id, tags").single();
+    expect(error).toBeNull();
+    expect(data?.tags).toEqual([]);
+    id = data!.id;
+  });
+
+  it("saves kinds on a new photo and changes them later", async () => {
+    const insert = await me.client.from("photos").insert({ date: TAG_DAY, tags: ["food", "family"], ...paths(me, TAG_DAY, 2) });
+    expect(insert.error).toBeNull();
+    const update = await me.client.from("photos").update({ tags: ["nature"] }).eq("id", id).select("tags").single();
+    expect(update.error).toBeNull();
+    expect(update.data?.tags).toEqual(["nature"]);
+    const cleared = await me.client.from("photos").update({ tags: [] }).eq("id", id);
+    expect(cleared.error).toBeNull();
+  });
+
+  it("refuses unknown kinds, repeats, too many, and null", async () => {
+    for (const tags of [["cars"], ["food", "food"], ["nature", "places", "family", "friends", "food"], [null]]) {
+      const { error } = await me.client.from("photos").update({ tags }).eq("id", id);
+      expect(error?.code, JSON.stringify(tags)).toBe("23514");
+    }
+    const nulled = await me.client.from("photos").update({ tags: null }).eq("id", id);
+    expect(nulled.error).not.toBeNull();
+  });
+
+  it("can't tag someone else's photo", async () => {
+    const { count } = await other.client.from("photos").update({ tags: ["food"] }, { count: "exact" }).eq("id", id);
+    expect(count ?? 0).toBe(0);
+  });
+});

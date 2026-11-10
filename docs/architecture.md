@@ -361,6 +361,24 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   around the start position (`FIRST_VIEW`, a smaller box when the page says `phone`, from the user agent) are in
   the server HTML with `fetchPriority="high"`, so their photos download while the JS loads; islands just off
   screen are only added after those have loaded.
+- **Memories by kind.** Photos carry `tags` (what they show: nature, historic places, family, friends, food, pets,
+  celebrations, me; `src/lib/photo-tags.ts`, checked by `photo_tags_ok()`), picked in the upload sheet or tapped in
+  the photo viewer (`PhotoTagPicker`, saved per tap by `updatePhotoTags`; the viewer refreshes the page once, on
+  close, so the board doesn't regroup under it). The board's "By day / By kind" toggle re-runs `layoutMemories(photos,
+  by)` on the client and records `?by=kind` with `history.replaceState` (no server round trip); by kind, the biggest
+  kind is in the middle, a photo with two kinds is on both islands, and untagged ones gather on "Not sorted yet".
+  Opening a photo from a kind island walks that island only.
+- **The board's edge.** The middle of the screen is kept inside `boardRegion()` (the photos' bounding box *and* the
+  circle around the origin holding every island, since the spiral is round and the box's corners are empty). A drag
+  may pull up to `MAX_PULL` (72 px) past it, stiffer the further it goes, and springs back on release; a fling
+  stops at the edge. Wheel, keys and zoom stop firmly.
+- **Share as a picture** (`share-sheet.tsx` + `snapshot.ts`, loaded on tap): redraws the current view on a canvas
+  (sky, clouds where they are, the photos on screen with frames and captions, island stickers, the title card and a
+  hidl mark) from the theme's CSS variables and the page's fonts, as a JPEG up to 2400 px. Photos are fetched with
+  CORS (the media store allows the site's origin), which keeps the canvas exportable. The sheet shows it, then
+  shares it (Web Share with files) or saves it. In the Android app the web view can't do either, so the page posts
+  the picture to the app (`share-image` message), which shares it with `expo-sharing`
+  (`mobile/src/share-image.ts`; only announced as `hidlApp.shareImage` when the APK has those native modules).
 - The month calendar (`src/components/calendar/month-grid.tsx`) is sized to fit the viewport without scrolling:
   its height is `min(100dvh - --chrome, 1.8 x square-cell height)` using container query units (the page wrapper is an
   `@container`), so the cells stretch to fill the screen: tall on phones, wide on laptops. There is no card around

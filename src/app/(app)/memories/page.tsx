@@ -11,7 +11,8 @@ import { todayISO } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Memories" };
 
-export default async function MemoriesPage() {
+export default async function MemoriesPage({ searchParams }: PageProps<"/memories">) {
+  const { by } = await searchParams;
   const { supabase, user, timeZone } = await requireUser();
   const today = todayISO(timeZone);
   // Every photo ever (it's one person's journal), oldest → newest; the board
@@ -26,7 +27,8 @@ export default async function MemoriesPage() {
           <Mascot mood="curious" size={120} />
           <p className="mt-4 font-display text-2xl font-semibold">Nothing here yet.</p>
           <p className="mt-1 max-w-xs text-ink-soft">
-            Every photo you add to the calendar lands here, gathered into one little island per day.
+            Every photo you add to the calendar lands here, gathered into one little island per day, or
+            per kind: nature, food, family and more.
           </p>
           <Link href="/calendar" className="btn btn-primary mt-6">
             Add today&apos;s photo
@@ -38,5 +40,5 @@ export default async function MemoriesPage() {
 
   // Which photos to put straight into the HTML depends on the screen size the camera starts on.
   const phone = userAgent({ headers: await headers() }).device.type === "mobile";
-  return <MemoryBoard photos={photos} today={today} phone={phone} />;
+  return <MemoryBoard photos={photos} today={today} phone={phone} groupBy={by === "kind" ? "kind" : "day"} />;
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { IMAGE_EXTS, MAX_UPLOAD_BYTES, VIDEO_EXTS } from "@/lib/media";
+import { MAX_PHOTO_TAGS, PHOTO_TAGS } from "@/lib/photo-tags";
 
 export const isoDate = z
   .string()
@@ -21,6 +22,15 @@ export const caption = z
 
 export const photoIdSchema = z.uuid();
 
+/** What a photo shows (mirrors photo_tags_ok): known kinds, once each, a few at most. */
+export const photoTags = z
+  .array(z.enum(PHOTO_TAGS))
+  .max(MAX_PHOTO_TAGS, `Pick up to ${MAX_PHOTO_TAGS}.`)
+  .refine((tags) => new Set(tags).size === tags.length, "Pick each kind once.")
+  .default([]);
+
+export const photoTagsSchema = z.object({ id: photoIdSchema, tags: photoTags });
+
 export const mediaTypeSchema = z.enum(["image", "video"]).default("image");
 
 export const addPhotoSchema = z.object({
@@ -29,6 +39,7 @@ export const addPhotoSchema = z.object({
   imagePath: z.string().min(1).max(200),
   thumbPath: z.string().min(1).max(200),
   caption,
+  tags: photoTags,
 });
 
 export const replacePhotoSchema = z.object({

@@ -17,7 +17,8 @@ README's "How the important rules are enforced" table (every hard rule and the P
   life, other), shown in the units the user picks, soonest first (no starring), and feed the Android home-screen
   widget (three sizes, Hidi in five moods) through a token-authenticated JSON feed.
 - **Photo calendar**: any number of photos or short videos (≤ 5 MB each, 2 GB per person) per day, a pinned "wallpaper" per day, a
-  year view, and `/memories`, a pannable board of past days.
+  year view, and `/memories`, a pannable board of past photos grouped by day or by kind (nature, food, family...,
+  picked per photo), which can be shared as a picture.
 - Gregorian or Ethiopian date display, a buildable avatar ("buddy") based on the mascot Hidi, account self-deletion,
   a landing page and install guide for signed-out visitors.
 - **Feedback** (`/feedback`): anyone signed in can send a bug, idea or praise and see replies to it.
@@ -100,7 +101,7 @@ src/lib/data/                Typed read queries per table
 src/lib/validation/          zod schemas used by every action and route handler (server only)
 src/lib/                     Pure helpers: time, dates, ethiopian, calendar, calendar-months (Gregorian or Ethiopian
                              months for the photo calendar), names, countdown-kinds/units, e2ee,
-                             key-store, image, media, memories, avatar, env, public-env, feedback, csv,
+                             key-store, image, media, memories, photo-tags, avatar, env, public-env, feedback, csv,
                              admin-format, user-files, profile-rules, app-lock, media-sniff
 src/components/              UI, grouped by feature (letters/, countdown/, calendar/, account/, ...)
 public/sw.js                 Service worker: caches photo files, offline page; never caches pages
@@ -125,7 +126,7 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 | `letter_passkeys` | `credential_id` (PK), `user_id`, `wrapped_key` | Fingerprint / Face ID: the letter key wrapped by a passkey's PRF secret. Own rows only, 10 per person (`53400`). |
 | `countdowns` | `kind`, `title`, `target_at`, `target_score`/`max_score`/`actual_score`, `details` jsonb, `units` text[], `is_widget` | `kind` can't be updated; scores only for `exam`; `details` checked by `countdown_details_ok`; one `is_widget` per user. |
 | `widget_tokens` | `id`, `user_id`, `countdown_id` (null = the account feed: next one + the list), `token_hash` | `(countdown_id, user_id)` FK → `countdowns(id, user_id)`; `token_hash` is never selectable. |
-| `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover` | Many per day; no future dates (in the owner's zone, from `user_settings`); paths must be in the user's folder; one cover per `(user_id, date)`. |
+| `photos` | `date`, `media_type` (image/video), `image_path`, `thumb_path`, `caption`, `is_cover`, `tags` text[] | Many per day; no future dates (in the owner's zone, from `user_settings`); paths must be in the user's folder; one cover per `(user_id, date)`; `tags` (what it shows, for Memories "by kind") checked by `photo_tags_ok`. |
 | `media_objects` | `path` (PK), `user_id`, `bytes`, `content_type`, `created_at`, `confirmed_at` | One row per photo/video file. **No user grants**: written by `reserve_media()` (folder, ≤ 5 MB, type, 2 GB per person `53100`, 120 files/hour `53400`) and by the server with the service role (confirm, delete). `media_usage()` tells a person their space. Admin storage numbers come from here. |
 | `profiles` | `user_id` (PK), `avatar` jsonb (nullable), `display_name`, `show_on_leaderboard` | Own row only. `avatar_ok()` mirrors `AVATAR_PARTS` in `src/lib/avatar.ts`; `display_name_ok()` mirrors `src/lib/profile-rules.ts`; names unique ignoring case; Write it update-then-insert (no `.upsert()`). Other people's names/buddies come out only through `leaderboard()`. |
 | `leaderboard_releases`, `leaderboard_results` | `(period, period_start)`, `rank`, `xp`, `streak`, `photo_days` | No grants. A finished week/month is snapshotted by `leaderboard(p, true)` the first time anyone asks for it. Ranked by XP. |
@@ -195,7 +196,7 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
 - **Mirrored rules:** when a Postgres rule has a TypeScript mirror, change both in the same commit:
   `countdown_details_ok` ↔ `src/lib/countdown-kinds.ts`, `countdown_units_ok` ↔ `src/lib/countdown-units.ts`,
   `avatar_ok` ↔ `src/lib/avatar.ts`, `media_objects` checks and `media_quota_bytes()` ↔ `src/lib/media.ts`, `feedback` checks ↔ `src/lib/feedback.ts`,
-  `display_name_ok` ↔ `src/lib/profile-rules.ts`, `xp_by_day`/`xp_freeze_cost`/`xp_freeze_max` ↔ `src/lib/xp.ts`,
+  `display_name_ok` ↔ `src/lib/profile-rules.ts`, `photo_tags_ok` ↔ `src/lib/photo-tags.ts`, `xp_by_day`/`xp_freeze_cost`/`xp_freeze_max` ↔ `src/lib/xp.ts`,
   leaderboard periods ↔ `periodBounds` in
   `src/lib/data/leaderboard.ts`.
   `timeLeft()` in `src/lib/countdown-units.ts` is also copied to `mobile/src/countdown-units.ts` (the widget counts

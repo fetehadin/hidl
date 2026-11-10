@@ -11,6 +11,7 @@ import {
   addPhotoSchema,
   captionSchema,
   photoIdSchema,
+  photoTagsSchema,
   prepareUploadSchema,
   replacePhotoSchema,
   uploadPathsOk,
@@ -25,6 +26,7 @@ const SPACE_FULL_MESSAGE = `Your photo space is full (${formatSize(MEDIA_QUOTA_B
 
 function revalidate() {
   revalidatePath("/calendar", "layout");
+  revalidatePath("/memories");
   revalidatePath("/");
 }
 
@@ -85,10 +87,11 @@ export async function addPhoto(input: {
   imagePath: string;
   thumbPath: string;
   caption?: string | null;
+  tags?: string[];
 }): Promise<{ ok: true } | Fail> {
   const parsed = addPhotoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid photo." };
-  const { date, mediaType, imagePath, thumbPath, caption } = parsed.data;
+  const { date, mediaType, imagePath, thumbPath, caption, tags } = parsed.data;
   const { supabase, user, timeZone } = await requireUser();
   if (date > todayISO(timeZone)) return { ok: false, message: "That day hasn't happened yet." };
 
@@ -101,7 +104,7 @@ export async function addPhoto(input: {
     return { ok: false, message: "The upload didn't finish. Try again." };
   }
 
-  const { error } = await supabase.from("photos").insert({ date, media_type: mediaType, image_path: imagePath, thumb_path: thumbPath, caption });
+  const { error } = await supabase.from("photos").insert({ date, media_type: mediaType, image_path: imagePath, thumb_path: thumbPath, caption, tags });
   if (error) {
     console.error("addPhoto", error);
     await discardMedia(store, [imagePath, thumbPath]);
@@ -160,6 +163,24 @@ export async function updateCaption(input: { id: string; caption?: string | null
     .update({ caption: parsed.data.caption }, { count: "exact" })
     .eq("id", parsed.data.id);
   if (error || count === 0) return { ok: false, message: "Couldn't save the caption." };
+  revalidate();
+  return { ok: true };
+}
+
+/** Sets what a photo shows (its kinds on the memories board). An empty list = not sorted yet. */
+export async function updatePhotoTags(input: { id: string; tags: string[] }): Promise<{ ok: true } | Fail> {
+  const parsed = photoTagsSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid kinds." };
+
+  const { supabase } = await requireUser();
+  const { error, count } = await supabase
+    .from("photos")
+    .update({ tags: parsed.data.tags }, { count: "exact" })
+    .eq("id", parsed.data.id);
+  if (error || count === 0) {
+    if (error) console.error("updatePhotoTags", error);
+    return { ok: false, message: "Couldn't save that. Try again." };
+  }
   revalidate();
   return { ok: true };
 }
