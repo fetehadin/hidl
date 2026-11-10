@@ -1,19 +1,19 @@
 import Link from "next/link";
-import { ArrowRightIcon, TrophyIcon } from "@/components/icons";
+import { ArrowRightIcon, HourglassIcon, PlusIcon } from "@/components/icons";
 import { KindBadge } from "@/components/countdown/kind-icon";
 import { LiveCountdown } from "@/components/countdown/live-countdown";
-import { VideoBadge } from "@/components/calendar/video-badge";
-import { sealInitial } from "@/components/letters/letter-card";
-import { LiveRelative } from "@/components/live-relative";
 import { Mascot, type MascotMood } from "@/components/mascot";
-import { MiniEnvelope } from "@/components/today/mini-envelope";
+import { BoardCard } from "@/components/today/board-card";
+import { LetterTile } from "@/components/today/letter-tile";
+import { MonthGlance } from "@/components/today/month-glance";
 import { StreakRow } from "@/components/today/streak-row";
+import { TodayPhoto } from "@/components/today/today-photo";
 import { addDays, photoStreak, weekOf } from "@/lib/calendar";
-import { monthKeyOf } from "@/lib/calendar-months";
-import { KIND_INFO } from "@/lib/countdown-kinds";
-import { type Countdown, listCountdowns, pickPrimaryCountdown } from "@/lib/data/countdowns";
+import { calendarMonth, monthKeyOf } from "@/lib/calendar-months";
+import { type CountdownKind, KIND_INFO } from "@/lib/countdown-kinds";
+import { type Countdown, listCountdowns } from "@/lib/data/countdowns";
 import { letterSummary } from "@/lib/data/letters";
-import { type PhotoRow, type PhotoView, listPhotoDates, listPhotos, signPhotos } from "@/lib/data/photos";
+import { type PhotoRow, listPhotoDates, listPhotos, signPhotos } from "@/lib/data/photos";
 import { getLeaderboard } from "@/lib/data/leaderboard";
 import { getProfile } from "@/lib/data/profile";
 import { getStreakState } from "@/lib/data/streak";
@@ -22,23 +22,34 @@ import { greetingName } from "@/lib/names";
 import { requireUser } from "@/lib/supabase/server";
 import { daysUntil, formatInTz, greeting, nowInTz, requestNow, todayISO } from "@/lib/time";
 
+/** A finished countdown stays on Today this long (or until an exam's score is in). */
+const DONE_SHOWN_MS = 3 * 86_400_000;
+/** The kinds offered on Today before someone has a countdown. */
+const STARTER_KINDS: CountdownKind[] = ["exam", "birthday", "trip", "wedding"];
+
 /**
- * Today, phone first and minimal: the greeting, Hidi, the streak (flame + this week), the main
- * countdown with the next few under it, the next letter and today's photo. Every block is the
- * link itself, so there are no "Open …" lines; blocks with nothing to show aren't shown.
+ * Today. Every part of the app has a place here even before it's used (a camera for today's
+ * photo, a blank envelope, countdown kinds to pick), so a new person sees what hidl is for
+ * without reading about it.
+ *
+ * Phone: greeting and Hidi, the streak, the leaderboard, the countdown, then today's photo and
+ * the next letter side by side. Wide screens: a three-column grid where the photo stands tall on
+ * the right and this month's photo calendar fills the space under the countdown.
  */
 export default async function DashboardPage() {
   const { supabase, user, calendar, timeZone, accountName } = await requireUser();
   const now = requestNow();
   const today = todayISO(timeZone, new Date(now));
   const week = weekOf(today);
+  const month = calendarMonth(calendar, monthKeyOf(calendar, today));
+  const from = month.days[0] < week[0] ? month.days[0] : week[0];
 
   // Streak state first: it may spend freezes on missed days, which the streak below counts.
   const streakState = await getStreakState(supabase);
-  const [countdowns, letters, weekPhotos, recentDates, profile, board] = await Promise.all([
+  const [countdowns, letters, photos, recentDates, profile, board] = await Promise.all([
     listCountdowns(supabase),
     letterSummary(supabase),
-    listPhotos(supabase, week[0], today),
+    listPhotos(supabase, from, today),
     listPhotoDates(supabase, addDays(today, -400), today),
     getProfile(supabase),
     getLeaderboard(supabase, "week"),
@@ -46,18 +57,29 @@ export default async function DashboardPage() {
   const name = greetingName(profile.displayName, accountName);
   // A day a freeze covered keeps the streak going, like a day with a photo.
   const streak = photoStreak([...recentDates, ...streakState.frozenDays], today);
-  const mine = board.rows.find((r) => r.isMe);
-  const countdown = pickPrimaryCountdown(countdowns, now);
+
   const upcoming = countdowns
     .filter((c) => new Date(c.target_at).getTime() > now)
     .map((c) => ({ ...c, days: daysUntil(c.target_at, timeZone, new Date(now)) }))
     .sort((a, b) => a.days - b.days);
+  // The hero: the starred one while it's ahead, else the nearest. A finished one only when
+  // nothing is ahead, and only for a few days (or while an exam waits for its score).
+  const lastDone = countdowns
+    .filter((c) => new Date(c.target_at).getTime() <= now)
+    .sort((a, b) => b.target_at.localeCompare(a.target_at))[0];
+  const keepDone =
+    lastDone &&
+    (now - new Date(lastDone.target_at).getTime() < DONE_SHOWN_MS || (lastDone.kind === "exam" && lastDone.actual_score === null));
+  const countdown = upcoming.find((c) => c.is_widget) ?? upcoming[0] ?? (keepDone ? lastDone : null);
   const comingUp = upcoming.filter((c) => c.id !== countdown?.id);
-  // One picture per day this week: the pinned one, else the latest.
+
+  // One picture per day: the pinned one, else the latest.
   const coverRows = new Map<string, PhotoRow>();
-  for (const p of weekPhotos) if (!coverRows.get(p.date)?.is_cover) coverRows.set(p.date, p);
-  const weekCovers = new Map((await signPhotos(supabase, user.id, [...coverRows.values()])).map((p) => [p.date, p]));
-  const photo = weekCovers.get(today);
+  for (const p of photos) if (!coverRows.get(p.date)?.is_cover) coverRows.set(p.date, p);
+  const covers = new Map((await signPhotos(supabase, user.id, [...coverRows.values()])).map((p) => [p.date, p]));
+  const thumbs = Object.fromEntries([...covers].map(([d, p]) => [d, p.thumbUrl]));
+  const photo = covers.get(today) ?? null;
+
   const hidi = companionLine({
     hour: nowInTz(timeZone, new Date(now)).getHours(),
     day: today,
@@ -66,6 +88,7 @@ export default async function DashboardPage() {
     lettersReady: letters.readyCount,
     nextCountdown: upcoming[0] ?? null,
     freezeSaved: streakState.usedNow > 0,
+    newcomer: recentDates.length === 0 && countdowns.length === 0 && !letters.next && letters.readyCount === 0,
   });
 
   return (
@@ -87,13 +110,14 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 lg:gap-5">
         <StreakRow
+          className="col-span-2"
           streak={streak.count}
           todayDone={streak.todayDone}
           days={week}
           today={today}
-          thumbs={Object.fromEntries([...weekCovers].map(([d, p]) => [d, p.thumbUrl]))}
+          thumbs={thumbs}
           frozen={streakState.frozenDays.filter((d) => week.includes(d))}
           calendar={calendar}
           freezes={streakState.freezes}
@@ -101,64 +125,65 @@ export default async function DashboardPage() {
           freezeCost={streakState.freezeCost}
           xpBalance={streakState.xpBalance}
         />
-        <Link
-          href="/leaderboard"
-          className="mt-2 flex items-center gap-2 px-1 py-1.5 text-sm font-bold text-ink-soft hover:text-accent"
-        >
-          <span className="grid size-7 place-items-center rounded-[9px] bg-mint text-accent">
-            <TrophyIcon width={16} height={16} />
-          </span>
-          {mine ? (
-            <span>
-              <span className="text-accent">#{mine.rank}</span> this week ·{" "}
-              <span className="text-accent tabular-nums">{mine.xp}</span> XP
-            </span>
-          ) : (
-            "Leaderboard"
-          )}
-          <ArrowRightIcon width={14} height={14} className="ml-auto text-muted" />
-        </Link>
-      </div>
+        <BoardCard rows={board.rows} className="col-span-2 lg:col-span-1" />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {countdown ? (
           <CountdownHero countdown={countdown} now={now} calendar={calendar} timeZone={timeZone} comingUp={comingUp} />
         ) : (
-          <Link
-            href="/countdown/new"
-            className="card card-interactive flex items-center gap-3 p-5 font-bold text-accent sm:col-span-2"
-          >
-            Add your first countdown
-            <ArrowRightIcon width={16} height={16} />
-          </Link>
+          <CountdownStarter />
         )}
 
-        {letters.readyCount > 0 ? (
-          <Link href="/letters" className="card card-interactive flex items-center gap-4 p-4">
-            <MiniEnvelope initial="✶" ready />
-            <span className="min-w-0 flex-1">
-              <span className="block font-display text-[17px] font-bold text-ink">
-                {letters.readyCount === 1 ? "A letter is ready to open" : `${letters.readyCount} letters are ready to open`}
-              </span>
-            </span>
-            <ArrowRightIcon width={16} height={16} className="shrink-0 text-muted" />
-          </Link>
-        ) : letters.next ? (
-          <Link href={`/letters/${letters.next.id}`} className="card card-interactive flex items-center gap-4 p-4">
-            <MiniEnvelope initial={sealInitial(letters.next.recipient)} />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate font-display text-[17px] font-bold text-ink">For {letters.next.recipient}</span>
-              <span className="block text-sm font-semibold text-muted">
-                <LiveRelative target={letters.next.unlock_at} />
-              </span>
-            </span>
-            <ArrowRightIcon width={16} height={16} className="shrink-0 text-muted" />
-          </Link>
-        ) : null}
-
-        {photo && <TodayPhoto photo={photo} href={`/calendar?m=${monthKeyOf(calendar, today)}`} />}
+        <TodayPhoto
+          photo={photo}
+          today={today}
+          href={`/calendar?m=${month.key}`}
+          className="col-span-1 lg:row-span-2 lg:min-h-[26rem]"
+        />
+        <LetterTile next={letters.next} readyCount={letters.readyCount} className="col-span-1" />
+        <MonthGlance month={month} today={today} thumbs={thumbs} className="hidden lg:flex" />
       </div>
     </div>
+  );
+}
+
+/**
+ * Before the first countdown: what one is for, shown with the kinds rather than explained, each
+ * a shortcut to making one.
+ */
+function CountdownStarter() {
+  return (
+    <section className="card animate-fade-up col-span-2 overflow-hidden p-5 sm:p-7">
+      <div className="flex items-center gap-4">
+        <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-mint text-teal">
+          <HourglassIcon width={28} height={28} className="animate-bob" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <p className="eyebrow">countdown</p>
+          <h2 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Something to look forward to?</h2>
+        </span>
+        <Link href="/countdown/new" className="btn btn-primary hidden shrink-0 sm:inline-flex">
+          <PlusIcon width={18} height={18} />
+          New countdown
+        </Link>
+      </div>
+      <ul className="mt-4 grid grid-cols-4 gap-2 sm:gap-3">
+        {STARTER_KINDS.map((kind, i) => (
+          <li key={kind} className="animate-fade-up" style={{ animationDelay: `${120 + i * 70}ms` }}>
+            <Link
+              href={`/countdown/new?kind=${kind}`}
+              className="flex flex-col items-center gap-1.5 rounded-2xl bg-mint/60 px-1 py-3 text-center transition-colors hover:bg-mint sm:flex-row sm:gap-3 sm:px-3 sm:text-left"
+            >
+              <KindBadge kind={kind} size={36} />
+              <span className="text-[13px] font-bold text-ink sm:text-[15px]">{KIND_INFO[kind].label}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <Link href="/countdown/new" className="btn btn-primary mt-4 w-full sm:hidden">
+        <PlusIcon width={18} height={18} />
+        New countdown
+      </Link>
+    </section>
   );
 }
 
@@ -187,11 +212,11 @@ function CountdownHero({
   const scoreDue = done && countdown.kind === "exam" && countdown.actual_score === null;
 
   return (
-    <section className="card animate-fade-up p-5 sm:col-span-2 sm:p-7">
+    <section className="card animate-fade-up col-span-2 p-5 sm:p-7">
       <Link href="/countdown" className="block">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <p className="eyebrow mb-1">{done ? "it's over" : info.eyebrow}</p>
+            <p className="eyebrow mb-1">{info.eyebrow}</p>
             <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{countdown.title}</h2>
             <p className="mt-0.5 text-ink-soft">{formatFullDate(countdown.target_at, calendar, timeZone)}</p>
             {countdown.kind === "exam" && !scoreDue && (
@@ -258,29 +283,6 @@ function CountdownHero({
   );
 }
 
-/** Today's photo, smaller: the caption sits on the picture instead of under it. */
-function TodayPhoto({ photo, href }: { photo: PhotoView; href: string }) {
-  return (
-    <Link href={href} className="animate-fade-up relative block h-52 overflow-hidden rounded-[1.5rem] bg-paper-deep sm:h-auto sm:min-h-52">
-      {/* eslint-disable-next-line @next/next/no-img-element -- a short-lived signed link; next/image would re-fetch it */}
-      <img
-        src={photo.isVideo ? photo.thumbUrl : photo.fullUrl}
-        alt={photo.caption ?? (photo.isVideo ? "Today's video" : "Today's photo")}
-        className="absolute inset-0 h-full w-full object-cover"
-      />
-      <span className="absolute top-2.5 left-2.5 rounded-full bg-scrim/40 px-2 py-1 text-[10px] font-extrabold tracking-widest text-snow uppercase backdrop-blur">
-        Today
-      </span>
-      {photo.isVideo && <VideoBadge className="absolute top-2.5 right-2.5" />}
-      {photo.caption && (
-        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-scrim/70 to-transparent px-3.5 pt-10 pb-3 text-[15px] font-semibold text-snow">
-          {photo.caption}
-        </span>
-      )}
-    </Link>
-  );
-}
-
 /**
  * What Hidi says on the dashboard: one nudge, picked by what matters most right now. Never the
  * streak count (the flame shows that). Lines that would repeat every visit rotate by day, so the
@@ -294,6 +296,7 @@ function companionLine({
   lettersReady,
   nextCountdown,
   freezeSaved,
+  newcomer,
 }: {
   hour: number;
   /** Today as "YYYY-MM-DD", to rotate lines once a day (not on every refresh). */
@@ -304,9 +307,12 @@ function companionLine({
   nextCountdown: { title: string; days: number } | null;
   /** A streak freeze just covered a missed day. */
   freezeSaved: boolean;
+  /** Nothing made yet: no photo, letter or countdown. */
+  newcomer: boolean;
 }): { mood: MascotMood; text: string } {
   const pick = (lines: string[]) => lines[[...day].reduce((n, c) => n + c.charCodeAt(0), 0) % lines.length];
   if (freezeSaved && !todayDone) return { mood: "cheer", text: "Phew! A streak freeze covered the day you missed." };
+  if (newcomer) return { mood: "hi", text: "Hi, I'm Hidi! Snap today, seal a letter, count down to something." };
   if (lettersReady > 0) return { mood: "cheer", text: "Psst! A letter from past you is ready to open." };
   if (nextCountdown && nextCountdown.days === 0) return { mood: "cheer", text: `${nextCountdown.title} is today. You've got this!` };
   if (nextCountdown && nextCountdown.days === 1) return { mood: "wave", text: `${nextCountdown.title} is tomorrow. Deep breath.` };

@@ -28,6 +28,7 @@ export function StreakRow({
   freezeMax,
   freezeCost,
   xpBalance,
+  className = "",
 }: {
   streak: number;
   todayDone: boolean;
@@ -43,13 +44,14 @@ export function StreakRow({
   freezeMax: number;
   freezeCost: number;
   xpBalance: number;
+  className?: string;
 }) {
   usePreloadPhotoTools({ lightbox: false });
   const [uploading, setUploading] = useState(false);
   const [sheet, setSheet] = useState(false);
 
   return (
-    <section aria-label="Your streak" className="card flex items-center gap-3 px-3.5 py-3 sm:gap-5 sm:px-5">
+    <section aria-label="Your streak" className={`card flex items-center gap-3 px-3.5 py-3 sm:gap-5 sm:px-5 ${className}`}>
       <button
         type="button"
         onClick={() => setSheet(true)}
