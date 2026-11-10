@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Caveat, Fredoka, Newsreader, Plus_Jakarta_Sans } from "next/font/google";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { RegisterServiceWorker } from "@/components/register-service-worker";
 import { THEME_COOKIE, THEME_INFO, parseTheme } from "@/lib/theme";
 import "./globals.css";
@@ -55,11 +55,16 @@ export async function generateViewport(): Promise<Viewport> {
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+  const [cookieStore, headerList] = await Promise.all([cookies(), headers()]);
+  const theme = parseTheme(cookieStore.get(THEME_COOKIE)?.value);
+  // Inside the phone app (its web view adds "hidl-app/" to the user agent, mobile/src/config.ts),
+  // which keeps the page clear of the status and gesture bars itself: see --safe-top in globals.css.
+  const inApp = (headerList.get("user-agent") ?? "").includes("hidl-app/");
   return (
     <html
       lang="en"
       data-theme={theme}
+      data-app={inApp ? "" : undefined}
       className={`${body.variable} ${letter.variable} ${brand.variable} ${hand.variable} h-full`}
     >
       <body className="min-h-full antialiased text-[17px] leading-relaxed">

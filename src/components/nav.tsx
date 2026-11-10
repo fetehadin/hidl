@@ -252,7 +252,7 @@ export function MobileTabBar() {
       aria-label="Main"
       // Solid, not see-through: on iPhones page content showed through under the tab bar.
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white sm:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{ paddingBottom: "var(--safe-bottom)" }}
     >
       <ul className="mx-auto grid max-w-md grid-cols-5 px-2 pt-1.5 pb-1">
         {MOBILE_LINKS.map(({ href, label, Icon }) => {

@@ -164,7 +164,7 @@ function LockScreen({ userId, config, onUnlock }: { userId: string; config: Lock
       aria-modal="true"
       aria-labelledby="lock-title"
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6 overflow-y-auto bg-paper px-6 py-10"
-      style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}
+      style={{ paddingTop: "max(2.5rem, var(--safe-top))" }}
     >
       <Mascot mood="sleepy" size={84} float={false} />
       <div className="text-center">
