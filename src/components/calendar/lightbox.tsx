@@ -150,7 +150,7 @@ export function Lightbox({
       className="m-0 h-dvh max-h-none w-screen max-w-none bg-white p-0 text-ink backdrop:bg-white"
     >
       <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
+        <div className="flex items-center justify-between gap-3 px-4 pt-[max(0.75rem,var(--safe-top))] pb-2">
           <div>
             <p className="font-display text-lg font-semibold text-heading">
               {ethiopian ? formatEthiopianDay(photo.date) : dayLabel(photo.date)}
@@ -221,7 +221,7 @@ export function Lightbox({
           </button>
         </div>
 
-        <div className="mx-auto w-full max-w-xl px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto w-full max-w-xl px-4 pt-3 pb-[max(1rem,var(--safe-bottom))]">
           {editing ? (
             <div className="flex gap-2">
               <label htmlFor="lightbox-caption" className="sr-only">Caption</label>

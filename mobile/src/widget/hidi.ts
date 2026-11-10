@@ -143,11 +143,11 @@ export function kindSvg(kind: string) {
 </svg>`;
 }
 
-/** The list's "checkbox": filled with a tick for the countdown on show, an empty ring otherwise. */
-export function checkSvg(on: boolean, color: string, ring: string) {
-  return on
-    ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="${color}"/><path d="M7 12.5l3.2 3.2L17 9" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-    : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="none" stroke="${ring}" stroke-width="2.6"/></svg>`;
+/** The kind's icon as a plain line drawing in one color (next to the title, as on the website). */
+export function kindLineSvg(kind: string, color: string) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <g fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${(KIND_PATHS[kind] ?? KIND_PATHS.deadline).replace('fill="#fff"', `fill="${color}"`)}</g>
+</svg>`;
 }
 
 /** The chunky ‹ › glyphs, drawn (fonts' angle brackets are thin). */

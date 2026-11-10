@@ -194,7 +194,7 @@ function StreakSheet({
       aria-labelledby="streak-sheet-title"
       className="m-auto mb-0 w-full max-w-sm rounded-t-card border border-line bg-card p-0 text-ink shadow-2xl backdrop:bg-mint/70 backdrop:backdrop-blur-[2px] sm:mb-auto sm:rounded-card"
     >
-      <div className="flex flex-col items-center gap-4 p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center">
+      <div className="flex flex-col items-center gap-4 p-6 pb-[max(1.5rem,var(--safe-bottom))] text-center">
         <Flame lit={lit} large />
         <h2 id="streak-sheet-title" className="font-display text-2xl font-extrabold">
           {streak}-day streak

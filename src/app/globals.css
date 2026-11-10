@@ -193,6 +193,27 @@
   --radius-card: 1.25rem; /* 20px */
 }
 
+/* The phone header is see-through over the memories board, which has its own sky fade. Unlayered,
+   so it wins over the header's utility classes. */
+body:has(.memory-board) .app-header {
+  border-color: transparent;
+  background-color: transparent;
+  backdrop-filter: none;
+}
+
+/* The screen edges the system draws over (status bar, gesture bar). The phone app already keeps
+   its web view clear of them natively, and Android's web view still reports them, which counted
+   the status bar twice: a tall gap above the header. So inside the app (`data-app` on <html>,
+   set from the user agent in the root layout) they're zero. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+:root[data-app] {
+  --safe-top: 0px;
+  --safe-bottom: 0px;
+}
+
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
@@ -204,7 +225,7 @@
     color: var(--ink);
     font-family: var(--font-body), system-ui, sans-serif;
     /* Phones that draw the page under the status bar (viewport-fit=cover): start below it. */
-    padding-top: env(safe-area-inset-top);
+    padding-top: var(--safe-top);
   }
 
   /* …and keep scrolled content from showing through behind the clock and battery. */
@@ -212,7 +233,7 @@
     position: fixed;
     inset: 0 0 auto;
     z-index: 60;
-    height: env(safe-area-inset-top);
+    height: var(--safe-top);
     background-color: var(--paper);
     pointer-events: none;
   }

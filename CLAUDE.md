@@ -256,6 +256,9 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   (`encrypted = false`) are plain text and stay that way.
 - **`ALLOWED_EMAIL` is checked in three places:** the login action, `/auth/confirm` (which also deletes a
   just-created Google account that isn't allowed), and `requireUser()`.
+- **Safe areas:** use `var(--safe-top)` / `var(--safe-bottom)`, never `env(safe-area-inset-*)`. Inside the phone app
+  (`data-app` on `<html>`, from the user agent) they're zero, because the app pads its web view natively and
+  Android's web view reports the insets anyway (the status bar was counted twice).
 - **Service worker:** bump the cache names in `public/sw.js` if the cached format changes. Videos are never cached.
 - **Stale `.next`:** mixing `pnpm build` and `pnpm dev` can break `next/font/google` in dev (a 500 on first load).
   `rm -rf .next` fixes it.

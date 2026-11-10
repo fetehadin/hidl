@@ -6,12 +6,11 @@ import type { LeaderboardRow } from "@/lib/data/leaderboard";
 const RING = ["ring-gold", "ring-silver", "ring-bronze"];
 
 /**
- * This week's leaderboard on Today: your place and XP, how far the next person is, and the top
- * three faces. Before you have any XP it says how to get on the board.
+ * This week's leaderboard on Today: just your place and the top three faces (the details are on
+ * /leaderboard). Before you have any XP it says how to get on the board.
  */
 export function BoardCard({ rows, className = "" }: { rows: LeaderboardRow[]; className?: string }) {
   const mine = rows.find((r) => r.isMe);
-  const ahead = mine ? [...rows].reverse().find((r) => r.xp > mine.xp) : undefined;
   const top = rows.filter((r) => r.rank <= 3).slice(0, 3);
 
   return (
@@ -24,15 +23,9 @@ export function BoardCard({ rows, className = "" }: { rows: LeaderboardRow[]; cl
       </span>
       <span className="min-w-0 flex-1 leading-tight">
         {mine ? (
-          <>
-            <span className="block font-display text-lg font-extrabold text-ink tabular-nums">
-              #{mine.rank} <span className="text-sm font-bold text-muted">this week</span>
-            </span>
-            <span className="block truncate text-[13px] font-semibold text-ink-soft tabular-nums">
-              {mine.xp} XP ·{" "}
-              {ahead ? `${ahead.xp - mine.xp + 1} to pass ${ahead.displayName ?? "the next"}` : "in the lead"}
-            </span>
-          </>
+          <span className="block font-display text-lg font-extrabold text-ink tabular-nums">
+            #{mine.rank} <span className="text-sm font-bold text-muted">this week</span>
+          </span>
         ) : (
           <>
             <span className="block font-display text-lg font-extrabold text-ink">Leaderboard</span>

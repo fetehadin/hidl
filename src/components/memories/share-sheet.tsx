@@ -229,7 +229,7 @@ export function ShareSheet({
       aria-labelledby="share-memories-title"
       className="m-auto mb-0 w-full max-w-lg rounded-t-card border border-line bg-card p-0 text-ink shadow-2xl backdrop:bg-mint/70 backdrop:backdrop-blur-[2px] sm:mb-auto sm:rounded-card"
     >
-      <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6">
+      <div className="p-5 pb-[max(1.25rem,var(--safe-bottom))] sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="eyebrow">share as a picture</p>

@@ -68,7 +68,7 @@ export function HidiMenu() {
   return (
     <div
       ref={rootRef}
-      className="fixed bottom-[calc(4.6rem+env(safe-area-inset-bottom))] right-3 z-40 size-16 sm:right-5 sm:bottom-4"
+      className="fixed bottom-[calc(4.6rem+var(--safe-bottom))] right-3 z-40 size-16 sm:right-5 sm:bottom-4"
     >
       {/* Soft mint glow behind the fan. On phones it's cut off at Hidi's bottom edge (7.5rem =
           half the 19rem glow minus half of Hidi's 4rem) so it never washes over the tab bar. */}
