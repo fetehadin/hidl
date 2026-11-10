@@ -8,19 +8,24 @@ import type { CalendarPref } from "@/lib/dates";
 import { type LeaderboardPeriod, type LeaderboardRow, getLeaderboard } from "@/lib/data/leaderboard";
 import { getProfile } from "@/lib/data/profile";
 import { requireUser } from "@/lib/supabase/server";
+import { FREEZE_COST, XP_RULES } from "@/lib/xp";
 
 export const metadata: Metadata = { title: "Leaderboard" };
 
 const NO_NAME = "A hidl friend";
-const LABEL: Record<LeaderboardPeriod, { now: string; last: string }> = {
-  week: { now: "This week", last: "Last week" },
-  month: { now: "This month", last: "Last month" },
+const LABEL: Record<LeaderboardPeriod, { now: string; last: string; tab: string }> = {
+  week: { now: "This week", last: "Last week", tab: "Week" },
+  month: { now: "This month", last: "Last month", tab: "Month" },
 };
 const MEDAL = ["🥇", "🥈", "🥉"];
+/** Podium step heights, 1st to 3rd, and the ring around each face. */
+const STEP = ["h-24", "h-16", "h-12"];
+const RING = ["ring-gold", "ring-silver", "ring-bronze"];
 
 /**
- * Who kept the longest photo streak this week or month (leaderboard() in
- * ..._profiles_leaderboard.sql). Below the live board: the released results of the last period.
+ * Who earned the most XP this week or month (leaderboard() and xp_by_day() in
+ * ..._xp_and_streak_freezes.sql): a podium, your place and the gap to the next person, everyone
+ * else, how XP works, and last period's final results.
  */
 export default async function LeaderboardPage({ searchParams }: PageProps<"/leaderboard">) {
   const { period: raw } = await searchParams;
@@ -32,29 +37,34 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
     getProfile(supabase),
   ]);
   const mine = board.rows.find((r) => r.isMe);
+  // The closest person ahead of you, to say how much XP passes them.
+  const ahead = mine ? [...board.rows].reverse().find((r) => r.xp > mine.xp) : undefined;
   const mineLast = last.rows.find((r) => r.isMe);
-  const range = (b: { start: string; end: string }) => `${short(b.start, calendar)} – ${short(b.end, calendar)}`;
+  const podium = [2, 1, 3].map((rank) => board.rows.find((r) => r.rank === rank)).filter(Boolean) as LeaderboardRow[];
+  const rest = board.rows.filter((r) => r.rank > 3);
+  const left = daysLeft(board.end);
 
   return (
     <>
-      <PageHeader eyebrow="leaderboard" title="Photo streaks" />
-      <p className="-mt-3 mb-5 max-w-2xl text-ink-soft">
-        Who added a photo on the most days in a row. Only a photo added <em>on</em> its day counts, so filling in old days
-        won&apos;t move you up.
-      </p>
+      <PageHeader eyebrow="leaderboard" title={LABEL[period].now} />
 
-      <nav aria-label="Period" className="mb-5 flex gap-1.5">
+      <nav aria-label="Period" className="mb-2 grid max-w-xs grid-cols-2 rounded-full bg-paper-deep p-1">
         {(["week", "month"] as const).map((p) => (
           <Link
             key={p}
             href={`/leaderboard?period=${p}`}
             aria-current={p === period ? "page" : undefined}
-            className={`rounded-full border-2 px-4 py-2 text-sm font-bold ${p === period ? "border-teal bg-mint text-ocean" : "border-line bg-white text-muted hover:text-ocean"}`}
+            className={`rounded-full py-2 text-center text-sm font-extrabold transition-colors ${
+              p === period ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"
+            }`}
           >
-            {LABEL[p].now}
+            {LABEL[p].tab}
           </Link>
         ))}
       </nav>
+      <p className="mb-5 text-sm font-semibold text-muted">
+        {range(board, calendar)} · {left === 0 ? "ends tonight" : `ends in ${left} ${left === 1 ? "day" : "days"}`}
+      </p>
 
       {!me.showOnLeaderboard ? (
         <Notice>
@@ -62,109 +72,160 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
         </Notice>
       ) : !me.displayName ? (
         <Notice>
-          You show up as &ldquo;{NO_NAME}&rdquo;. <Link href="/account#profile" className="font-bold text-accent">Pick a display name</Link>{" "}
-          so people know it&apos;s you.
+          You show up as &ldquo;{NO_NAME}&rdquo;. <Link href="/account#profile" className="font-bold text-accent">Pick a display name</Link>
         </Notice>
       ) : null}
 
-      <section aria-labelledby="now" className="card p-5 sm:p-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="now" className="font-display text-xl font-semibold">{LABEL[period].now}</h2>
-          <p className="text-sm text-muted">{range(board)}</p>
-        </div>
-        {me.showOnLeaderboard && (
-          <p className="mt-1 text-sm font-semibold text-ink-soft">
-            {mine ? (
-              <>You&apos;re <span className="text-heading">#{mine.rank}</span> with {days(mine.streak)} in a row.</>
-            ) : (
-              <>
-                You&apos;re not on the board yet.{" "}
-                <Link href="/calendar?add=today" className="text-accent">Add today&apos;s photo</Link> to start a streak.
-              </>
-            )}
-          </p>
-        )}
-
-        {board.rows.length === 0 ? (
-          <p className="mt-6 rounded-2xl border-2 border-dashed border-line p-6 text-center text-ink-soft">
-            Nobody has a streak yet. Add today&apos;s photo and you&apos;re first.
-          </p>
-        ) : (
-          <ol className="mt-4 flex flex-col gap-2">
-            {board.rows.map((r) => (
-              <Row key={`${r.rank}-${r.displayName}-${r.isMe}`} row={r} />
+      {board.rows.length === 0 ? (
+        <p className="card p-6 text-center text-ink-soft">Nobody has XP yet. Add today&apos;s photo and you&apos;re first.</p>
+      ) : (
+        <>
+          <ol className="grid grid-cols-3 items-end gap-2 px-1 sm:gap-4" aria-label="Top three">
+            {podium.map((r) => (
+              <li key={`${r.rank}-${r.displayName}-${r.isMe}`} className="min-w-0 text-center">
+                {r.rank === 1 && (
+                  <span aria-hidden className="animate-bob mb-0.5 block text-xl">
+                    👑
+                  </span>
+                )}
+                <span className={`mx-auto block w-fit rounded-full ring-4 ${RING[r.rank - 1]}`}>
+                  <Face row={r} size={r.rank === 1 ? 60 : 50} />
+                </span>
+                <span className="mt-2 block truncate text-sm font-extrabold text-ink">
+                  {r.isMe ? "You" : (r.displayName ?? NO_NAME)}
+                </span>
+                <span className="block text-xs font-extrabold text-accent tabular-nums">{r.xp} XP</span>
+                <span
+                  className={`animate-rise mt-2 grid ${STEP[r.rank - 1]} place-items-center rounded-t-2xl rounded-b-md bg-mint font-display text-xl font-extrabold text-heading ${r.rank === 1 ? "bg-gradient-to-b from-aqua to-mint" : ""}`}
+                  style={{ animationDelay: `${[250, 100, 400][r.rank - 1]}ms` }}
+                  aria-label={`Rank ${r.rank}`}
+                >
+                  {r.rank}
+                </span>
+              </li>
             ))}
           </ol>
-        )}
-      </section>
 
-      <section aria-labelledby="last" className="card mt-4 p-5 sm:p-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="last" className="font-display text-xl font-semibold">{LABEL[period].last}&apos;s results</h2>
-          <p className="text-sm text-muted">{range(last)} · final</p>
-        </div>
-        {last.rows.length === 0 ? (
-          <p className="mt-3 text-ink-soft">No streaks were recorded.</p>
-        ) : (
-          <>
-            <ol className="mt-4 grid gap-2 sm:grid-cols-3">
-              {last.rows
-                .filter((r) => r.rank <= 3)
-                .map((r) => (
-                  <li key={`${r.rank}-${r.displayName}`} className={`flex items-center gap-3 rounded-2xl border-2 p-3 ${r.isMe ? "border-teal bg-mint" : "border-line"}`}>
-                    <span aria-hidden className="text-2xl">{MEDAL[r.rank - 1]}</span>
-                    <Face row={r} size={40} />
-                    <span className="min-w-0">
-                      <span className="block truncate font-semibold">{r.displayName ?? NO_NAME}{r.isMe && " (you)"}</span>
-                      <span className="text-sm text-muted">{days(r.streak)}</span>
+          {me.showOnLeaderboard && (
+            <div className="mt-4 flex items-center gap-3 rounded-2xl bg-mint px-4 py-3 ring-2 ring-teal ring-inset">
+              {mine ? (
+                <>
+                  <span className="w-10 font-display text-2xl font-extrabold text-heading tabular-nums">#{mine.rank}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-bold text-ink tabular-nums">You · {mine.xp} XP</span>
+                    <span className="block text-sm font-semibold text-ink-soft">
+                      {ahead
+                        ? `${ahead.xp - mine.xp + 1} XP to pass ${ahead.displayName ?? NO_NAME}`
+                        : "You're in the lead. Keep it!"}
                     </span>
-                  </li>
-                ))}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm font-semibold text-ink-soft">
+                  You&apos;re not on the board yet.{" "}
+                  <Link href="/calendar?add=today" className="font-bold text-accent">Add today&apos;s photo</Link> to earn XP.
+                </span>
+              )}
+            </div>
+          )}
+
+          {rest.length > 0 && (
+            <ol className="card mt-3 divide-y divide-line px-2 sm:px-4" start={4}>
+              {rest.map((r, i) => (
+                <li
+                  key={`${r.rank}-${r.displayName}-${r.isMe}`}
+                  className={`animate-fade-up flex items-center gap-3 px-2 py-2.5 ${r.isMe ? "font-bold" : ""}`}
+                  style={{ animationDelay: `${i * 50}ms` }}
+                  aria-current={r.isMe ? "true" : undefined}
+                >
+                  <span className="w-7 shrink-0 text-sm font-extrabold text-muted tabular-nums">{r.rank}</span>
+                  <Face row={r} size={34} />
+                  <span className="min-w-0 flex-1 truncate font-semibold text-ink">
+                    {r.isMe ? "You" : (r.displayName ?? NO_NAME)}
+                  </span>
+                  {r.streak > 0 && (
+                    <span className="flex items-center gap-0.5 text-xs font-extrabold text-flame" title={`${r.streak} days in a row`}>
+                      <FlameIcon width={14} height={14} />
+                      {r.streak}
+                    </span>
+                  )}
+                  <span className="w-16 shrink-0 text-right text-sm font-extrabold text-ink-soft tabular-nums">{r.xp} XP</span>
+                </li>
+              ))}
             </ol>
-            {mineLast && mineLast.rank > 3 && (
-              <p className="mt-3 text-sm text-ink-soft">You finished #{mineLast.rank} with {days(mineLast.streak)} in a row.</p>
-            )}
-          </>
-        )}
-      </section>
+          )}
+        </>
+      )}
+
+      <details className="card mt-4 p-4 sm:p-5">
+        <summary className="cursor-pointer text-sm font-extrabold text-accent">How XP works</summary>
+        <table className="mt-3 w-full text-sm">
+          <tbody className="divide-y divide-line">
+            {XP_RULES.map((r) => (
+              <tr key={r.what}>
+                <td className="py-1.5 text-ink-soft">{r.what}</td>
+                <td className="py-1.5 text-right text-xs text-muted">{r.limit}</td>
+                <td className="w-24 py-1.5 text-right font-extrabold text-ink">{r.xp}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="mt-3 text-sm text-ink-soft">
+          Only things done on the day count, so filling in old days won&apos;t move you up. Spend {FREEZE_COST} XP on a
+          streak freeze from the flame on Today.
+        </p>
+      </details>
+
+      {last.rows.length > 0 && (
+        <section aria-labelledby="last" className="mt-6">
+          <h2 id="last" className="eyebrow mb-2">
+            {LABEL[period].last} · final
+          </h2>
+          <ol className="grid gap-2 sm:grid-cols-3">
+            {last.rows
+              .filter((r) => r.rank <= 3)
+              .map((r) => (
+                <li
+                  key={`${r.rank}-${r.displayName}`}
+                  className={`flex items-center gap-3 rounded-2xl p-3 ${r.isMe ? "bg-mint ring-2 ring-teal ring-inset" : "bg-white/60"}`}
+                >
+                  <span aria-hidden className="text-2xl">{MEDAL[r.rank - 1]}</span>
+                  <Face row={r} size={36} />
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold">{r.isMe ? "You" : (r.displayName ?? NO_NAME)}</span>
+                    <span className="text-sm text-muted tabular-nums">{r.xp} XP</span>
+                  </span>
+                </li>
+              ))}
+          </ol>
+          {mineLast && mineLast.rank > 3 && (
+            <p className="mt-2 text-sm text-ink-soft">
+              You finished #{mineLast.rank} with {mineLast.xp} XP.
+            </p>
+          )}
+        </section>
+      )}
     </>
   );
 }
 
-function Row({ row }: { row: LeaderboardRow }) {
-  return (
-    <li
-      className={`flex items-center gap-3 rounded-2xl border-2 px-3 py-2.5 ${row.isMe ? "border-teal bg-mint" : "border-transparent bg-white/60"}`}
-      aria-current={row.isMe ? "true" : undefined}
-    >
-      <span className="w-9 shrink-0 text-center font-display text-lg font-semibold text-heading tabular-nums">
-        {row.rank <= 3 ? <span aria-label={`Rank ${row.rank}`}>{MEDAL[row.rank - 1]}</span> : `#${row.rank}`}
-      </span>
-      <Face row={row} size={40} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate font-semibold">
-          {row.displayName ?? NO_NAME}
-          {row.isMe && <span className="text-muted"> (you)</span>}
-        </span>
-        <span className="block text-xs leading-snug text-muted">{days(row.photoDays)} with an on-time photo</span>
-      </span>
-      <span className="flex shrink-0 items-center gap-1 font-display text-xl font-semibold text-heading tabular-nums" title={`${days(row.streak)} in a row`}>
-        <FlameIcon width={18} height={18} className="text-wax" />
-        {row.streak}
-      </span>
-    </li>
-  );
-}
-
 function Face({ row, size }: { row: LeaderboardRow; size: number }) {
-  return <ProfileImage avatar={row.avatar} size={size} className="ring-2 ring-aqua" />;
+  return <ProfileImage avatar={row.avatar} size={size} />;
 }
 
 function Notice({ children }: { children: React.ReactNode }) {
   return <p className="mb-4 rounded-2xl border-2 border-aqua bg-white/70 px-4 py-3 text-sm text-ink-soft">{children}</p>;
 }
 
-const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
+/** Whole days left after today until the period's last day (Addis Ababa days, like the board). */
+function daysLeft(end: string) {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Addis_Ababa" }).format(new Date());
+  return Math.max(0, Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000));
+}
+
+function range(b: { start: string; end: string }, calendar: CalendarPref) {
+  return `${short(b.start, calendar)} – ${short(b.end, calendar)}`;
+}
 
 /** "Nov 3" (or the Ethiopian day) for a period boundary. */
 function short(day: string, calendar: CalendarPref) {

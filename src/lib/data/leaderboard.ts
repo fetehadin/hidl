@@ -8,6 +8,9 @@ export type LeaderboardRow = {
   /** null: no name set, or (in released results) they've since left the board. */
   displayName: string | null;
   avatar: AvatarConfig | null;
+  /** XP earned in the period: what the board ranks. */
+  xp: number;
+  /** The longest run of on-time photo days in the period. */
   streak: number;
   photoDays: number;
   isMe: boolean;
@@ -19,6 +22,7 @@ type Raw = {
   rank: number;
   display_name: string | null;
   avatar: unknown;
+  xp: number;
   streak: number;
   photo_days: number;
   is_me: boolean;
@@ -39,6 +43,7 @@ export async function getLeaderboard(supabase: SupabaseClient, period: Leaderboa
     rank: r.rank,
     displayName: r.display_name,
     avatar: r.avatar ? parseAvatar(r.avatar) : null,
+    xp: Number(r.xp),
     streak: r.streak,
     photoDays: r.photo_days,
     isMe: r.is_me,

@@ -56,8 +56,9 @@ trips, and a calendar you fill with a photo or a short video a day.
 - **Gregorian or Ethiopian dates**, and your own time zone, picked up from your device (and updated when you travel).
 - **Your profile.** Pick a display name; with your buddy, it's what others see on the leaderboard. Your email is
   never shown.
-- **Leaderboard.** `/leaderboard` ranks the longest photo streak this week and this month, counting only photos added
-  on the day itself. Last week's and last month's final results are shown too. Everyone is on it unless they switch
+- **XP and leaderboard.** Photos, letters and countdowns earn XP (more for photos on the day itself and for a
+  streak); `/leaderboard` ranks XP this week and this month, Duolingo-style. Spend XP on streak freezes, which keep
+  your streak alive when you miss a day. Last week's and last month's final results are shown too. Everyone is on it unless they switch
   it off on Account.
 - **Two looks.** Teal Paper (light) or Graphite (dark), both in hidl's teal. Switch any time with the half-circle
   button; the phone app follows.
@@ -102,7 +103,7 @@ unlock emails.
 | Sealed letters can't be edited; the opening date can move earlier or later, but only while sealed and only to a time still in the future | `letters_before_update` trigger plus column grants (only `unlock_at` is updatable). Since `..._letter_date_any_direction.sql`; before that it could only move later. |
 | Usage numbers are for admins only | `usage_daily` (one row per person per day, a visit count) has no grants at all. Writes go only through `record_visit()` (counts the caller, database clock); reads only through `admin_stats()` / `admin_user_detail()`. Rows are deleted with the account. |
 | Only admins can use the admin panel, and only to see counts | `admins` has no grants; every admin read/write is a `SECURITY DEFINER` `admin_*` function starting with `assert_admin()` (42501 for anyone else). None of them selects letter bodies or captions. Suspending and deleting accounts go through the Auth admin API only after `admin_log()` (which is itself admin-only) has recorded them. An admin can't remove their own admin access, so one always remains. |
-| Leaderboard scores can't be inflated by uploading old photos | `leaderboard()` counts only photos whose `date` is the day they were added (`created_at`, set by the database, in the owner's zone). Scores and ranks are computed in Postgres; other people come back as name and buddy only, no ids or emails. Finished periods are frozen in `leaderboard_results` (no grants). Opted-out people (`show_on_leaderboard = false`) are left out. |
+| XP and leaderboard scores can't be inflated | XP is computed by `xp_by_day()` from database-set timestamps users can't write (`created_at`, `opened_at`), with daily caps, so old-day photos, backdating and create-and-delete earn nothing extra. Freezes are bought and spent only through `buy_streak_freeze()` / `my_streak()` (`streak_freezes` has no grants). Scores and ranks are computed in Postgres; other people come back as name and buddy only, no ids or emails. Finished periods are frozen in `leaderboard_results` (no grants). Opted-out people (`show_on_leaderboard = false`) are left out. |
 | Display names can't impersonate or collide | `display_name_ok()` (length, no control characters, reserved words like "admin"/"hidl") and a unique index on `lower(display_name)`. |
 | Every admin action is on record | `admin_audit` has no grants and no cascading foreign keys: written only by the admin functions, kept (with emails) after either account is deleted. Shown on `/admin/audit`. |
 | Feedback can't be faked or flooded | `feedback`: users may insert only `kind`, `message`, `page`, `user_agent` and read only their own rows (not `user_agent`); status, reply and timestamps are set by a trigger or `admin_update_feedback`. Check constraints on kind, length and `page`; at most 10 per person per day. |

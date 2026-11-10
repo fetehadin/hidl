@@ -14,7 +14,9 @@ import { KIND_INFO } from "@/lib/countdown-kinds";
 import { type Countdown, listCountdowns, pickPrimaryCountdown } from "@/lib/data/countdowns";
 import { letterSummary } from "@/lib/data/letters";
 import { type PhotoRow, type PhotoView, listPhotoDates, listPhotos, signPhotos } from "@/lib/data/photos";
+import { getLeaderboard } from "@/lib/data/leaderboard";
 import { getProfile } from "@/lib/data/profile";
+import { getStreakState } from "@/lib/data/streak";
 import { type CalendarPref, formatDay, formatFullDate } from "@/lib/dates";
 import { greetingName } from "@/lib/names";
 import { requireUser } from "@/lib/supabase/server";
@@ -31,15 +33,20 @@ export default async function DashboardPage() {
   const today = todayISO(timeZone, new Date(now));
   const week = weekOf(today);
 
-  const [countdowns, letters, weekPhotos, recentDates, profile] = await Promise.all([
+  // Streak state first: it may spend freezes on missed days, which the streak below counts.
+  const streakState = await getStreakState(supabase);
+  const [countdowns, letters, weekPhotos, recentDates, profile, board] = await Promise.all([
     listCountdowns(supabase),
     letterSummary(supabase),
     listPhotos(supabase, week[0], today),
     listPhotoDates(supabase, addDays(today, -400), today),
     getProfile(supabase),
+    getLeaderboard(supabase, "week"),
   ]);
   const name = greetingName(profile.displayName, accountName);
-  const streak = photoStreak(recentDates, today);
+  // A day a freeze covered keeps the streak going, like a day with a photo.
+  const streak = photoStreak([...recentDates, ...streakState.frozenDays], today);
+  const mine = board.rows.find((r) => r.isMe);
   const countdown = pickPrimaryCountdown(countdowns, now);
   const upcoming = countdowns
     .filter((c) => new Date(c.target_at).getTime() > now)
@@ -58,6 +65,7 @@ export default async function DashboardPage() {
     streak: streak.count,
     lettersReady: letters.readyCount,
     nextCountdown: upcoming[0] ?? null,
+    freezeSaved: streakState.usedNow > 0,
   });
 
   return (
@@ -86,7 +94,12 @@ export default async function DashboardPage() {
           days={week}
           today={today}
           thumbs={Object.fromEntries([...weekCovers].map(([d, p]) => [d, p.thumbUrl]))}
+          frozen={streakState.frozenDays.filter((d) => week.includes(d))}
           calendar={calendar}
+          freezes={streakState.freezes}
+          freezeMax={streakState.freezeMax}
+          freezeCost={streakState.freezeCost}
+          xpBalance={streakState.xpBalance}
         />
         <Link
           href="/leaderboard"
@@ -95,7 +108,14 @@ export default async function DashboardPage() {
           <span className="grid size-7 place-items-center rounded-[9px] bg-mint text-accent">
             <TrophyIcon width={16} height={16} />
           </span>
-          Leaderboard
+          {mine ? (
+            <span>
+              <span className="text-accent">#{mine.rank}</span> this week ·{" "}
+              <span className="text-accent tabular-nums">{mine.xp}</span> XP
+            </span>
+          ) : (
+            "Leaderboard"
+          )}
           <ArrowRightIcon width={14} height={14} className="ml-auto text-muted" />
         </Link>
       </div>
@@ -273,6 +293,7 @@ function companionLine({
   streak,
   lettersReady,
   nextCountdown,
+  freezeSaved,
 }: {
   hour: number;
   /** Today as "YYYY-MM-DD", to rotate lines once a day (not on every refresh). */
@@ -281,8 +302,11 @@ function companionLine({
   streak: number;
   lettersReady: number;
   nextCountdown: { title: string; days: number } | null;
+  /** A streak freeze just covered a missed day. */
+  freezeSaved: boolean;
 }): { mood: MascotMood; text: string } {
   const pick = (lines: string[]) => lines[[...day].reduce((n, c) => n + c.charCodeAt(0), 0) % lines.length];
+  if (freezeSaved && !todayDone) return { mood: "cheer", text: "Phew! A streak freeze covered the day you missed." };
   if (lettersReady > 0) return { mood: "cheer", text: "Psst! A letter from past you is ready to open." };
   if (nextCountdown && nextCountdown.days === 0) return { mood: "cheer", text: `${nextCountdown.title} is today. You've got this!` };
   if (nextCountdown && nextCountdown.days === 1) return { mood: "wave", text: `${nextCountdown.title} is tomorrow. Deep breath.` };

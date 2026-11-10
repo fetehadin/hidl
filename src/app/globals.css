@@ -54,6 +54,11 @@
   --flame: #e8761a; /* the streak flame (Today, leaderboard): warm against the teal */
   --flame-2: #ffc65c;
   --flame-soft: #fdecd9;
+  --ice: #5aa9e6; /* a streak freeze, and days it covered */
+  --ice-soft: #e3f1fc;
+  --gold: #f2c14e; /* leaderboard podium rings (the same in both themes) */
+  --silver: #c0c7cc;
+  --bronze: #d39a6a;
   --seal: var(--teal); /* letter wax seals */
   --envelope: var(--white);
   --envelope-flap: var(--mint);
@@ -116,6 +121,8 @@
   --flame: #ff9d3b; /* the streak flame (Today, leaderboard) */
   --flame-2: #ffd27a;
   --flame-soft: #3a2a1a;
+  --ice: #7cc0f2;
+  --ice-soft: #17293a;
   --seal: #3a9295;
   --envelope-flap: #222a2c;
 
@@ -152,6 +159,11 @@
   --color-wax: var(--wax);
   --color-flame: var(--flame);
   --color-flame-soft: var(--flame-soft);
+  --color-ice: var(--ice);
+  --color-ice-soft: var(--ice-soft);
+  --color-gold: var(--gold);
+  --color-silver: var(--silver);
+  --color-bronze: var(--bronze);
   --color-heading: var(--heading);
   --color-mint: var(--mint);
   --color-aqua: var(--aqua);
@@ -630,6 +642,25 @@
 .animate-roll-in {
   display: inline-block;
   animation: roll-in 900ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+}
+
+/* Leaderboard podium steps grow up from the floor; the crown bobs. */
+@keyframes rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+.animate-rise {
+  transform-origin: bottom;
+  animation: rise 800ms cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+@keyframes bob {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+.animate-bob {
+  animation: bob 2.2s ease-in-out infinite;
 }
 
 /* A light sweep across a progress bar every few seconds. */
