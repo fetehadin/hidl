@@ -355,7 +355,14 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   (`font-brand`). Photos carry their own overlays: white `text-snow` with a `--scrim` shade, never theme colors.
   `.btn` is flat with a small press. The memories board keeps its sky (`--sky-top`/`--sky-mid`, night-toned in
   Graphite). The calendar is a dense photo grid: portrait cells (narrowed on wide screens so they stay ~4:5), the
-  date over each photo, "+N" for extra photos, plain numbers on empty days and a dashed "+" for today. Today shows
-  the week as seven tiles (`week-strip.tsx`, `weekOf()` in `src/lib/calendar.ts`). The mascot, Hidi, is `src/components/mascot.tsx`
+  date over each photo, "+N" for extra photos, plain numbers on empty days and a dashed "+" for today. Today is minimal
+  and phone first (`src/app/(app)/page.tsx`): one date in the chosen calendar, Hidi (never repeating the streak),
+  the streak row (`src/components/today/streak-row.tsx`: a flame that lights up once today has a photo, and the week
+  as seven dots, today's a pulsing "+" that opens the upload sheet; `weekOf()` in `src/lib/calendar.ts`), the main
+  countdown with a progress bar from `created_at` and the next ones as two-per-row cards, the next letter as one row
+  (`mini-envelope.tsx`) and today's photo with its caption on it. Blocks with nothing to show aren't shown, and the
+  blocks are the links (no "Open …" lines). `LiveCountdown` rolls its numbers in and, in the last 72 hours, ticks
+  hours/minutes/seconds. The flame colors are `--flame`/`--flame-2`; every animation stops under
+  `prefers-reduced-motion`. The mascot, Hidi, is `src/components/mascot.tsx`
   (moods: happy, wave, cheer, sleepy, curious); `src/app/icon.svg`, `public/icon-*.png` and `apple-touch-icon.png` are the full character on a mint tile (the
   PNGs are full-bleed with Hidi inside the maskable safe zone).
