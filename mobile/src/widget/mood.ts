@@ -1,5 +1,4 @@
-import { timeLeft } from '../countdown-units';
-import type { Unit } from '../feed';
+import { timeLeft, type Unit } from '../countdown-units';
 
 /**
  * What the widget says about one countdown: Hidi's mood, the big number and its unit chips,

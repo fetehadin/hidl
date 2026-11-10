@@ -37,7 +37,8 @@ export type FeedItem = {
   remaining?: Partial<Record<Unit, number>>;
 };
 
-export type Unit = 'years' | 'months' | 'days' | 'hours';
+export type { Unit } from './countdown-units';
+import type { Unit } from './countdown-units';
 
 /** The last good answer, so the widget still shows something offline. */
 export type CachedFeed = { feed: CountdownFeed; fetchedAt: number };
