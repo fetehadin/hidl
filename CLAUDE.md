@@ -14,7 +14,8 @@ README's "How the important rules are enforced" table (every hard rule and the P
 - **Time-locked letters** to your future self, sealed until an opening date and kept in a post box (`/letters`).
   Encrypted on hidl's server like Telegram's cloud chats (the database holds only ciphertext; the key is
   `LETTER_SECRET_KEY`). Writing asks for nothing; breaking a seal asks for the app lock, if set. Letters from before
-  Nov 11, 2026 are end-to-end encrypted and still open with fingerprint / Face ID, the emailed key or a passphrase.
+  Nov 11, 2026 are end-to-end encrypted and still open with fingerprint / Face ID, the emailed key or a passphrase,
+  once; then the browser hands the text to the server to seal, and they open like new ones from then on.
 - **Countdowns**: any number, eight kinds (exam with target/actual score, graduation, birthday, wedding, work, trip,
   life, other), shown in the units the user picks, soonest first (no starring), and feed the Android home-screen
   widget (three sizes, Hidi in five moods) through a token-authenticated JSON feed.
@@ -171,6 +172,7 @@ pnpm db:reset                   # rebuild the local DB from supabase/migrations
 pnpm db:stop
 
 scripts/move-supabase/move.sh <settings file> [--dry-run]   # copy all data + files to another Supabase project
+scripts/rotate-letter-key.mjs   # re-seal letters under a new LETTER_SECRET_KEY (steps at the top of the file)
 ```
 
 Before pushing: `pnpm typecheck && pnpm lint && pnpm test:all`.
@@ -258,9 +260,12 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   ids, no secret) makes the server render the page hidden so nothing flashes. Anything new that shows journal content
   outside the `(app)` layout isn't covered by it.
 - **Letter bodies:** new letters are sealed on the server (`sealLetterBody` in `src/lib/letter-crypto.ts`, bound
-  to the owner's id) and opened by `openLetter(supabase, id, userId)`. **`LETTER_SECRET_KEY` must never change or
-  be lost**: every sealed letter depends on it, so keep a copy outside the server. Older end-to-end letters
-  (`encrypted = true`) still sit inside `<LetterKeyGate need="read">`. Never send or store the email half of their
+  to the owner's id) and opened by `openLetter(supabase, id, userId)`. **`LETTER_SECRET_KEY` must never be
+  lost**: every sealed letter depends on it, so keep a copy outside the server (never paste it into a chat or a
+  ticket). To change it, follow `scripts/rotate-letter-key.mjs` (previous key in `LETTER_SECRET_KEY_PREVIOUS`, re-seal,
+  then drop it); a body only ever changes through `reseal_opened_letter` or `rotate_letter_body`. Older end-to-end letters
+  (`encrypted = true`) still sit inside `<LetterKeyGate need="read">` and move to the server-sealed kind the first
+  time they're read after opening (`resealOpenedLetter`). Never send or store the email half of their
   email key anywhere but the one email (`emailLetterKey`), and never log it. The oldest letters are plain text.
 - **`ALLOWED_EMAIL` is checked in four places:** the login action, `/auth/confirm` and `/auth/google/callback`
   (which also delete a just-created Google account that isn't allowed), and `requireUser()`.

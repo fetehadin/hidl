@@ -5,6 +5,7 @@ import { openLetterAction } from "@/actions/letters";
 import { Envelope } from "@/components/envelope";
 import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
 import { confirmWithLock } from "@/components/lock/confirm-lock";
+import { moveToServerSealed } from "./decrypted-letter";
 import { useLetterReader } from "./letter-key";
 import { LetterPaper } from "./letter-paper";
 
@@ -46,6 +47,7 @@ export function LetterReveal(props: Props & { decrypt?: (body: string) => Promis
       if (props.decrypt) {
         try {
           text = await props.decrypt(result.body);
+          moveToServerSealed(props.id, text);
         } catch {
           setError("This letter couldn't be decrypted with your key.");
           return;

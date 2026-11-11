@@ -116,7 +116,7 @@ async function OpenedLetter({ id, encrypted, keyUser, bundle, passkeys }: {
     <div className="space-y-6">
       {encrypted ? (
         <LetterKeyGate user={keyUser} bundle={bundle} passkeys={passkeys} need="read">
-          <DecryptedLetter {...paper} />
+          <DecryptedLetter id={id} {...paper} />
         </LetterKeyGate>
       ) : (
         <LetterPaper {...paper} />

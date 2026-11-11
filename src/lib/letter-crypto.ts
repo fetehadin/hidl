@@ -12,16 +12,31 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
  * owner (the user id is the additional data), so a body moved to another account won't open.
  * The database checks the shape (letters_body_check). Older letters are plain text, or
  * end-to-end encrypted in the browser (`encrypted = true`, src/lib/e2ee.ts); both still open.
+ *
+ * Changing the key: put the old one in LETTER_SECRET_KEY_PREVIOUS and a new one in
+ * LETTER_SECRET_KEY. Letters still open with either, and scripts/rotate-letter-key.mjs re-seals
+ * every body under the new key; after that the previous key can go.
  */
 
 const PREFIX = "srv1.";
 const FORMAT = /^srv1\.([A-Za-z0-9+/]{16})\.([A-Za-z0-9+/]+={0,2})$/;
 
-function key() {
-  const raw = process.env.LETTER_SECRET_KEY?.trim();
+function readKey(name: string) {
+  const raw = process.env[name]?.trim();
   const buf = raw ? Buffer.from(raw, "base64") : null;
-  if (!buf || buf.length !== 32) throw new Error("LETTER_SECRET_KEY must be 32 bytes in base64");
+  if (!buf || buf.length !== 32) throw new Error(`${name} must be 32 bytes in base64`);
   return buf;
+}
+
+function key() {
+  return readKey("LETTER_SECRET_KEY");
+}
+
+/** The keys a body may be sealed with: the current one, then the previous one while rotating. */
+function keys(): [Buffer, Buffer?] {
+  return process.env.LETTER_SECRET_KEY_PREVIOUS?.trim()
+    ? [key(), readKey("LETTER_SECRET_KEY_PREVIOUS")]
+    : [key()];
 }
 
 export function isServerSealed(body: string) {
@@ -42,7 +57,17 @@ export function openLetterBody(body: string, userId: string) {
   if (!m) return body;
   const iv = Buffer.from(m[1], "base64");
   const data = Buffer.from(m[2], "base64");
-  const decipher = createDecipheriv("aes-256-gcm", key(), iv);
+  const [current, previous] = keys();
+  try {
+    return decryptWith(current, iv, data, userId);
+  } catch (error) {
+    if (!previous) throw error;
+    return decryptWith(previous, iv, data, userId);
+  }
+}
+
+function decryptWith(k: Buffer, iv: Buffer, data: Buffer, userId: string) {
+  const decipher = createDecipheriv("aes-256-gcm", k, iv);
   decipher.setAAD(Buffer.from(userId));
   decipher.setAuthTag(data.subarray(data.length - 16));
   return Buffer.concat([decipher.update(data.subarray(0, data.length - 16)), decipher.final()]).toString("utf8");

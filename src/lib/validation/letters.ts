@@ -34,3 +34,12 @@ export const changeDateSchema = z.object({
   id: letterIdSchema,
   unlock_local: localDateTime,
 });
+
+/**
+ * An opened end-to-end letter's text, decrypted in the owner's browser, to be sealed on the
+ * server instead. Older letters allowed 50,000 characters, which still fits once sealed.
+ */
+export const resealLetterSchema = z.object({
+  id: letterIdSchema,
+  text: z.string().min(1).max(50000),
+});

@@ -37,7 +37,16 @@ layer physically cannot violate it, even with a bug:
   which is what lets them open on any device with nothing to set up. `openLetter()` decrypts after `open_letter`
   has checked the date. Breaking a seal first asks for the device's app lock (`confirmWithLock()` in
   `src/components/lock/confirm-lock.ts`, answered by `<AppLockGate>` with a cancellable lock screen); with no lock
-  set it goes straight ahead. The key must never change or be lost (every sealed letter needs it).
+  set it goes straight ahead. The key must never be lost (every sealed letter needs it).
+  *Changing the key* (`..._letters_reseal.sql`, `scripts/rotate-letter-key.mjs`): the old key goes in
+  `LETTER_SECRET_KEY_PREVIOUS` and `openLetterBody` tries both; the script, run in the app container, re-seals each
+  body under the new key through `rotate_letter_body` (service role only, srv1 to srv1, swapped only if unchanged
+  since read), and then the previous key is removed. The trigger lets a body change only for the one letter such a
+  function names in a transaction-local setting (`hidl.reseal_letter`), which nothing over the API can set.
+  *Old letters move over* (`reseal_opened_letter`, `resealOpenedLetter` in `src/actions/letters.ts`): when an
+  end-to-end letter has been opened and the owner's browser decrypts it, the text goes to the server, which seals it
+  as `srv1` and clears `encrypted`. Owner only, once, and only after `opened_at` is set, so it can't touch a letter
+  that's still sealed. When no `encrypted = true` letters are left, the end-to-end code can be removed.
 - *End-to-end letters* (before Nov 11, 2026; `..._letter_encryption.sql`, `..._letter_keys_ways_in.sql`,
   `src/lib/e2ee.ts`): letter bodies were end-to-end encrypted in the browser. Each person has a letter key (AES-256-GCM) and an ECDH P-256
   key pair: the public half is stored plain and new letters are encrypted to it (`e2e2.<ephemeral>.<iv>.<ct>`), so
