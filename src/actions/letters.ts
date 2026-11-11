@@ -6,7 +6,7 @@ import { LetterSealedError, getLetterMeta, openLetter } from "@/lib/data/letters
 import { sealLetterBody } from "@/lib/letter-crypto";
 import { requireUser } from "@/lib/supabase/server";
 import { localToUtc } from "@/lib/time";
-import { letterIdSchema, newLetterSchema, changeDateSchema } from "@/lib/validation/letters";
+import { changeDateSchema, letterIdSchema, newLetterSchema, resealLetterSchema } from "@/lib/validation/letters";
 
 export type FormState = {
   status: "idle" | "error";
@@ -76,6 +76,35 @@ export async function openLetterAction(id: string): Promise<OpenResult> {
     console.error("openLetter", e);
     return { ok: false, message: "Couldn't open the letter. Try again." };
   }
+}
+
+/**
+ * Moves an opened end-to-end letter to the server-sealed kind, so it opens like every new letter
+ * (no fingerprint or emailed key). The owner's browser has just decrypted it and sends the text;
+ * the database only allows this once, for the owner, after the letter has been opened.
+ */
+export async function resealOpenedLetter(id: string, text: string): Promise<{ ok: true } | { ok: false; message: string }> {
+  const parsed = resealLetterSchema.safeParse({ id, text });
+  if (!parsed.success) return { ok: false, message: "Letter not found." };
+
+  const { supabase, user } = await requireUser();
+  const meta = await getLetterMeta(supabase, parsed.data.id);
+  if (!meta) return { ok: false, message: "Letter not found." };
+  // Already moved (another tab, or the page re-rendered): nothing left to do.
+  if (!meta.encrypted) return { ok: true };
+
+  const { error } = await supabase.rpc("reseal_opened_letter", {
+    letter_id: parsed.data.id,
+    new_body: sealLetterBody(parsed.data.text, user.id),
+  });
+  if (error) {
+    console.error("resealOpenedLetter", error);
+    return { ok: false, message: "Couldn't update the letter." };
+  }
+
+  revalidatePath(`/letters/${parsed.data.id}`);
+  revalidatePath("/letters");
+  return { ok: true };
 }
 
 /** Changes a sealed letter's opening date, earlier or later (still in the future). */

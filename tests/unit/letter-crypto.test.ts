@@ -35,6 +35,23 @@ describe("letter-crypto", () => {
     expect(isServerSealed("An old letter")).toBe(false);
   });
 
+  it("opens with the previous key while the key is being changed, and seals with the new one", () => {
+    const saved = process.env.LETTER_SECRET_KEY;
+    const sealedBefore = sealLetterBody("before the change", me);
+    process.env.LETTER_SECRET_KEY_PREVIOUS = saved;
+    process.env.LETTER_SECRET_KEY = randomBytes(32).toString("base64");
+    try {
+      expect(openLetterBody(sealedBefore, me)).toBe("before the change");
+      const sealedAfter = sealLetterBody("after", me);
+      delete process.env.LETTER_SECRET_KEY_PREVIOUS;
+      expect(openLetterBody(sealedAfter, me)).toBe("after");
+      expect(() => openLetterBody(sealedBefore, me)).toThrow();
+    } finally {
+      delete process.env.LETTER_SECRET_KEY_PREVIOUS;
+      process.env.LETTER_SECRET_KEY = saved;
+    }
+  });
+
   it("refuses to work without a proper key", () => {
     const saved = process.env.LETTER_SECRET_KEY;
     process.env.LETTER_SECRET_KEY = "short";
