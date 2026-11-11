@@ -914,7 +914,7 @@ function Island({
         style={{ left: sticker.x, top: sticker.y, transform: `translate(-50%, -50%) rotate(${sticker.rotate}deg)` }}
       >
         <span className="block text-[11px] font-extrabold tracking-wider text-accent uppercase">{text.small}</span>
-        <span className="block font-display text-lg leading-tight font-semibold text-ink">{text.big}</span>
+        <span className="block font-display text-lg leading-tight font-semibold text-heading">{text.big}</span>
         {text.count && <span className="block text-xs font-bold text-muted">{text.count}</span>}
       </button>
     </section>

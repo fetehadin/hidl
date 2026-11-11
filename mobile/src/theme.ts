@@ -10,7 +10,7 @@ export const palettes = {
     line: '#e6e2da',
     lineStrong: '#d6d1c6',
     soft: '#e2f0ee',
-    ink: '#1b2a2c',
+    ink: '#17393d',
     muted: '#5e6f72',
     heading: '#105f68',
     teal: '#3a9295',

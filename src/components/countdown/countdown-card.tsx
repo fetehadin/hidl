@@ -65,7 +65,7 @@ export function CountdownCard({
             {!done && countdown.kind === "exam" && (
               <p className="mt-3">
                 <span className="block text-sm font-semibold text-ink-soft">Target score</span>
-                <strong className={`font-display tabular-nums text-ink ${featured ? "text-2xl" : "text-xl"}`}>
+                <strong className={`font-display tabular-nums text-ocean ${featured ? "text-2xl" : "text-xl"}`}>
                   {countdown.target_score}
                 </strong>
                 <span className="text-muted"> / {countdown.max_score}</span>

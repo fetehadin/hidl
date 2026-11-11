@@ -14,7 +14,7 @@ export default function NativeSignInPage() {
     <main className="grid min-h-dvh place-items-center px-6">
       <div className="flex flex-col items-center gap-4 text-center">
         <Mascot mood="wave" size={120} />
-        <p className="font-display text-2xl font-semibold">Opening your journal…</p>
+        <p className="font-display text-2xl font-semibold text-heading">Opening your journal…</p>
         <NativeHandoff />
       </div>
     </main>

@@ -42,7 +42,7 @@ export default async function LettersPage({ searchParams }: PageProps<"/letters"
       {letters.length === 0 ? (
         <div className="card flex flex-col items-center px-6 py-12 text-center">
           <Mascot mood="happy" size={110} />
-          <p className="mt-4 font-display text-2xl font-semibold">No letters yet.</p>
+          <p className="mt-4 font-display text-2xl font-semibold text-heading">No letters yet.</p>
           <p className="mt-1 max-w-xs text-ink-soft">
             Write to yourself for a big day, your next birthday, or a year from now. Once sealed, it stays sealed.
           </p>

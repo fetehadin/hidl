@@ -31,7 +31,7 @@ export function BuddyCard({ children }: { children: ReactNode }) {
         className="flex w-full items-center justify-between gap-3 text-left"
       >
         <span>
-          <span className="block font-display text-lg font-semibold">Your buddy</span>
+          <span className="block font-display text-lg font-semibold text-heading">Your buddy</span>
           <span className="block text-sm text-ink-soft">Colors, eyes, mouth and more</span>
         </span>
         <span className="rounded-full border border-line px-3 py-1.5 text-sm font-bold text-accent">{open ? "Done" : "Customize"}</span>

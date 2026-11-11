@@ -100,7 +100,7 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
             <Image source={require('../../assets/icon.png')} style={styles.mascot} accessibilityLabel="Hidi, the Hidl mascot" />
-            <Text style={styles.wordmark}>hidl</Text>
+            <Text style={styles.wordmark}>Hidl</Text>
             <Text style={styles.tagline}>Letters to future you, countdowns, and a photo for every day.</Text>
           </View>
 
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, justifyContent: 'center', padding: 20, gap: 28 },
   hero: { alignItems: 'center', gap: 6 },
   mascot: { width: 104, height: 104, borderRadius: 28, marginBottom: 6 },
-  wordmark: { fontSize: 38, lineHeight: 44, fontWeight: '800', color: colors.heading, letterSpacing: -0.5, textAlign: 'center' },
+  wordmark: { fontSize: 38, lineHeight: 44, fontWeight: '800', color: colors.teal, letterSpacing: -0.5, textAlign: 'center' },
   tagline: { fontSize: 15, lineHeight: 22, color: colors.ink, textAlign: 'center', maxWidth: 280 },
   card: {
     backgroundColor: colors.card,

@@ -436,10 +436,10 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   `/countdown/new?kind=…`; without `?kind` that page shows the same picker inline.
 - Visual language ("editorial calm"): warm paper `--paper` (#f5f3ee) pages, white cards with hairline `--line`
   borders and almost no shadow, teal used sparingly (`--teal` icons/progress, `--btn-face` #2e7c7f buttons with a
-  4.9:1 white label), `--ocean` headings, `--mint` (#e2f0ee) for soft highlights and the active nav item. Graphite
+  4.9:1 white label), `--ocean` headings and big numbers, `--ink` (#17393d) a teal-tinted near-black for reading text, `--mint` (#e2f0ee) for soft highlights and the active nav item. Graphite
   is the same layout on charcoal (#121516 page, #1c2123 cards, #5cbdb6 teal with dark labels). Type: Newsreader
-  page titles (`font-title`), Plus Jakarta Sans everywhere else, Fredoka only for the "hidl" wordmark
-  (`font-brand`). Photos carry their own overlays: white `text-snow` with a `--scrim` shade, never theme colors.
+  page titles (`font-title`), Plus Jakarta Sans everywhere else, Fredoka only for the "Hidl" wordmark
+  (`font-brand`, always `text-teal`). Photos carry their own overlays: white `text-snow` with a `--scrim` shade, never theme colors.
   `.btn` is flat with a small press. The memories board keeps its sky (`--sky-top`/`--sky-mid`, night-toned in
   Graphite). The calendar is a dense photo grid: portrait cells on phones and tablets (~4:5), on computers a 1200 × 950 board (edge-to-edge photos, thin lines, a teal weekday band; it scrolls on short screens), the
   date over each photo, "+N" for extra photos, plain numbers on empty days and a dashed "+" for today. Today

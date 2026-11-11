@@ -39,7 +39,7 @@ export default async function CountdownPage() {
       {countdowns.length === 0 ? (
         <div className="card flex flex-col items-center px-6 py-12 text-center">
           <Mascot mood="curious" size={110} />
-          <p className="mt-4 font-display text-2xl font-semibold">No countdowns yet.</p>
+          <p className="mt-4 font-display text-2xl font-semibold text-heading">No countdowns yet.</p>
           <p className="mt-1 max-w-xs text-ink-soft">
             An exam, a birthday, a wedding, a trip: anything you&apos;re counting down to.
           </p>

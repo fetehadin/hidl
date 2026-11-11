@@ -50,7 +50,7 @@ export function LetterTile({
     <Link href={body.href} className={`group animate-fade-up block min-w-0 ${className}`} aria-label={`${body.title}. ${body.hand}`}>
       <Envelope state={body.state} initial={body.initial} className="flex h-full flex-col justify-end">
         <p className="truncate font-hand text-base leading-none text-accent sm:text-lg">{body.hand}</p>
-        <p className="mt-1 line-clamp-2 font-display text-base leading-snug font-bold text-ink sm:text-xl">{body.title}</p>
+        <p className="mt-1 line-clamp-2 font-display text-base leading-snug font-bold text-heading sm:text-xl">{body.title}</p>
         <p className="mt-1 text-[13px] font-semibold text-ink-soft sm:text-[15px]">{body.sub}</p>
       </Envelope>
     </Link>

@@ -145,7 +145,7 @@ function CodeStep({ email, onResend, onRestart }: { email: string; onResend?: ()
   return (
     <div className="space-y-5">
       <div role="status" className="space-y-1 text-center">
-        <p className="font-display text-2xl">Check your inbox</p>
+        <p className="font-display text-2xl text-heading">Check your inbox</p>
         <p className="text-ink-soft">
           We sent a code to <strong className="text-ink">{email}</strong>. Type it here, or tap the link in the email.
         </p>

@@ -73,7 +73,7 @@ export default function WelcomePage() {
           <Envelope state="sealed" initial="F" className="rotate-[-2deg]">
             <div className="text-center">
               <p className="font-hand text-xl text-accent">for Future me</p>
-              <p className="mt-1 font-display text-2xl font-semibold">Read this when you&apos;ve made it</p>
+              <p className="mt-1 font-display text-2xl font-semibold text-heading">Read this when you&apos;ve made it</p>
               <p className="mt-4 font-display text-xl">Opens in 224 days</p>
               <p className="text-sm text-muted">Tuesday, June 15, 2027 at 9:00 AM</p>
             </div>
@@ -136,7 +136,7 @@ export default function WelcomePage() {
         <div className="card tint-aqua mt-5 grid items-center gap-6 p-6 md:grid-cols-[1fr_auto] md:p-8">
           <div>
             <p className="eyebrow mb-1">and a buddy that&apos;s yours</p>
-            <h3 className="font-display text-2xl font-semibold">Make your own character</h3>
+            <h3 className="font-display text-2xl font-semibold text-heading">Make your own character</h3>
             <p className="mt-2 max-w-lg text-ink-soft">
               Pick a color, eyes, a smile, ears or horns, a little accessory and a background. It lives in your menu and
               keeps you company.
@@ -262,7 +262,7 @@ function CountdownTiles({ parts }: { parts: [string, string][] }) {
           }`}
         >
           <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/55 to-transparent" />
-          <span className={`relative font-display text-4xl leading-none font-semibold tabular-nums ${i === 0 ? "text-heading" : "text-ink"}`}>
+          <span className={`relative font-display text-4xl leading-none font-semibold tabular-nums text-ocean`}>
             {value}
           </span>
           <span className="relative mt-1.5 text-[11px] font-extrabold tracking-wider text-muted uppercase">{unit}</span>

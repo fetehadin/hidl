@@ -12,9 +12,9 @@ export default async function MarketingLayout({ children }: { children: React.Re
     <div className="min-h-dvh">
       <Analytics />
       <header className="mx-auto flex max-w-[72rem] items-center justify-between gap-4 px-5 pt-5 sm:px-8 sm:pt-7">
-        <Link href="/" className="group flex items-center gap-2 font-brand text-[1.9rem] leading-none font-semibold tracking-tight">
+        <Link href="/" className="group flex items-center gap-2 font-brand text-[1.9rem] leading-none font-semibold tracking-tight text-teal">
           <Mascot size={46} float={false} className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
-          hidl
+          Hidl
         </Link>
         <nav aria-label="Site" className="flex items-center gap-1 sm:gap-2">
           <Link href="/#features" className="hidden rounded-full px-3 py-2 font-bold text-ink-soft hover:bg-mint hover:text-ocean md:block">
@@ -40,7 +40,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
           <p className="flex items-center gap-2">
             <Mascot size={26} float={false} />
             <span>
-              <strong className="font-brand text-base text-heading">hidl</strong> · letters, countdowns and a year in pictures
+              <strong className="font-brand text-base text-teal">Hidl</strong> · letters, countdowns and a year in pictures
             </span>
           </p>
           <p className="flex gap-4 font-semibold">
