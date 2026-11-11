@@ -160,7 +160,7 @@ function WidgetPreview({ title }: { title?: string }) {
     >
       <div className="flex items-center gap-1.5">
         <Mascot size={26} />
-        <span className="font-brand text-lg font-bold text-[#ffffff]">hidl</span>
+        <span className="font-brand text-lg font-bold text-[#ffffff]">Hidl</span>
         <span className="ml-auto rounded-full bg-[rgba(255,255,255,0.22)] px-2.5 py-0.5 text-xs font-bold text-[#ffffff]">
           all your countdowns
         </span>
@@ -168,7 +168,7 @@ function WidgetPreview({ title }: { title?: string }) {
       <div className="mt-2 flex items-center gap-2.5 rounded-[1.1rem] bg-[#ffffff] px-2.5 py-2">
         <span className="grid size-10 place-items-center rounded-[0.9rem] bg-[#e2f0ee] text-xl">⏳</span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-bold text-[#1b2a2c]">{title ?? "Your countdown"}</span>
+          <span className="block truncate text-sm font-bold text-[#17393d]">{title ?? "Your countdown"}</span>
           <span className="block text-xs text-[#5e6f72]">counts down right there</span>
         </span>
       </div>

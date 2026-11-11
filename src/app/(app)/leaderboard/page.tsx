@@ -112,7 +112,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
                 <>
                   <span className="w-10 font-display text-2xl font-extrabold text-heading tabular-nums">#{mine.rank}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-bold text-ink tabular-nums">You · {mine.xp} XP</span>
+                    <span className="block font-bold text-ocean tabular-nums">You · {mine.xp} XP</span>
                     <span className="block text-sm font-semibold text-ink-soft">
                       {ahead
                         ? `${ahead.xp - mine.xp + 1} XP to pass ${ahead.displayName ?? NO_NAME}`

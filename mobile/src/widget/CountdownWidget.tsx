@@ -156,7 +156,7 @@ function Header({ look, stale, right, compact }: { look: Look; stale?: boolean; 
     <FlexWidget style={{ width: 'match_parent', height: compact ? 34 : 40, flexDirection: 'row', alignItems: 'center', paddingLeft: 4, marginBottom: compact ? 4 : 6 }}>
       <FlexWidget style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
         <Hidi mood="calm" width={compact ? 24 : 28} />
-        <Text text="hidl" size={compact ? 17 : 19} color={look.onBg} font={FONT.roundHeavy} marginLeft={6} />
+        <Text text="Hidl" size={compact ? 17 : 19} color={look.onBg} font={FONT.roundHeavy} marginLeft={6} />
         {stale && <Text text="· offline" size={10} color={look.onBgSoft} font={FONT.mono} marginLeft={6} />}
       </FlexWidget>
       {right}

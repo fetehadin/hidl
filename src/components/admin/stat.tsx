@@ -18,7 +18,7 @@ export function Stat({
 }) {
   const body = (
     <>
-      <p className={`font-display text-3xl font-semibold tabular-nums sm:text-4xl ${highlight ? "text-wax" : "text-heading"}`}>
+      <p className={`font-display text-3xl font-semibold tabular-nums sm:text-4xl ${highlight ? "text-wax" : "text-ocean"}`}>
         {typeof value === "number" ? nf.format(value) : value}
       </p>
       <p className="mt-1 text-sm font-semibold text-ink-soft">{label}</p>

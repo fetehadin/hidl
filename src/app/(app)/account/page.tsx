@@ -52,7 +52,7 @@ export default async function AccountPage() {
       <div className="card flex items-center gap-4 p-4 sm:p-5">
         {buddy ? <Avatar config={buddy} size={56} /> : <Mascot mood="happy" size={56} float={false} />}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-lg font-semibold">{profile.displayName ?? "You"}</p>
+          <p className="truncate font-display text-lg font-semibold text-heading">{profile.displayName ?? "You"}</p>
           <p className="truncate text-sm text-muted">{user.email}</p>
         </div>
         <form action={signOut}>

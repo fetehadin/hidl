@@ -23,12 +23,12 @@ export function BoardCard({ rows, className = "" }: { rows: LeaderboardRow[]; cl
       </span>
       <span className="min-w-0 flex-1 leading-tight">
         {mine ? (
-          <span className="block font-display text-lg font-extrabold text-ink tabular-nums">
+          <span className="block font-display text-lg font-extrabold text-ocean tabular-nums">
             #{mine.rank} <span className="text-sm font-bold text-muted">this week</span>
           </span>
         ) : (
           <>
-            <span className="block font-display text-lg font-extrabold text-ink">Leaderboard</span>
+            <span className="block font-display text-lg font-extrabold text-heading">Leaderboard</span>
             <span className="block truncate text-[13px] font-semibold text-ink-soft">Earn XP to join this week</span>
           </>
         )}

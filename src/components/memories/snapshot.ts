@@ -387,7 +387,7 @@ function drawTitle(
   ctx.fillText(summary, x + 16, y + 12 + 15 + 30 + 10);
 }
 
-/** "made with hidl", bottom right: Hidi in a circle and the wordmark on a small pill. */
+/** "made with Hidl", bottom right: Hidi in a circle and the wordmark on a small pill. */
 function drawMark(
   ctx: Ctx,
   view: SnapshotInput["view"],
@@ -398,7 +398,7 @@ function drawMark(
   px: number,
 ) {
   ctx.font = `600 26px ${fonts.brand}`;
-  const wordW = ctx.measureText("hidl").width;
+  const wordW = ctx.measureText("Hidl").width;
   const iconSize = icon ? 34 : 0;
   const width = 10 + iconSize + (icon ? 8 : 6) + wordW + 16;
   const height = 48;
@@ -420,10 +420,10 @@ function drawMark(
     ctx.restore();
   }
   ctx.font = `600 26px ${fonts.brand}`;
-  ctx.fillStyle = color("--heading");
+  ctx.fillStyle = color("--teal");
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("hidl", x + 10 + iconSize + (icon ? 8 : 6), y + height / 2 + 1);
+  ctx.fillText("Hidl", x + 10 + iconSize + (icon ? 8 : 6), y + height / 2 + 1);
 }
 
 /* ------------------------------------------------------------------------------------------ */

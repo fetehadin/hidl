@@ -30,13 +30,13 @@ export function brandedEmail(o: {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f3ee" style="background:#f5f3ee;">
 <tr><td align="center" style="padding:32px 16px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;">
-<tr><td align="center" style="padding:0 0 16px;font-family:${DISPLAY};font-size:26px;font-weight:700;color:#105f68;letter-spacing:-0.5px;">hidl</td></tr>
+<tr><td align="center" style="padding:0 0 16px;font-family:${DISPLAY};font-size:26px;font-weight:700;color:#3a9295;letter-spacing:-0.5px;">Hidl</td></tr>
 <tr><td bgcolor="#ffffff" style="background:#ffffff;border:1px solid #9ed5d1;border-radius:24px;padding:32px 28px 28px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 <tr><td align="center" style="padding:0 0 12px;"><img src="${o.siteUrl}/email/${o.mascot}.png" width="96" height="110" alt="Hidi, the Hidl mascot" style="display:block;border:0;outline:none;width:96px;height:auto;"></td></tr>
 <tr><td align="center" style="font-family:${FONT};font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#105f68;padding:0 0 6px;">${o.eyebrow}</td></tr>
 <tr><td align="center" style="font-family:${DISPLAY};font-size:26px;line-height:32px;font-weight:700;color:#105f68;padding:0 0 12px;">${o.title}</td></tr>
-<tr><td align="center" style="font-family:${FONT};font-size:16px;line-height:24px;color:#1b2a2c;padding:0 0 24px;">${o.intro}</td></tr>
+<tr><td align="center" style="font-family:${FONT};font-size:16px;line-height:24px;color:#17393d;padding:0 0 24px;">${o.intro}</td></tr>
 <tr><td align="center" style="padding:0 0 ${o.note ? 24 : 0}px;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
 <td align="center" bgcolor="#3a9295" style="background:#3a9295;border-radius:14px;border-bottom:4px solid #105f68;">

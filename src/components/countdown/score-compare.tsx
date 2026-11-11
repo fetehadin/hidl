@@ -7,7 +7,7 @@ export function ScoreCompare({ actual, target, max }: { actual: number; target: 
 
   return (
     <div>
-      <p className="font-display text-5xl font-semibold tabular-nums sm:text-6xl">
+      <p className="font-display text-5xl font-semibold tabular-nums text-ocean sm:text-6xl">
         {actual}
         <span className="text-2xl text-muted"> / {max}</span>
       </p>

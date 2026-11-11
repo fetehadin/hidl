@@ -11,7 +11,7 @@
     soft highlights, chips ..... #e2f0ee mint
     icons, progress, decoration  #3a9295 teal / #63c1bb fresh
     primary buttons ............ #2e7c7f (white label 4.9:1)
-    headings / body text ....... #105f68 ocean / #1b2a2c ink
+    headings / body text ....... #105f68 ocean / #17393d ink; the "Hidl" wordmark in --teal
 
   Graphite (:root[data-theme="graphite"]): the dark one. Charcoal surfaces, the same teal, lit.
 
@@ -39,8 +39,8 @@
   --paper-deep: #ebe8e1; /* empty days, insets */
   --card: var(--white);
   --heading: var(--ocean); /* 6.6:1 on paper */
-  --ink: #1b2a2c; /* 13:1 on paper */
-  --ink-soft: #3c4c4f;
+  --ink: #17393d; /* 11:1 on paper: near-black with the brand teal in it */
+  --ink-soft: #34555a; /* 7:1 on paper */
   --muted: #5e6f72; /* 4.7:1 on paper, 5.3:1 on white */
   --line: #e6e2da;
   --line-strong: #d6d1c6;
@@ -180,7 +180,7 @@
 
   /* Type: Plus Jakarta Sans for everything you read and tap (`font-serif` is the body face,
      kept under its old name; `font-display` is the same face for numbers and labels),
-     Newsreader for page titles and letters, Fredoka only for the "hidl" wordmark. */
+     Newsreader for page titles and letters, Fredoka only for the "Hidl" wordmark. */
   --font-serif: var(--font-body), system-ui, sans-serif;
   --font-display: var(--font-body), system-ui, sans-serif;
   --font-title: var(--font-letter), ui-serif, Georgia, serif;

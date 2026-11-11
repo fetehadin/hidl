@@ -72,7 +72,7 @@ export function StreakRow({
         </span>
         {/* Phones: one line ("12 day streak") so the week below gets the room; wider: stacked. */}
         <span className="flex items-baseline gap-1.5 leading-none sm:block">
-          <span className="block font-display text-xl font-extrabold tabular-nums text-ink sm:text-[1.7rem]">{streak}</span>
+          <span className="block font-display text-xl font-extrabold tabular-nums text-ocean sm:text-[1.7rem]">{streak}</span>
           <span className="block text-[10px] font-extrabold tracking-wider text-muted uppercase sm:mt-1">day streak</span>
         </span>
       </button>

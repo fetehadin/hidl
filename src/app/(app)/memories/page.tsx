@@ -27,7 +27,7 @@ export default async function MemoriesPage({ searchParams }: PageProps<"/memorie
         <PageHeader eyebrow="memory lane" title="Memories" />
         <div className="card flex flex-col items-center px-6 py-12 text-center">
           <Mascot mood="curious" size={120} />
-          <p className="mt-4 font-display text-2xl font-semibold">Nothing here yet.</p>
+          <p className="mt-4 font-display text-2xl font-semibold text-heading">Nothing here yet.</p>
           <p className="mt-1 max-w-xs text-ink-soft">
             Every photo you add to the calendar lands here, gathered into one little island per day, or
             per group you make.

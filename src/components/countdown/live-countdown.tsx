@@ -104,9 +104,7 @@ export function LiveCountdown({
             key={p.value}
             // A new key per value: each changed number rolls up into place, left to right.
             style={{ animationDelay: `${i * 80}ms` }}
-            className={`animate-roll-in relative font-display leading-none font-semibold tracking-tight tabular-nums ${
-              i === 0 ? "text-heading" : "text-ink"
-            } ${numberSize}`}
+            className={`animate-roll-in relative font-display leading-none font-semibold tracking-tight tabular-nums text-ocean ${numberSize}`}
           >
             {p.pad ? String(p.value).padStart(2, "0") : p.value}
           </span>
