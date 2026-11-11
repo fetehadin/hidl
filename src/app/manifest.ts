@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "hidl",
-    short_name: "hidl",
+    name: "Hidl",
+    short_name: "Hidl",
     description: "Letters, a countdown, and a year in pictures.",
     start_url: "/",
     scope: "/",

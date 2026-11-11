@@ -262,7 +262,7 @@ export function ShareSheet({
     setNote(null);
     if (appShare) return postToApp("share-image");
     try {
-      await navigator.share({ files: [picture.file], title: "My hidl memories" });
+      await navigator.share({ files: [picture.file], title: "My Hidl memories" });
     } catch (error) {
       // Closing the share sheet without picking anything isn't a failure.
       if (error instanceof DOMException && error.name === "AbortError") return;
@@ -384,7 +384,7 @@ export function ShareSheet({
         </div>
 
         {picture && inApp() && !appShare && !appSave && (
-          <p className="mt-3 text-sm text-muted">To share or save it, update the hidl app, or open hidl in your phone&apos;s browser.</p>
+          <p className="mt-3 text-sm text-muted">To share or save it, update the Hidl app, or open Hidl in your phone&apos;s browser.</p>
         )}
         {note && (
           <p role={note.ok ? "status" : "alert"} className={`mt-3 rounded-control px-3 py-2 text-sm ${note.ok ? "bg-mint" : "bg-accent-soft"}`}>

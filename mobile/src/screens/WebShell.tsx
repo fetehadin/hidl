@@ -280,7 +280,7 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
         <View style={styles.offline}>
           <Image source={require('../../assets/icon.png')} style={styles.offlineIcon} />
           <Text style={styles.offlineTitle}>You&apos;re offline</Text>
-          <Text style={styles.offlineBody}>hidl needs a connection to open your journal. Your home-screen widget keeps showing the last countdown it saw.</Text>
+          <Text style={styles.offlineBody}>Hidl needs a connection to open your journal. Your home-screen widget keeps showing the last countdown it saw.</Text>
           <Pressable
             onPress={() => {
               setFailed(false);

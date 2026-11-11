@@ -23,7 +23,7 @@ import { publicEnv } from "@/lib/env";
  * with sample content, not a screenshot.
  */
 export const metadata: Metadata = {
-  title: { absolute: "hidl · letters to future you, countdowns, and a year in pictures" },
+  title: { absolute: "Hidl · letters to future you, countdowns, and a year in pictures" },
   description:
     "A private journal: time-locked letters to your future self, countdowns to the days that matter, and a calendar of photos and short videos. Encrypted letters. Installs on your phone.",
   robots: { index: true, follow: true },
@@ -55,7 +55,7 @@ export default function WelcomePage() {
             Keep every day.
           </h1>
           <p className="mt-5 max-w-xl text-lg text-ink-soft">
-            hidl is a small, private journal: letters that stay sealed until the day you choose, countdowns to exams,
+            Hidl is a small, private journal: letters that stay sealed until the day you choose, countdowns to exams,
             birthdays and trips, and a calendar you fill with a photo or a short video a day.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -83,7 +83,7 @@ export default function WelcomePage() {
             <p className="eyebrow mb-2">the big day</p>
             <CountdownTiles parts={[["224", "days"], ["10", "hours"]]} />
           </div>
-          <Mascot mood="wave" size={110} className="absolute -top-14 -right-4 hidden sm:block" label="Hidi, the hidl mascot" />
+          <Mascot mood="wave" size={110} className="absolute -top-14 -right-4 hidden sm:block" label="Hidi, the Hidl mascot" />
         </div>
       </section>
 
@@ -191,15 +191,15 @@ export default function WelcomePage() {
         <div className="card grid items-center gap-8 overflow-hidden p-6 md:grid-cols-[1fr_auto] md:p-10">
           <div>
             <p className="eyebrow mb-2">on your phone</p>
-            <h2 className="font-display text-4xl font-semibold tracking-tight">Get hidl on your phone</h2>
+            <h2 className="font-display text-4xl font-semibold tracking-tight">Get Hidl on your phone</h2>
             <p className="mt-3 max-w-xl text-lg text-ink-soft">
-              hidl installs straight from your browser, no app store needed. It gets its own icon on your home screen,
+              Hidl installs straight from your browser, no app store needed. It gets its own icon on your home screen,
               opens full screen, and works on iPhone and Android.
             </p>
             <ol className="mt-5 space-y-2 text-ink-soft">
               <Step n={1}>Scan the code with your phone&apos;s camera (or open this site on your phone).</Step>
               <Step n={2}>Follow the steps for your phone: it takes about ten seconds.</Step>
-              <Step n={3}>Open hidl from your home screen, like any other app.</Step>
+              <Step n={3}>Open Hidl from your home screen, like any other app.</Step>
             </ol>
             <div className="mt-7 flex flex-wrap gap-3">
               <Link href="/install" className="btn btn-primary min-h-12 px-6">

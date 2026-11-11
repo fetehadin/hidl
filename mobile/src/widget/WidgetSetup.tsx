@@ -81,8 +81,8 @@ export function WidgetSetup({ widgetInfo, renderWidget, setResult }: WidgetConfi
           {loaded.state === 'none' && (
             <Text style={styles.note}>
               {loaded.connected
-                ? 'No countdowns yet. Add one in hidl and it shows up here by itself.'
-                : 'Open hidl and sign in once, and your countdowns show up here by itself.'}
+                ? 'No countdowns yet. Add one in Hidl and it shows up here by itself.'
+                : 'Open Hidl and sign in once, and your countdowns show up here by itself.'}
             </Text>
           )}
           {loaded.state === 'ready' &&

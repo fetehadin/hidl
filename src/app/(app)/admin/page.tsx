@@ -58,7 +58,7 @@ export default async function AdminOverviewPage() {
 
       <DailyChart
         id="daily-people"
-        title="People using hidl each day"
+        title="People using Hidl each day"
         note={`last 30 days · ${nf.format(stats.visits_30d)} ${stats.visits_30d === 1 ? "visit" : "visits"}`}
         daily={stats.daily}
         metric="people"
@@ -75,7 +75,7 @@ export default async function AdminOverviewPage() {
       />
 
       <section aria-labelledby="made">
-        <h2 id="made" className="font-display mb-3 text-xl font-semibold">Made with hidl so far</h2>
+        <h2 id="made" className="font-display mb-3 text-xl font-semibold">Made with Hidl so far</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat
             label={stats.letters === 1 ? "letter" : "letters"}

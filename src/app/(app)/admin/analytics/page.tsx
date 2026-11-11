@@ -90,7 +90,7 @@ export default async function AdminAnalyticsPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Breakdown id="countries" title="Where people are" rows={countryRows} unit="people" />
-        <Breakdown id="devices" title="How they open hidl" rows={deviceRows} unit="people" />
+        <Breakdown id="devices" title="How they open Hidl" rows={deviceRows} unit="people" />
       </div>
 
       <section aria-labelledby="pages" className="card p-5 sm:p-6">

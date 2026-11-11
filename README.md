@@ -275,7 +275,7 @@ Addis), with these set in the server's `.env`. It does nothing unless enabled:
 | `ENABLE_UNLOCK_EMAILS` | `true` |
 | `CRON_SECRET` | 32+ random characters (the cron service sends it as a Bearer token) |
 | `RESEND_API_KEY` | from [resend.com](https://resend.com) |
-| `EMAIL_FROM` | a sender on a domain verified in Resend, e.g. `hidl <letters@hidl.fetehadin.com>` |
+| `EMAIL_FROM` | a sender on a domain verified in Resend, e.g. `Hidl <letters@hidl.fetehadin.com>` |
 | `SUPABASE_SECRET_KEY` | required for this job |
 
 The email contains the letter's title and a link, never the body. Each letter is announced once, and failed sends are retried the next day.

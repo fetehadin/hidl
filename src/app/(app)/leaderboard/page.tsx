@@ -12,7 +12,7 @@ import { FREEZE_COST, XP_RULES } from "@/lib/xp";
 
 export const metadata: Metadata = { title: "Leaderboard" };
 
-const NO_NAME = "A hidl friend";
+const NO_NAME = "A Hidl friend";
 const LABEL: Record<LeaderboardPeriod, { now: string; last: string; tab: string }> = {
   week: { now: "This week", last: "Last week", tab: "Week" },
   month: { now: "This month", last: "Last month", tab: "Month" },

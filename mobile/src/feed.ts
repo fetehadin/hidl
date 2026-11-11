@@ -69,7 +69,7 @@ export async function fetchFeed(feedUrl: string): Promise<CountdownFeed> {
   if (res.status === 404 && body && body.error !== 'invalid token' && Array.isArray(body.countdowns)) {
     return { ...EMPTY, timeZone: body.timeZone, countdowns: body.countdowns };
   }
-  if (res.status === 404) throw new FeedError(body?.error === 'invalid token' ? 'Open hidl to reconnect.' : 'Add a countdown in hidl.');
+  if (res.status === 404) throw new FeedError(body?.error === 'invalid token' ? 'Open Hidl to reconnect.' : 'Add a countdown in Hidl.');
   if (!res.ok || !body || body.error) throw new FeedError("Couldn't load the countdown.");
   return body;
 }

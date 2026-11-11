@@ -64,7 +64,7 @@ export function AppWidgetHelp({ title }: { title?: string }) {
 
   const manualSteps = (
     <p className="mt-1 text-ink-soft">
-      Press and hold your home screen, tap <strong>Widgets</strong>, and drag <strong>hidl</strong> onto the screen.
+      Press and hold your home screen, tap <strong>Widgets</strong>, and drag <strong>Hidl</strong> onto the screen.
     </p>
   );
 
@@ -128,7 +128,7 @@ export function AppWidgetHelp({ title }: { title?: string }) {
   if (device === "iphone") {
     return (
       <p className="rounded-2xl bg-mint p-4 text-ink-soft">
-        Home-screen widgets need the hidl app, which is Android-only for now.
+        Home-screen widgets need the Hidl app, which is Android-only for now.
       </p>
     );
   }
@@ -138,10 +138,10 @@ export function AppWidgetHelp({ title }: { title?: string }) {
       <WidgetPreview title={title} />
       {device === "android" ? (
         <a href={ANDROID_APP_PATH} className="btn btn-primary min-h-12 w-full text-base" download>
-          Get the hidl app
+          Get the Hidl app
         </a>
       ) : (
-        <p className="text-center text-sm text-ink-soft">Open hidl on your Android phone to get the app.</p>
+        <p className="text-center text-sm text-ink-soft">Open Hidl on your Android phone to get the app.</p>
       )}
     </div>
   );

@@ -224,6 +224,9 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   column grants (`revoke all` then grant per column), `on delete cascade` to `auth.users`, and
   `set search_path = ''` on functions. Functions aren't executable by `anon` by default; grant execute explicitly.
 - **Lazy-load the heavy calendar pieces** through `src/components/calendar/lazy.tsx`, not by direct import.
+- **The name:** "Hidl" (capital H) in text people read: titles, sentences, emails, the app and widget labels. The
+  lowercase "hidl" is only the wordmark (the `font-brand` logo, the widget frame, the email header, the Memory Lane mark) and
+  identifiers that must not change (domain, `app.hidl.mobile`, `hidl://`, storage keys, file and bucket names).
 - **Style:** two themes, Teal Paper (light, default, `:root`) and Graphite (dark, `:root[data-theme="graphite"]`)
   in `src/app/globals.css`; follow the color rules in `docs/architecture.md` (Visual language). Use the tokens
   (`bg-white` = the card surface, `bg-mint`, `text-heading`, `var(--teal)`, `rgb(var(--shadow)/…)`, `--hidi-*` for

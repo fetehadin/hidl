@@ -217,7 +217,7 @@ function LockScreen({
     >
       <Mascot mood="sleepy" size={84} float={false} />
       <div className="text-center">
-        <h1 id="lock-title" className="font-title text-2xl font-medium">{onCancel ? "It's you, right?" : "hidl is locked"}</h1>
+        <h1 id="lock-title" className="font-title text-2xl font-medium">{onCancel ? "It's you, right?" : "Hidl is locked"}</h1>
         <p className="mt-1 text-sm text-ink-soft" aria-live="polite">
           {!config
             ? "One moment…"
