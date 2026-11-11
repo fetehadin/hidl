@@ -228,6 +228,22 @@ export const GatherIcon = (p: IconProps) => (
   </svg>
 );
 
+/** A number pad: the app lock's PIN. */
+export const KeypadIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    {[6, 12, 18].flatMap((x) => [5, 10, 15].map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.6" fill="currentColor" stroke="none" />))}
+    <circle cx="12" cy="20" r="1.6" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+/** Dots joined by a line: the app lock's pattern. */
+export const PatternIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M5 5 12 12 19 5M12 12v7" strokeWidth={2.2} />
+    {[5, 12, 19].flatMap((x) => [5, 12, 19].map((y) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.5" fill="currentColor" stroke="none" />))}
+  </svg>
+);
+
 export const PinIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => (
   <svg {...base} {...p}>
     <path d="M9 3.5h6M10 3.5v5.2L7 12.5h10l-3-3.8V3.5Z" fill={filled ? "currentColor" : "none"} />

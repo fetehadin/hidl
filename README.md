@@ -153,6 +153,7 @@ Fill `.env.local` from the `db:status` output:
 | `NEXT_PUBLIC_POSTHOG_HOST` | optional: PostHog ingestion host, default `https://us.i.posthog.com` (EU: `https://eu.i.posthog.com`) |
 | `POSTHOG_PERSONAL_API_KEY` | optional, server only: a PostHog personal API key with the `query:read` scope, for the admin Analytics tab |
 | `POSTHOG_PROJECT_ID` | optional: the PostHog project id the Analytics tab reads (with the key above) |
+| `LETTER_SECRET_KEY` | server only: 32 random bytes in base64 (`openssl rand -base64 32`) that letters are encrypted with. Never change or lose it once letters exist; keep a copy somewhere safe |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | optional, server only: the Google client Supabase uses, so "Continue with Google" goes through your own domain (see step 7) |
 | `STORAGE_PROVIDER` | where photo/video files live: `supabase` (default, the `photos` bucket) or `s3` (Garage on the VPS in production; [docs/storage.md](docs/storage.md)) |
 | `S3_PUBLIC_URL`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET` | with `s3`: the store's address for browsers (links are signed for it), optionally another one for the server, region (`garage`) and bucket (`hidl-media`) |

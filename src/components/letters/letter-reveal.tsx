@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { openLetterAction } from "@/actions/letters";
 import { Envelope } from "@/components/envelope";
 import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
+import { confirmWithLock } from "@/components/lock/confirm-lock";
 import { useLetterReader } from "./letter-key";
 import { LetterPaper } from "./letter-paper";
 
@@ -31,8 +32,10 @@ export function LetterReveal(props: Props & { decrypt?: (body: string) => Promis
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function open() {
+  async function open() {
     setError(null);
+    // The app lock (PIN, pattern or fingerprint), if this device has one, before the seal breaks.
+    if (!(await confirmWithLock())) return;
     startTransition(async () => {
       const result = await openLetterAction(props.id);
       if (!result.ok) {

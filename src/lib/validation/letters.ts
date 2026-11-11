@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { encryptedBody } from "./encryption";
 
 const optionalText = (max: number) =>
   z
@@ -16,12 +15,15 @@ export const localDateTime = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Pick a date and time.");
 
+/** Fits the database's limit once encrypted (letters_body_check). */
+export const LETTER_BODY_MAX = 30000;
+
 export const newLetterSchema = z.object({
   title: z.string().trim().min(1, "Give it a title.").max(120),
   recipient: z.string().trim().min(1, "Who is it for?").max(60),
   occasion: optionalText(80),
-  /** Encrypted in the browser before it is sent; the server never sees the text. */
-  body: encryptedBody,
+  /** The letter's text; the server encrypts it before storing (src/lib/letter-crypto.ts). */
+  body: z.string().trim().min(1, "Write something first.").max(LETTER_BODY_MAX, "That's too long for one letter."),
   unlock_local: localDateTime,
 });
 

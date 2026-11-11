@@ -2,18 +2,17 @@
 
 import { useOptimistic, useState, useTransition } from "react";
 import { setCalendarPref } from "@/actions/preferences";
-import { useTimeZone } from "@/components/calendar-pref";
-import { type CalendarPref, formatDay } from "@/lib/dates";
+import type { CalendarPref } from "@/lib/dates";
 
 const OPTIONS: { value: CalendarPref; label: string }[] = [
   { value: "gregorian", label: "Gregorian" },
   { value: "ethiopian", label: "Ethiopian" },
 ];
 
-export function CalendarChoice({ current, now }: { current: CalendarPref; now: number }) {
+/** Which calendar dates are shown in: a two-way switch on /account. */
+export function CalendarChoice({ current }: { current: CalendarPref }) {
   const [optimistic, setOptimistic] = useOptimistic(current);
   const [error, setError] = useState<string | null>(null);
-  const timeZone = useTimeZone();
   const [, startTransition] = useTransition();
 
   function choose(value: CalendarPref) {
@@ -27,31 +26,23 @@ export function CalendarChoice({ current, now }: { current: CalendarPref; now: n
   }
 
   return (
-    <fieldset>
-      <legend className="sr-only">Calendar</legend>
-      <div className="grid gap-2 sm:grid-cols-2">
+    <div>
+      <div role="radiogroup" aria-label="Calendar" className="flex rounded-full bg-paper-deep p-1">
         {OPTIONS.map((o) => {
           const active = optimistic === o.value;
           return (
-            <label
+            <button
               key={o.value}
-              className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 px-4 py-3 transition-colors ${
-                active ? "border-teal bg-mint" : "border-line bg-white hover:bg-mint/60"
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => choose(o.value)}
+              className={`flex-1 rounded-full px-4 py-2 text-sm font-bold transition-colors ${
+                active ? "bg-teal text-accent-ink" : "text-ink-soft hover:text-ink"
               }`}
             >
-              <input
-                type="radio"
-                name="calendar"
-                value={o.value}
-                checked={active}
-                onChange={() => choose(o.value)}
-                className="size-5 accent-[var(--teal)]"
-              />
-              <span>
-                <span className="block font-bold text-ink">{o.label}</span>
-                <span className="block text-sm text-muted">Today is {formatDay(new Date(now), o.value, timeZone)}</span>
-              </span>
-            </label>
+              {o.label}
+            </button>
           );
         })}
       </div>
@@ -60,6 +51,6 @@ export function CalendarChoice({ current, now }: { current: CalendarPref; now: n
           {error}
         </p>
       )}
-    </fieldset>
+    </div>
   );
 }

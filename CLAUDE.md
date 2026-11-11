@@ -11,8 +11,10 @@ README's "How the important rules are enforced" table (every hard rule and the P
 
 **hidl** is a personal journal web app, installable as a PWA (there is no native app):
 
-- **Time-locked letters** to your future self, sealed until an opening date, end-to-end encrypted in the browser.
-  Writing asks for nothing; opening takes fingerprint / Face ID, the key emailed at setup, or an optional passphrase.
+- **Time-locked letters** to your future self, sealed until an opening date and kept in a post box (`/letters`).
+  Encrypted on hidl's server like Telegram's cloud chats (the database holds only ciphertext; the key is
+  `LETTER_SECRET_KEY`). Writing asks for nothing; breaking a seal asks for the app lock, if set. Letters from before
+  Nov 11, 2026 are end-to-end encrypted and still open with fingerprint / Face ID, the emailed key or a passphrase.
 - **Countdowns**: any number, eight kinds (exam with target/actual score, graduation, birthday, wedding, work, trip,
   life, other), shown in the units the user picks, soonest first (no starring), and feed the Android home-screen
   widget (three sizes, Hidi in five moods) through a token-authenticated JSON feed.
@@ -27,7 +29,9 @@ README's "How the important rules are enforced" table (every hard rule and the P
   (everyone unless they opt out), with last period's results
   frozen ("released").
 - **App lock:** an optional per-device PIN or pattern lock screen (`/account`), plus fingerprint / Face ID (a
-  passkey), kept in the browser only.
+  passkey), kept in the browser only. Also asked before a letter's seal is broken (`confirmWithLock`).
+- **Account** (`/account`): grouped into Profile, Security, Preferences, Phone app and Help, with quick links. The
+  theme is switched from the menu only.
 - **Two themes:** Teal Paper (light, default) and Graphite (dark), both in the brand teal, switched per device with
   the half-circle button (side nav, phone header, landing page) or on Account. The phone app's own screens use the
   same palette (`mobile/src/theme.ts`) and follow the page's theme.
@@ -101,7 +105,7 @@ src/lib/data/                Typed read queries per table
 src/lib/validation/          zod schemas used by every action and route handler (server only)
 src/lib/                     Pure helpers: time, dates, ethiopian, calendar, calendar-months (Gregorian or Ethiopian
                              months for the photo calendar), names, countdown-kinds/units, e2ee,
-                             key-store, image, media, memories, photo-groups, share-periods, lane-layout, avatar, env, public-env, feedback, csv,
+                             key-store, letter-crypto (server-only), image, media, memories, photo-groups, share-periods, lane-layout, avatar, env, public-env, feedback, csv,
                              admin-format, user-files, profile-rules, app-lock, media-sniff
 src/components/              UI, grouped by feature (letters/, countdown/, calendar/, account/, ...)
 public/sw.js                 Service worker: caches photo files, offline page; never caches pages
@@ -121,7 +125,7 @@ All tables are in `public`, each has RLS `user_id = auth.uid()`, and each `user_
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| `letters` | `title`, `recipient`, `occasion`, `body`, `encrypted`, `unlock_at`, `opened_at`, `unlock_email_sent_at` | No `SELECT` on `body`: read only through `open_letter(id)` once `now() >= unlock_at`. Only `unlock_at` is updatable: earlier or later, only while sealed, only to a future time. |
+| `letters` | `title`, `recipient`, `occasion`, `body`, `encrypted`, `unlock_at`, `opened_at`, `unlock_email_sent_at` | No `SELECT` on `body`: read only through `open_letter(id)` once `now() >= unlock_at`. Only `unlock_at` is updatable: earlier or later, only while sealed, only to a future time. `body` is `srv1.…` (sealed on the server, `encrypted = false`), `e2e1/e2e2.…` (`encrypted = true`, older, end-to-end), or plain (oldest); `letters_body_check` checks each shape. |
 | `letter_keys` | `user_id` (PK), `public_key`, `private_key_wrapped`, `email_wrapped_key`, `email_share`, `kdf_salt`, `kdf_iterations`, `passphrase_wrapped_key`, `recovery_wrapped_key` | One per user. The key pair (writing needs only `public_key`) and the letter key wrapped once per way in: email key, optional passphrase, old recovery key. At least one way in (check); the pair is set once (`letter_keys_guard`); no `DELETE`. |
 | `letter_passkeys` | `credential_id` (PK), `user_id`, `wrapped_key` | Fingerprint / Face ID: the letter key wrapped by a passkey's PRF secret. Own rows only, 10 per person (`53400`). |
 | `countdowns` | `kind`, `title`, `target_at`, `target_score`/`max_score`/`actual_score`, `details` jsonb, `units` text[], `is_widget` | `kind` can't be updated; scores only for `exam`; `details` checked by `countdown_details_ok`; one `is_widget` per user. |
@@ -250,10 +254,11 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
 - **App lock is client-only.** `<AppLockGate>` wraps everything in the `(app)` layout; the `hidl-lock` cookie (user
   ids, no secret) makes the server render the page hidden so nothing flashes. Anything new that shows journal content
   outside the `(app)` layout isn't covered by it.
-- **Encrypted letters:** anything that reads or writes a letter body must sit inside `<LetterKeyGate need=…>`
-  (`useLetterWriter` / `useLetterReader`). Never send or store the email half of the email key anywhere but the
-  one email (`emailLetterKey`), and never log it. Older letters
-  (`encrypted = false`) are plain text and stay that way.
+- **Letter bodies:** new letters are sealed on the server (`sealLetterBody` in `src/lib/letter-crypto.ts`, bound
+  to the owner's id) and opened by `openLetter(supabase, id, userId)`. **`LETTER_SECRET_KEY` must never change or
+  be lost**: every sealed letter depends on it, so keep a copy outside the server. Older end-to-end letters
+  (`encrypted = true`) still sit inside `<LetterKeyGate need="read">`. Never send or store the email half of their
+  email key anywhere but the one email (`emailLetterKey`), and never log it. The oldest letters are plain text.
 - **`ALLOWED_EMAIL` is checked in four places:** the login action, `/auth/confirm` and `/auth/google/callback`
   (which also delete a just-created Google account that isn't allowed), and `requireUser()`.
 - **Google sign-in has two paths.** With `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` set, hidl runs the Google side

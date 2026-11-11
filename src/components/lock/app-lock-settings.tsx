@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
   LOCK_TIMEOUTS,
   type LockConfig,
@@ -13,6 +13,7 @@ import {
   patternSecret,
   pinSecret,
 } from "@/lib/app-lock";
+import { KeypadIcon, PatternIcon } from "@/components/icons";
 import { FingerprintIcon } from "@/components/letters/letter-key";
 import { PasskeyError, createLockPasskey, passkeysAvailable } from "@/lib/passkey";
 import { clearLock, markSeen, readLock, writeLock } from "./lock-store";
@@ -21,13 +22,18 @@ import { PinPad } from "./pin-pad";
 
 type Step =
   | { name: "idle" }
-  | { name: "choose"; kind: LockKind }
-  | { name: "confirm"; kind: LockKind; secret: string; length: number }
-  | { name: "verify"; then: "off" | "change" };
+  /** `withPasskey`: fingerprint was picked first, so this PIN or pattern is its backup. */
+  | { name: "choose"; kind: LockKind; withPasskey?: boolean }
+  | { name: "confirm"; kind: LockKind; secret: string; length: number; withPasskey?: boolean }
+  | { name: "verify"; then: "off" | LockKind };
 
 const announce = () => window.dispatchEvent(new Event("hidl-lock-change"));
+const kindName = (k: LockKind) => (k === "pin" ? "PIN" : "pattern");
 
-/** Turn the device lock on or off, pick PIN or pattern, and how soon it locks again. On /account. */
+/**
+ * The app lock on /account: PIN, pattern, or fingerprint / Face ID (always with a PIN or pattern
+ * behind it, for when the sensor doesn't work), and how soon it locks again. Per device.
+ */
 export function AppLockSettings({ userId, email }: { userId: string; email: string }) {
   const [config, setConfig] = useState<LockConfig | null>(null);
   const [ready, setReady] = useState(false);
@@ -46,31 +52,6 @@ export function AppLockSettings({ userId, email }: { userId: string; email: stri
     };
   }, []);
 
-  async function setFingerprint(on: boolean) {
-    if (!config) return;
-    setMessage(null);
-    let next: LockConfig = { ...config };
-    if (on) {
-      setBusy(true);
-      try {
-        next = { ...config, passkeyId: await createLockPasskey({ id: userId, email }) };
-      } catch (e) {
-        setBusy(false);
-        if (!(e instanceof PasskeyError && e.reason === "cancelled")) {
-          setMessage({ tone: "error", text: e instanceof Error ? e.message : "Couldn't turn it on." });
-        }
-        return;
-      }
-      setBusy(false);
-    } else {
-      delete next.passkeyId;
-    }
-    writeLock(userId, next);
-    setConfig(next);
-    setMessage({ tone: "ok", text: on ? "Fingerprint / Face ID opens hidl now. Your " + kindName(config.kind) + " still works too." : "Fingerprint / Face ID is off for the lock." });
-    announce();
-  }
-
   useEffect(() => {
     const c = readLock(userId);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reading browser storage after mount
@@ -79,17 +60,46 @@ export function AppLockSettings({ userId, email }: { userId: string; email: stri
     setReady(true);
   }, [userId]);
 
-  function chose(kind: LockKind, secret: string, length: number) {
+  function go(next: Step) {
     setMessage(null);
-    setStep({ name: "confirm", kind, secret, length });
+    setStep(next);
     setReset((r) => r + 1);
+  }
+
+  /** Adds fingerprint / Face ID to a lock (or takes it away). */
+  async function setFingerprint(base: LockConfig, on: boolean) {
+    let next: LockConfig = { ...base };
+    if (on) {
+      setBusy(true);
+      try {
+        next = { ...base, passkeyId: await createLockPasskey({ id: userId, email }) };
+      } catch (e) {
+        setBusy(false);
+        if (!(e instanceof PasskeyError && e.reason === "cancelled")) {
+          setMessage({ tone: "error", text: e instanceof Error ? e.message : "Couldn't turn it on." });
+        }
+        return false;
+      }
+      setBusy(false);
+    } else {
+      delete next.passkeyId;
+    }
+    writeLock(userId, next);
+    setConfig(next);
+    announce();
+    return true;
+  }
+
+  function chose(kind: LockKind, secret: string, length: number) {
+    if (step.name !== "choose") return;
+    go({ name: "confirm", kind, secret, length, withPasskey: step.withPasskey });
   }
 
   async function confirmed(secret: string) {
     if (step.name !== "confirm") return;
     if (secret !== step.secret) {
       setMessage({ tone: "error", text: "They didn't match. Start again." });
-      setStep({ name: "choose", kind: step.kind });
+      setStep({ name: "choose", kind: step.kind, withPasskey: step.withPasskey });
       setReset((r) => r + 1);
       return;
     }
@@ -105,8 +115,12 @@ export function AppLockSettings({ userId, email }: { userId: string; email: stri
     markSeen(userId, Date.now());
     setConfig(c);
     setStep({ name: "idle" });
-    setMessage({ tone: "ok", text: `Lock is on. hidl will ask for your ${step.kind === "pin" ? "PIN" : "pattern"} on this device.` });
     announce();
+    if (step.withPasskey && (await setFingerprint(c, true))) {
+      setMessage({ tone: "ok", text: `Fingerprint / Face ID is on, with your ${kindName(step.kind)} as a backup.` });
+    } else if (!step.withPasskey) {
+      setMessage({ tone: "ok", text: `${step.kind === "pin" ? "PIN" : "Pattern"} is on.` });
+    }
   }
 
   async function verified(secret: string) {
@@ -123,12 +137,27 @@ export function AppLockSettings({ userId, email }: { userId: string; email: stri
       clearLock(userId);
       setConfig(null);
       setStep({ name: "idle" });
-      setMessage({ tone: "ok", text: "Lock is off on this device." });
+      setMessage({ tone: "ok", text: "App lock is off on this device." });
       announce();
     } else {
-      setMessage(null);
-      setStep({ name: "choose", kind: config.kind });
-      setReset((r) => r + 1);
+      go({ name: "choose", kind: step.then });
+    }
+  }
+
+  function pick(kind: LockKind) {
+    // A new PIN or pattern (or switching between them) first needs the current one.
+    go(config ? { name: "verify", then: kind } : { name: "choose", kind });
+  }
+
+  async function toggleFingerprint() {
+    setMessage(null);
+    if (!config) {
+      go({ name: "choose", kind: "pin", withPasskey: true });
+      return;
+    }
+    const on = !config.passkeyId;
+    if (await setFingerprint(config, on)) {
+      setMessage({ tone: "ok", text: on ? "Fingerprint / Face ID is on." : "Fingerprint / Face ID is off." });
     }
   }
 
@@ -144,73 +173,36 @@ export function AppLockSettings({ userId, email }: { userId: string; email: stri
 
   if (!ready) return <p className="text-sm text-muted">Checking this device…</p>;
 
-  const kindName = (k: LockKind) => (k === "pin" ? "PIN" : "pattern");
-
   return (
     <div className="flex flex-col gap-4">
       {step.name === "idle" && (
-        <>
-          <p className="font-semibold">
-            {config ? `On, with a ${kindName(config.kind)}.` : "Off on this device."}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {config ? (
-              <>
-                <button type="button" className="btn btn-ghost" onClick={() => { setMessage(null); setStep({ name: "verify", then: "change" }); }}>
-                  Change
-                </button>
-                <button type="button" className="btn btn-ghost" onClick={() => { setMessage(null); setStep({ name: "verify", then: "off" }); }}>
-                  Turn off
-                </button>
-              </>
-            ) : (
-              <>
-                <button type="button" className="btn btn-ghost" onClick={() => { setMessage(null); setStep({ name: "choose", kind: "pin" }); }}>
-                  Use a PIN
-                </button>
-                <button type="button" className="btn btn-ghost" onClick={() => { setMessage(null); setStep({ name: "choose", kind: "pattern" }); }}>
-                  Use a pattern
-                </button>
-              </>
-            )}
-          </div>
-          {config && canPasskey && (
-            <div className="flex items-center gap-3 rounded-2xl bg-ice-soft px-4 py-3">
-              <FingerprintIcon className="size-7 shrink-0 text-ice" />
-              <span className="min-w-0 flex-1">
-                <span className="block font-semibold text-ink">Fingerprint / Face ID</span>
-                <span className="block text-sm text-ink-soft">{config.passkeyId ? "On, with your " + kindName(config.kind) + " as a backup" : "Unlock with a touch or a look"}</span>
-              </span>
-              <button type="button" disabled={busy} onClick={() => setFingerprint(!config.passkeyId)}
-                className="shrink-0 rounded-control px-3 py-2 text-sm font-bold text-accent hover:bg-mint">
-                {config.passkeyId ? "Turn off" : "Turn on"}
-              </button>
-            </div>
+        <div role="group" aria-label="Unlock with" className="grid grid-cols-3 gap-2">
+          <Choice icon={<KeypadIcon className="size-6" />} label="PIN" on={config?.kind === "pin"} onClick={() => pick("pin")} />
+          <Choice icon={<PatternIcon className="size-6" />} label="Pattern" on={config?.kind === "pattern"} onClick={() => pick("pattern")} />
+          {canPasskey && (
+            <Choice
+              icon={<FingerprintIcon className="size-6" />}
+              label="Fingerprint / Face ID"
+              on={Boolean(config?.passkeyId)}
+              onClick={toggleFingerprint}
+              disabled={busy}
+            />
           )}
-        </>
+        </div>
       )}
 
       {step.name !== "idle" && (
         <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-line bg-white/70 p-5">
           <p className="text-center font-semibold" aria-live="polite">
-            {step.name === "choose" && (step.kind === "pin" ? "Choose a PIN (4 to 6 digits)" : "Draw a pattern joining at least 4 dots")}
+            {step.name === "choose" &&
+              (step.withPasskey
+                ? "First, a backup PIN (4 to 6 digits)"
+                : step.kind === "pin"
+                  ? "Choose a PIN (4 to 6 digits)"
+                  : "Draw a pattern joining at least 4 dots")}
             {step.name === "confirm" && `Enter the same ${kindName(step.kind)} again`}
             {step.name === "verify" && `Enter your current ${config ? kindName(config.kind) : "lock"}`}
           </p>
-          {step.name === "choose" && (
-            <div className="flex gap-1.5 text-sm">
-              {(["pin", "pattern"] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setStep({ name: "choose", kind: k })}
-                  className={`rounded-full border-2 px-3 py-1 font-bold ${step.kind === k ? "border-teal bg-mint text-ocean" : "border-line text-muted"}`}
-                >
-                  {k === "pin" ? "PIN" : "Pattern"}
-                </button>
-              ))}
-            </div>
-          )}
 
           {(() => {
             const kind = step.name === "verify" ? config!.kind : step.kind;
@@ -240,20 +232,29 @@ export function AppLockSettings({ userId, email }: { userId: string; email: stri
             );
           })()}
 
-          <button type="button" className="text-sm font-bold text-muted hover:text-ocean" onClick={() => { setStep({ name: "idle" }); setMessage(null); }}>
+          <button type="button" className="text-sm font-bold text-muted hover:text-ocean" onClick={() => go({ name: "idle" })}>
             Cancel
           </button>
         </div>
       )}
 
-      <div>
-        <label htmlFor="lock-timeout" className="mb-1.5 block text-sm font-semibold text-ink-soft">Lock again</label>
-        <select id="lock-timeout" value={timeout} onChange={(e) => changeTimeout(Number(e.target.value) as LockTimeout)} className="field max-w-xs py-2">
-          {LOCK_TIMEOUTS.map((t) => (
-            <option key={t.value} value={t.value}>{t.label}</option>
-          ))}
-        </select>
-      </div>
+      {config && step.name === "idle" && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm font-semibold text-ink-soft">
+            Lock again
+            <select value={timeout} onChange={(e) => changeTimeout(Number(e.target.value) as LockTimeout)} className="field w-auto py-1.5">
+              {LOCK_TIMEOUTS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="text-sm font-bold text-wax hover:underline" onClick={() => go({ name: "verify", then: "off" })}>
+            Turn off
+          </button>
+        </div>
+      )}
 
       {message && (
         <p role={message.tone === "error" ? "alert" : "status"} className={`text-sm font-semibold ${message.tone === "error" ? "text-wax" : "text-accent"}`}>
@@ -261,5 +262,23 @@ export function AppLockSettings({ userId, email }: { userId: string; email: stri
         </p>
       )}
     </div>
+  );
+}
+
+function Choice({ icon, label, on, onClick, disabled }: { icon: ReactNode; label: string; on: boolean; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-2xl border-2 px-2 py-3 text-center text-sm font-bold transition-colors ${
+        on ? "border-teal bg-mint text-ocean" : "border-line text-ink-soft hover:bg-mint/60"
+      }`}
+    >
+      {icon}
+      <span className="leading-tight">{label}</span>
+      {on && <span className="text-[11px] font-extrabold tracking-wider text-accent uppercase">On</span>}
+    </button>
   );
 }

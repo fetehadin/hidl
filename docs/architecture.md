@@ -29,8 +29,17 @@ layer physically cannot violate it, even with a bug:
   the future (`..._letter_date_any_direction.sql`; `changeLetterDate` / `ChangeDateForm`). `src/lib/data/letters.ts` mirrors this: `LETTER_META_COLUMNS`
   never includes `body`; reading it goes through `openLetter()` → the RPC, with `LetterSealedError` thrown on the
   `hint: "sealed"` error code.
-- *Letter encryption* (`..._letter_encryption.sql`, `..._letter_keys_ways_in.sql`, `src/lib/e2ee.ts`): letter
-  bodies are end-to-end encrypted in the browser. Each person has a letter key (AES-256-GCM) and an ECDH P-256
+- *Letters sealed on the server* (since Nov 11, 2026; `..._letters_server_sealed.sql`, `src/lib/letter-crypto.ts`):
+  the way Telegram's cloud chats work. `createLetter` gets the text over TLS and stores
+  `srv1.<iv>.<AES-256-GCM ciphertext + tag>` (with `encrypted = false`), using `LETTER_SECRET_KEY`, which lives only
+  in the server's environment, and the owner's user id as additional data (a body copied to another account won't
+  open). So Supabase, its backups and anyone reading the database see ciphertext; hidl's server can read letters,
+  which is what lets them open on any device with nothing to set up. `openLetter()` decrypts after `open_letter`
+  has checked the date. Breaking a seal first asks for the device's app lock (`confirmWithLock()` in
+  `src/components/lock/confirm-lock.ts`, answered by `<AppLockGate>` with a cancellable lock screen); with no lock
+  set it goes straight ahead. The key must never change or be lost (every sealed letter needs it).
+- *End-to-end letters* (before Nov 11, 2026; `..._letter_encryption.sql`, `..._letter_keys_ways_in.sql`,
+  `src/lib/e2ee.ts`): letter bodies were end-to-end encrypted in the browser. Each person has a letter key (AES-256-GCM) and an ECDH P-256
   key pair: the public half is stored plain and new letters are encrypted to it (`e2e2.<ephemeral>.<iv>.<ct>`), so
   **writing never asks for anything**; the private half is stored encrypted with the letter key, so reading needs
   the letter key. Older bodies (`e2e1.<iv>.<ct>`) use the letter key directly. `letter_keys` holds the letter key
@@ -44,9 +53,9 @@ layer physically cannot violate it, even with a bug:
   sees the raw letter key or text; it sees the email half once, in transit, to send it. Anything that writes or
   reads an encrypted body sits inside `<LetterKeyGate need="write" | "read">` (`src/components/letters/letter-key.tsx`),
   which provides `useLetterWriter()` / `useLetterReader()`. The unlocked key is remembered per device as a
-  non-extractable CryptoKey in IndexedDB (`src/lib/key-store.ts`), wiped on `/login` with the photo cache. Adding
-  or changing a way in (Account) unlocks first with any way that works, then wraps the *same* key, so old letters
-  still open. `open_letter` predates `encrypted`; read the flag
+  non-extractable CryptoKey in IndexedDB (`src/lib/key-store.ts`), wiped on `/login` with the photo cache. New letters
+  no longer use any of this, and Account no longer manages the ways in; an old letter's page still unlocks with
+  any of them (`<LetterKeyGate need="read">`). `open_letter` predates `encrypted`; read the flag
   from the letter's meta. Older letters (`encrypted = false`) stay plain text: they're immutable once sealed.
 - *Photos*: a day can hold any number of photos (no per-day limit); `photos_before_write` rejects future dates
   using the database clock in the owner's time zone (`user_settings.time_zone`, else Africa/Addis_Ababa) as the

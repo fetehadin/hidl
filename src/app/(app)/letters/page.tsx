@@ -25,7 +25,7 @@ export default async function LettersPage({ searchParams }: PageProps<"/letters"
 
   return (
     <>
-      <PageHeader eyebrow="sealed for later" title="Letters">
+      <PageHeader eyebrow="your post box" title="Letters">
         <Link href="/letters/new" className="btn btn-primary">
           <PlusIcon width={18} height={18} />
           Write
