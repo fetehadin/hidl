@@ -70,7 +70,7 @@ function Form({ from, onAgain }: { from?: string; onAgain: () => void }) {
           aria-invalid={Boolean(messageError)}
           aria-describedby="feedback-message-help"
           className="field"
-          placeholder={kind === "bug" ? "When I tap …, the page …" : "I wish hidl could …"}
+          placeholder={kind === "bug" ? "When I tap …, the page …" : "I wish Hidl could …"}
         />
         <p id="feedback-message-help" className="mt-1 flex justify-between gap-2 text-xs text-muted">
           <span>Don&apos;t include anything from a private letter: admins can read what you send here.</span>

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "hidl",
+    "name": "Hidl",
     "slug": "hidl",
     "owner": "fetebuild",
     "scheme": "hidl",
@@ -35,7 +35,7 @@
           "widgets": [
             {
               "name": "CountdownSmall",
-              "label": "hidl countdown · small",
+              "label": "Hidl countdown · small",
               "description": "Hidi and the big number. Tap to flip.",
               "minWidth": "110dp",
               "minHeight": "110dp",
@@ -48,7 +48,7 @@
             },
             {
               "name": "Countdown",
-              "label": "hidl countdown",
+              "label": "Hidl countdown",
               "description": "Your countdowns, soonest first, with arrows to flip.",
               "minWidth": "250dp",
               "minHeight": "110dp",
@@ -61,7 +61,7 @@
             },
             {
               "name": "CountdownLarge",
-              "label": "hidl countdowns · large",
+              "label": "Hidl countdowns · large",
               "description": "Hidi up top and a list of every countdown.",
               "minWidth": "250dp",
               "minHeight": "250dp",

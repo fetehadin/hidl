@@ -132,7 +132,7 @@ export class WrongSecretError extends Error {
       {
         passphrase: "That passphrase doesn't unlock your letters.",
         "recovery key": "That recovery key doesn't match.",
-        "email key": "That key doesn't match. Use the newest \"Your hidl letter key\" email.",
+        "email key": "That key doesn't match. Use the newest \"Your Hidl letter key\" email.",
         passkey: "That passkey isn't one your letters know.",
       }[what],
     );

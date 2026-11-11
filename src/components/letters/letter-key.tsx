@@ -269,7 +269,7 @@ function SetupCard({ onReady }: { onReady: (key: CryptoKey, bundle: KeyBundle, a
   return (
     <GateCard mood="wave" eyebrow="private letters" title="Only you can read them">
       <div className="space-y-3">
-        <Note icon="🔒">Letters are locked on this device before they&apos;re saved. Not even hidl can read them.</Note>
+        <Note icon="🔒">Letters are locked on this device before they&apos;re saved. Not even Hidl can read them.</Note>
         <Note icon="✉️">We email you a letter key. It opens your letters on any device, even years from now.</Note>
         <Note icon="👆">Then open them with your fingerprint or Face ID. Nothing to remember.</Note>
       </div>
@@ -376,7 +376,7 @@ export function UnlockCard({
                 autoCapitalize="characters" onChange={(e) => setSecret(e.target.value)} placeholder="XXXX-XXXX-…" />
               {way === "email" && (
                 <p className="mt-2 text-sm text-muted">
-                  Search your inbox for &ldquo;Your hidl letter key&rdquo;. Tapping the button in it works too.
+                  Search your inbox for &ldquo;Your Hidl letter key&rdquo;. Tapping the button in it works too.
                 </p>
               )}
             </div>
@@ -445,8 +445,8 @@ export function LetterKeyLink({ user, bundle, passkeys }: { user: KeyUser; bundl
     <GateCard mood="curious" eyebrow="private letters" title="That link didn't work">
       <p className="text-ink-soft">
         {state === "wrong"
-          ? "This key doesn't match your letters. Use the newest \"Your hidl letter key\" email, and make sure you're signed in to the same account."
-          : "Open the link from your \"Your hidl letter key\" email, or type the key in when a letter asks."}
+          ? "This key doesn't match your letters. Use the newest \"Your Hidl letter key\" email, and make sure you're signed in to the same account."
+          : "Open the link from your \"Your Hidl letter key\" email, or type the key in when a letter asks."}
       </p>
       <Link href="/letters" className="btn btn-ghost mt-5 w-full">Go to your letters</Link>
     </GateCard>

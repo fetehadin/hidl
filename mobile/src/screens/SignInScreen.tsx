@@ -99,7 +99,7 @@ export function SignInScreen({ onSignedIn }: { onSignedIn: (session: AppSession)
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
-            <Image source={require('../../assets/icon.png')} style={styles.mascot} accessibilityLabel="Hidi, the hidl mascot" />
+            <Image source={require('../../assets/icon.png')} style={styles.mascot} accessibilityLabel="Hidi, the Hidl mascot" />
             <Text style={styles.wordmark}>hidl</Text>
             <Text style={styles.tagline}>Letters to future you, countdowns, and a photo for every day.</Text>
           </View>

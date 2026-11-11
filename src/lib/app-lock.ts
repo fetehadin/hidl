@@ -13,7 +13,7 @@ export type LockKind = "pin" | "pattern";
 
 /** How long the app may be in the background before it locks again, in seconds. */
 export const LOCK_TIMEOUTS = [
-  { value: 0, label: "Every time I leave hidl" },
+  { value: 0, label: "Every time I leave Hidl" },
   { value: 60, label: "After 1 minute away" },
   { value: 300, label: "After 5 minutes away" },
   { value: 1800, label: "After 30 minutes away" },

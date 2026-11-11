@@ -59,8 +59,8 @@ function explain(e: unknown): never {
 function creationOptions(user: { id: string; email: string }, label: string, prf: boolean): CredentialCreationOptions {
   return {
     publicKey: {
-      rp: { name: "hidl", id: location.hostname },
-      user: { id: new TextEncoder().encode(`${user.id}:${label}`), name: user.email || "hidl", displayName: label },
+      rp: { name: "Hidl", id: location.hostname },
+      user: { id: new TextEncoder().encode(`${user.id}:${label}`), name: user.email || "Hidl", displayName: label },
       challenge: random(32),
       pubKeyCredParams: [
         { type: "public-key", alg: -7 },

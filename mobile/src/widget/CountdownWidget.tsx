@@ -80,7 +80,7 @@ export function CountdownWidget(props: WidgetProps) {
     <FlexWidget
       // The small widget flips on a tap; the others open hidl from anywhere outside the buttons.
       clickAction={layout === 'small' && flips ? NEXT : 'OPEN_APP'}
-      accessibilityLabel="hidl countdowns"
+      accessibilityLabel="Hidl countdowns"
       style={{
         width: 'match_parent',
         height: 'match_parent',
@@ -347,8 +347,8 @@ function ListCard({ look, items, index, now, tz, shown }: { look: Look; items: W
 function EmptyCard({ look, layout, props }: { look: Look; layout: ReturnType<typeof layoutFor>; props: WidgetProps }) {
   const error = props.state === 'error';
   const connected = props.state === 'empty' ? props.connected : true;
-  const title = error ? props.message : connected ? 'Add a countdown' : 'Open hidl to connect';
-  const hint = error ? 'Tap to open hidl' : connected ? 'Hidi is ready to count with you!' : 'Sign in once and I’ll count for you.';
+  const title = error ? props.message : connected ? 'Add a countdown' : 'Open Hidl to connect';
+  const hint = error ? 'Tap to open Hidl' : connected ? 'Hidi is ready to count with you!' : 'Sign in once and I’ll count for you.';
   const small = layout === 'small';
   const card = (
     <Chunky

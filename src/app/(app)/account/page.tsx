@@ -87,7 +87,7 @@ export default async function AccountPage() {
       </Section>
 
       <Section id="security" title="Security">
-        <Card title="App lock" note="Asked when hidl opens on this device, and before a letter's seal is broken.">
+        <Card title="App lock" note="Asked when Hidl opens on this device, and before a letter's seal is broken.">
           <AppLockSettings userId={user.id} email={user.email ?? ""} />
         </Card>
       </Section>

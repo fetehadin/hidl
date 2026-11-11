@@ -15,7 +15,7 @@ import { ANDROID_APP_PATH } from "@/lib/android-app";
  */
 export const metadata: Metadata = {
   title: "Install the app",
-  description: "Put hidl on your phone's home screen: steps for iPhone, Android and computers. No app store needed.",
+  description: "Put Hidl on your phone's home screen: steps for iPhone, Android and computers. No app store needed.",
   robots: { index: true, follow: true },
 };
 
@@ -37,9 +37,9 @@ export default async function InstallPage() {
   return (
     <div className="mx-auto max-w-3xl pt-10">
       <p className="eyebrow mb-2">get the app</p>
-      <h1 className="font-title text-4xl font-medium tracking-tight sm:text-5xl">Put hidl on your home screen</h1>
+      <h1 className="font-title text-4xl font-medium tracking-tight sm:text-5xl">Put Hidl on your home screen</h1>
       <p className="mt-4 text-lg text-ink-soft">
-        hidl installs straight from your web browser: no app store, no download to wait for. Once it&apos;s on your
+        Hidl installs straight from your web browser: no app store, no download to wait for. Once it&apos;s on your
         home screen it opens full screen with its own icon, just like any other app. You stay signed in.
       </p>
 
@@ -59,7 +59,7 @@ export default async function InstallPage() {
       <div className="card mt-8 p-6">
         <h2 className="font-display text-xl font-semibold">Good to know</h2>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-ink-soft">
-          <li>It&apos;s the same hidl as the website, with the same account. Nothing extra to sign up for.</li>
+          <li>It&apos;s the same Hidl as the website, with the same account. Nothing extra to sign up for.</li>
           <li>Updates arrive by themselves: there&apos;s nothing to update in a store.</li>
           <li>
             To remove it, press and hold the icon and choose Remove (iPhone) or Uninstall (Android), like any other
@@ -75,7 +75,7 @@ export default async function InstallPage() {
 
       <p className="mt-10 text-center">
         <Link href="/login" className="btn btn-primary min-h-12 px-6">
-          Sign in to hidl
+          Sign in to Hidl
         </Link>
       </p>
     </div>
@@ -87,29 +87,29 @@ const SECTIONS: Record<Platform, { title: string; browser: string; steps: React.
     title: "iPhone and iPad",
     browser: "Safari",
     steps: [
-      <>Open hidl in <strong>Safari</strong>.</>,
+      <>Open Hidl in <strong>Safari</strong>.</>,
       <>Tap the <strong>Share</strong> button <ShareGlyph /> at the bottom of the screen (at the top on iPad).</>,
       <>Scroll down and tap <strong>Add to Home Screen</strong>. If you don&apos;t see it, tap <strong>Edit Actions</strong> to add it.</>,
-      <>Tap <strong>Add</strong> in the top corner. hidl is now on your home screen.</>,
+      <>Tap <strong>Add</strong> in the top corner. Hidl is now on your home screen.</>,
     ],
   },
   android: {
     title: "Android",
     browser: "Chrome",
     steps: [
-      <>Open hidl in <strong>Chrome</strong>.</>,
+      <>Open Hidl in <strong>Chrome</strong>.</>,
       <>Tap the <strong>⋮</strong> menu in the top right corner.</>,
       <>Tap <strong>Install app</strong> (on some phones it&apos;s called <strong>Add to Home screen</strong>).</>,
-      <>Tap <strong>Install</strong>. hidl appears on your home screen and in your app list.</>,
+      <>Tap <strong>Install</strong>. Hidl appears on your home screen and in your app list.</>,
     ],
   },
   computer: {
     title: "Computer",
     browser: "Chrome or Edge",
     steps: [
-      <>Open hidl in <strong>Chrome</strong> or <strong>Edge</strong>.</>,
+      <>Open Hidl in <strong>Chrome</strong> or <strong>Edge</strong>.</>,
       <>Click the <strong>install icon</strong> at the right end of the address bar (a screen with a down arrow).</>,
-      <>Click <strong>Install</strong>. hidl opens in its own window and gets a spot in your apps.</>,
+      <>Click <strong>Install</strong>. Hidl opens in its own window and gets a spot in your apps.</>,
       <>Want it on your phone too? Scan the code with your phone&apos;s camera and follow the steps for your phone.</>,
     ],
   },
@@ -153,7 +153,7 @@ function AndroidApp() {
     <div className="mt-5 rounded-2xl bg-mint p-4">
       <h3 className="font-display text-lg font-semibold text-ocean">Want a countdown widget? Get the Android app</h3>
       <p className="mt-1 text-ink-soft">
-        The hidl app is the same journal and account, plus a home-screen widget that flips through your countdowns.
+        The Hidl app is the same journal and account, plus a home-screen widget that flips through your countdowns.
       </p>
       <ol className="mt-3 list-decimal space-y-1 pl-5 text-ink-soft">
         <li>Download it below and open the downloaded file.</li>
@@ -163,7 +163,7 @@ function AndroidApp() {
         </li>
         <li>
           Sign in, then press and hold your home screen, tap <strong>Widgets</strong>, and add{" "}
-          <strong>hidl countdown</strong>.
+          <strong>Hidl countdown</strong>.
         </li>
       </ol>
       <a href={ANDROID_APP_PATH} className="btn btn-primary mt-4 min-h-11" download>

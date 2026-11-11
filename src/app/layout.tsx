@@ -31,12 +31,12 @@ const hand = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: { default: "hidl", template: "%s · hidl" },
+  title: { default: "Hidl", template: "%s · Hidl" },
   description: "Letters, a countdown, and a year in pictures.",
   robots: { index: false, follow: false },
   appleWebApp: {
     capable: true,
-    title: "hidl",
+    title: "Hidl",
     // The normal status bar, colored live from theme-color (applyTheme updates it). With
     // "black-translucent" the clock was always white (unreadable in Teal Paper), and iPhones only
     // read this when the app starts, so switching themes left the bar mismatched.

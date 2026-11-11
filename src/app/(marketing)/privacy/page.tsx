@@ -9,7 +9,7 @@ import Link from "next/link";
  */
 export const metadata: Metadata = {
   title: "Privacy policy",
-  description: "What hidl stores, where it's kept, who can see it, and how to delete it.",
+  description: "What Hidl stores, where it's kept, who can see it, and how to delete it.",
   robots: { index: true, follow: true },
 };
 
@@ -24,20 +24,20 @@ export default function PrivacyPage() {
       <p className="mt-3 text-muted">Last updated {UPDATED}</p>
 
       <p className="mt-6 text-lg text-ink-soft">
-        hidl is a personal journal: letters to your future self, countdowns, and a photo calendar. This page explains,
-        in plain words, what hidl keeps about you, where it&apos;s kept, who can see it, and how to remove it. The short
+        Hidl is a personal journal: letters to your future self, countdowns, and a photo calendar. This page explains,
+        in plain words, what Hidl keeps about you, where it&apos;s kept, who can see it, and how to remove it. The short
         version: we keep only what the app needs to work, we never sell it or show you ads, and you can delete
         everything yourself at any time.
       </p>
 
-      <Section title="Who runs hidl">
+      <Section title="Who runs Hidl">
         <p>
-          hidl is built and run by Fetehadin Negash, an independent developer. For anything about your data, email{" "}
+          Hidl is built and run by Fetehadin Negash, an independent developer. For anything about your data, email{" "}
           <Mail />.
         </p>
       </Section>
 
-      <Section title="What hidl keeps">
+      <Section title="What Hidl keeps">
         <ul className="list-disc space-y-2 pl-5">
           <li>
             <strong>Your account:</strong> your email address. If you sign in with Google, also the name and profile
@@ -49,7 +49,7 @@ export default function PrivacyPage() {
             so nobody else can read it, including us. You open your letters with your fingerprint or Face ID (a passkey
             in your Apple or Google account), an optional passphrase, or the letter key we email you once. We don&apos;t
             keep that emailed half of the key: it passes through our email service once to reach you, and it only works
-            together with your hidl account. (Letters written before 3 November 2026, when encryption was added, are
+            together with your Hidl account. (Letters written before 3 November 2026, when encryption was added, are
             stored as plain text.)
           </li>
           <li>
@@ -70,7 +70,7 @@ export default function PrivacyPage() {
             version, so we can find the problem.
           </li>
           <li>
-            <strong>How hidl is used:</strong> the number of days you open hidl, and which pages are opened (through
+            <strong>How Hidl is used:</strong> the number of days you open Hidl, and which pages are opened (through
             PostHog, an analytics service, linked to your account&apos;s id, not your email, with the approximate
             country worked out from your internet address). No screen recordings, no keystrokes, nothing you write.
           </li>
@@ -81,11 +81,11 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <Section title="What hidl does with it">
+      <Section title="What Hidl does with it">
         <p>
           Only what you see in the app: showing you your own letters, countdowns and photos, opening letters on their
           date, emailing you a sign-in code and a note on the day a letter opens, the leaderboard, and
-          answering your feedback. We use the usage numbers to see whether hidl is working and being used.
+          answering your feedback. We use the usage numbers to see whether Hidl is working and being used.
         </p>
         <p className="mt-3">
           We don&apos;t sell your data, share it for advertising, show ads, or use your journal to train AI models.
@@ -104,7 +104,7 @@ export default function PrivacyPage() {
             photos.
           </li>
           <li>
-            <strong>hidl&apos;s administrators</strong> see your email address, when you joined and signed in, how many
+            <strong>Hidl&apos;s administrators</strong> see your email address, when you joined and signed in, how many
             letters, photos and countdowns you have, how much photo space you use, and feedback you send. They can&apos;t
             see letter text, photos, videos or captions.
           </li>
@@ -125,21 +125,21 @@ export default function PrivacyPage() {
             encrypted before they leave our server, kept for 28 days, and can&apos;t be read by Google.
           </li>
           <li>
-            <strong>Resend</strong> sends hidl&apos;s emails; <strong>PostHog</strong> counts page views;{" "}
-            <strong>Cloudflare</strong> answers for hidl&apos;s web address.
+            <strong>Resend</strong> sends Hidl&apos;s emails; <strong>PostHog</strong> counts page views;{" "}
+            <strong>Cloudflare</strong> answers for Hidl&apos;s web address.
           </li>
         </ul>
-        <p className="mt-3">These services only process your data to provide their part of hidl.</p>
+        <p className="mt-3">These services only process your data to provide their part of Hidl.</p>
       </Section>
 
       <Section title="Signing in with Google">
         <p>
-          If you choose &quot;Continue with Google&quot;, hidl receives your email address, name and basic profile
-          details from Google, and uses them only to create your account and sign you in. hidl asks for nothing else
+          If you choose &quot;Continue with Google&quot;, Hidl receives your email address, name and basic profile
+          details from Google, and uses them only to create your account and sign you in. Hidl asks for nothing else
           from your Google account: no Gmail, Drive, contacts or calendar.
         </p>
         <p className="mt-3">
-          hidl&apos;s use and transfer of information received from Google APIs adheres to the{" "}
+          Hidl&apos;s use and transfer of information received from Google APIs adheres to the{" "}
           <a
             href="https://developers.google.com/terms/api-services-user-data-policy"
             className="font-semibold text-accent hover:underline"
@@ -165,13 +165,13 @@ export default function PrivacyPage() {
 
       <Section title="Cookies">
         <p>
-          hidl uses cookies to keep you signed in and to remember your choices on this device (like the theme). The
+          Hidl uses cookies to keep you signed in and to remember your choices on this device (like the theme). The
           analytics service sets its own cookie to count visits. There are no advertising cookies.
         </p>
       </Section>
 
       <Section title="Children">
-        <p>hidl isn&apos;t meant for children under 13, and we don&apos;t knowingly keep their data.</p>
+        <p>Hidl isn&apos;t meant for children under 13, and we don&apos;t knowingly keep their data.</p>
       </Section>
 
       <Section title="Changes">
@@ -182,7 +182,7 @@ export default function PrivacyPage() {
 
       <p className="mt-12 text-ink-soft">
         <Link href="/" className="font-semibold text-accent hover:underline">
-          Back to hidl
+          Back to Hidl
         </Link>
       </p>
     </article>

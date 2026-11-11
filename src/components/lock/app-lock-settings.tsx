@@ -109,7 +109,7 @@ export function AppLockSettings({ userId, email }: { userId: string; email: stri
     const c = config?.passkeyId ? { ...fresh, passkeyId: config.passkeyId } : fresh;
     setBusy(false);
     if (!writeLock(userId, c)) {
-      setMessage({ tone: "error", text: "This browser won't let hidl save a lock (private browsing?)." });
+      setMessage({ tone: "error", text: "This browser won't let Hidl save a lock (private browsing?)." });
       return;
     }
     markSeen(userId, Date.now());

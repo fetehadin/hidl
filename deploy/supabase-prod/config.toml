@@ -252,15 +252,15 @@ port = 465
 user = "resend"
 pass = "env(SMTP_PASS)"
 admin_email = "hello@hidl.fetehadin.com"
-sender_name = "hidl"
+sender_name = "Hidl"
 
 # token_hash links (see src/app/auth/confirm/route.ts) work across browsers, unlike PKCE codes.
 [auth.email.template.magic_link]
-subject = "Your hidl sign-in code"
+subject = "Your Hidl sign-in code"
 content_path = "./supabase/templates/magic_link.html"
 
 [auth.email.template.confirmation]
-subject = "Welcome to hidl: confirm your email"
+subject = "Welcome to Hidl: confirm your email"
 content_path = "./supabase/templates/confirm_signup.html"
 
 # Uncomment to customize notification email template

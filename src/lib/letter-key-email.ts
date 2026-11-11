@@ -8,16 +8,16 @@ import { brandedEmail } from "./email-layout";
 export function letterKeyEmail(siteUrl: string, key: string, keyText: string) {
   const url = `${siteUrl}/letters/key#k=${key}`;
   return {
-    subject: "Your hidl letter key: keep this email",
+    subject: "Your Hidl letter key: keep this email",
     text: [
-      "This opens your private hidl letters on any device, even years from now. Keep this email.",
+      "This opens your private Hidl letters on any device, even years from now. Keep this email.",
       "",
-      "Sign in to hidl, then open this link:",
+      "Sign in to Hidl, then open this link:",
       url,
       "",
-      `Or type this key in when hidl asks: ${keyText}`,
+      `Or type this key in when Hidl asks: ${keyText}`,
       "",
-      "hidl doesn't keep this half of the key, so this email is the only copy. It only works together with your hidl account.",
+      "Hidl doesn't keep this half of the key, so this email is the only copy. It only works together with your Hidl account.",
     ].join("\n"),
     html: brandedEmail({
       siteUrl,
@@ -26,9 +26,9 @@ export function letterKeyEmail(siteUrl: string, key: string, keyText: string) {
       eyebrow: "your letter key",
       title: "Keep this email",
       intro:
-        "This opens your private letters on any device, even years from now. Sign in to hidl, then tap the button.",
+        "This opens your private letters on any device, even years from now. Sign in to Hidl, then tap the button.",
       cta: { label: "Unlock my letters", url },
-      note: `Or type this key in when hidl asks:<br><strong style="font-family:Menlo,Consolas,monospace;letter-spacing:0.5px;">${keyText}</strong><br><br>hidl doesn&rsquo;t keep this half of the key, so this email is the only copy. It only works together with your hidl account.`,
+      note: `Or type this key in when Hidl asks:<br><strong style="font-family:Menlo,Consolas,monospace;letter-spacing:0.5px;">${keyText}</strong><br><br>Hidl doesn&rsquo;t keep this half of the key, so this email is the only copy. It only works together with your Hidl account.`,
     }),
   };
 }

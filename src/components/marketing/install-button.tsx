@@ -33,10 +33,10 @@ export function InstallButton() {
   }, []);
 
   if (state === "standalone") {
-    return <p className="rounded-2xl bg-mint px-4 py-3 font-semibold text-ocean">You&apos;re already using the hidl app. 🎉</p>;
+    return <p className="rounded-2xl bg-mint px-4 py-3 font-semibold text-ocean">You&apos;re already using the Hidl app. 🎉</p>;
   }
   if (state === "installed") {
-    return <p className="rounded-2xl bg-mint px-4 py-3 font-semibold text-ocean">Installed! Find hidl on your home screen.</p>;
+    return <p className="rounded-2xl bg-mint px-4 py-3 font-semibold text-ocean">Installed! Find Hidl on your home screen.</p>;
   }
   if (!prompt) return null;
   return (
@@ -50,7 +50,7 @@ export function InstallButton() {
         setPrompt(null);
       }}
     >
-      Install hidl
+      Install Hidl
     </button>
   );
 }
