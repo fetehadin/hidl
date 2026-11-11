@@ -6,6 +6,7 @@ import { Mascot } from "@/components/mascot";
 import { FingerprintIcon } from "@/components/letters/letter-key";
 import { type LockConfig, checkLock, patternSecret, pinSecret, shouldLock, waitAfterFailures } from "@/lib/app-lock";
 import { PasskeyError, checkLockPasskey } from "@/lib/passkey";
+import { CONFIRM_LOCK_EVENT, type ConfirmLockDetail } from "./confirm-lock";
 import { clearLock, markSeen, readLock, readSeen, writeLock } from "./lock-store";
 import { PatternPad } from "./pattern-pad";
 import { PinPad } from "./pin-pad";
@@ -21,6 +22,9 @@ import { PinPad } from "./pin-pad";
 export function AppLockGate({ userId, initiallyLocked, children }: { userId: string; initiallyLocked: boolean; children: ReactNode }) {
   const [locked, setLocked] = useState(initiallyLocked);
   const [config, setConfig] = useState<LockConfig | null>(null);
+  /** Locked on request (confirmWithLock, e.g. before opening a letter): can be cancelled. */
+  const asked = useRef<ConfirmLockDetail["resolve"] | null>(null);
+  const [cancellable, setCancellable] = useState(false);
 
   // Decide on mount: storage only exists in the browser.
   useEffect(() => {
@@ -71,10 +75,36 @@ export function AppLockGate({ userId, initiallyLocked, children }: { userId: str
     return () => window.removeEventListener("hidl-lock-change", onChange);
   }, [userId]);
 
+  // Something private asks for the lock first (confirm-lock.ts).
+  useEffect(() => {
+    function onConfirm(e: Event) {
+      const c = readLock(userId);
+      if (!c) return; // no lock here: the asker goes ahead
+      e.preventDefault();
+      asked.current?.(false);
+      asked.current = (e as CustomEvent<ConfirmLockDetail>).detail.resolve;
+      setCancellable(true);
+      setConfig(c);
+      setLocked(true);
+    }
+    window.addEventListener(CONFIRM_LOCK_EVENT, onConfirm);
+    return () => window.removeEventListener(CONFIRM_LOCK_EVENT, onConfirm);
+  }, [userId]);
+
   const unlock = useCallback(() => {
     markSeen(userId, Date.now());
     setLocked(false);
+    setCancellable(false);
+    asked.current?.(true);
+    asked.current = null;
   }, [userId]);
+
+  const cancel = useCallback(() => {
+    setLocked(false);
+    setCancellable(false);
+    asked.current?.(false);
+    asked.current = null;
+  }, []);
 
   return (
     <>
@@ -83,12 +113,31 @@ export function AppLockGate({ userId, initiallyLocked, children }: { userId: str
         {children}
       </div>
       {/* Remounts once the config has loaded, so the wait state starts from what was stored. */}
-      {locked && <LockScreen key={config ? "ready" : "loading"} userId={userId} config={config} onUnlock={unlock} />}
+      {locked && (
+        <LockScreen
+          key={config ? "ready" : "loading"}
+          userId={userId}
+          config={config}
+          onUnlock={unlock}
+          onCancel={cancellable ? cancel : undefined}
+        />
+      )}
     </>
   );
 }
 
-function LockScreen({ userId, config, onUnlock }: { userId: string; config: LockConfig | null; onUnlock: () => void }) {
+function LockScreen({
+  userId,
+  config,
+  onUnlock,
+  onCancel,
+}: {
+  userId: string;
+  config: LockConfig | null;
+  onUnlock: () => void;
+  /** Only when the lock was asked for (opening a letter): back to where you were. */
+  onCancel?: () => void;
+}) {
   const [checking, setChecking] = useState(false);
   const [wrong, setWrong] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
@@ -168,7 +217,7 @@ function LockScreen({ userId, config, onUnlock }: { userId: string; config: Lock
     >
       <Mascot mood="sleepy" size={84} float={false} />
       <div className="text-center">
-        <h1 id="lock-title" className="font-title text-2xl font-medium">hidl is locked</h1>
+        <h1 id="lock-title" className="font-title text-2xl font-medium">{onCancel ? "It's you, right?" : "hidl is locked"}</h1>
         <p className="mt-1 text-sm text-ink-soft" aria-live="polite">
           {!config
             ? "One moment…"
@@ -194,10 +243,18 @@ function LockScreen({ userId, config, onUnlock }: { userId: string; config: Lock
       )}
 
       <form id="lock-sign-out" action={signOut} />
-      <button type="button" onClick={forgot} className="text-sm font-bold text-accent hover:underline">
-        Forgot it? Sign out
-      </button>
-      <p className="max-w-xs text-center text-xs text-muted">Signing out removes the lock from this device. Sign back in with your email.</p>
+      {onCancel ? (
+        <button type="button" onClick={onCancel} className="btn btn-ghost">
+          Cancel
+        </button>
+      ) : (
+        <>
+          <button type="button" onClick={forgot} className="text-sm font-bold text-accent hover:underline">
+            Forgot it? Sign out
+          </button>
+          <p className="max-w-xs text-center text-xs text-muted">Signing out removes the lock from this device. Sign back in with your email.</p>
+        </>
+      )}
     </div>
   );
 }

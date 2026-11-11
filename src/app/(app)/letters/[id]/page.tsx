@@ -101,8 +101,8 @@ async function OpenedLetter({ id, encrypted, keyUser, bundle, passkeys }: {
   bundle: KeyBundle | null;
   passkeys: LetterPasskey[];
 }) {
-  const { supabase, calendar, timeZone } = await requireUser();
-  const letter = await openLetter(supabase, id);
+  const { supabase, user, calendar, timeZone } = await requireUser();
+  const letter = await openLetter(supabase, id, user.id);
   const paper = {
     title: letter.title,
     recipient: letter.recipient,

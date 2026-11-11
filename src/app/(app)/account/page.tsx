@@ -1,167 +1,172 @@
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import Link from "next/link";
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { signOut } from "@/actions/auth";
 import { AppCodeCard } from "@/components/account/app-code-card";
 import { AvatarBuilder } from "@/components/account/avatar-builder";
+import { BuddyCard } from "@/components/account/buddy-card";
 import { CalendarChoice } from "@/components/account/calendar-choice";
 import { DeleteAccountButton } from "@/components/account/delete-account-button";
-import { LetterEncryption } from "@/components/account/letter-encryption";
+import { Avatar } from "@/components/avatar";
 import { AppLockSettings } from "@/components/lock/app-lock-settings";
+import { Mascot } from "@/components/mascot";
+import { PageHeader } from "@/components/page-header";
 import { PhotoSpaceNotice } from "@/components/photo-space-notice";
 import { ProfileEditor } from "@/components/profile/profile-editor";
-import { ThemeChoice } from "@/components/theme/theme-choice";
-import { THEME_COOKIE, parseTheme } from "@/lib/theme";
-import { PageHeader } from "@/components/page-header";
 import { DEFAULT_AVATAR } from "@/lib/avatar";
-import { getKeyBundle, getLetterPasskeys } from "@/lib/data/letter-keys";
 import { getProfile } from "@/lib/data/profile";
 import { mediaUsage } from "@/lib/storage";
 import { isAdmin, requireUser } from "@/lib/supabase/server";
-import { requestNow, timeZoneCity } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Account" };
 
+/**
+ * Account, in a few groups with quick links at the top: profile, security, preferences, the
+ * phone app (on the website only), help, and deleting the account. The theme lives in the menu's
+ * half-circle button, and letters need no setup here (they're sealed on the server).
+ */
 export default async function AccountPage() {
-  const { supabase, user, calendar, timeZone } = await requireUser();
-  const [bundle, passkeys, profile, admin, space] = await Promise.all([
-    getKeyBundle(supabase),
-    getLetterPasskeys(supabase),
+  const { supabase, user, calendar } = await requireUser();
+  const [profile, admin, space] = await Promise.all([
     getProfile(supabase),
     isAdmin(supabase, user),
     mediaUsage(supabase).catch(() => null),
   ]);
   const buddy = profile.avatar;
-  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   // Inside the phone app there's nothing to hand over to.
   const inApp = ((await headers()).get("user-agent") ?? "").includes("hidl-app");
+
+  const sections = [
+    { id: "profile", label: "Profile" },
+    { id: "security", label: "Security" },
+    { id: "preferences", label: "Preferences" },
+    ...(inApp ? [] : [{ id: "phone-app", label: "Phone app" }]),
+    { id: "help", label: "Help" },
+  ];
 
   return (
     <>
       <PageHeader eyebrow="account" title="Your account" />
-      <div className="card p-5 sm:p-6">
-        <p className="text-sm text-ink-soft">Signed in as</p>
-        <p className="font-display text-xl">{user.email}</p>
-        <form action={signOut} className="mt-4">
-          <button type="submit" className="btn btn-ghost">
+
+      <div className="card flex items-center gap-4 p-4 sm:p-5">
+        {buddy ? <Avatar config={buddy} size={56} /> : <Mascot mood="happy" size={56} float={false} />}
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-display text-lg font-semibold">{profile.displayName ?? "You"}</p>
+          <p className="truncate text-sm text-muted">{user.email}</p>
+        </div>
+        <form action={signOut}>
+          <button type="submit" className="btn btn-ghost min-h-10 px-4">
             Sign out
           </button>
         </form>
       </div>
 
+      <nav aria-label="Account sections" className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1">
+        {sections.map((s) => (
+          <a
+            key={s.id}
+            href={`#${s.id}`}
+            className="shrink-0 rounded-full border border-line bg-card px-4 py-2 text-sm font-bold text-ink-soft hover:bg-mint hover:text-ocean"
+          >
+            {s.label}
+          </a>
+        ))}
+      </nav>
+
       {/* Nothing below 90% of the photo space. */}
       {space && <PhotoSpaceNotice used={space.used} quota={space.quota} showLink className="mt-4" />}
 
+      <Section id="profile" title="Profile">
+        <Card title="How others see you" note="Your name and buddy on the leaderboard. Your email is never shown.">
+          <ProfileEditor displayName={profile.displayName} avatar={buddy} showOnLeaderboard={profile.showOnLeaderboard} />
+        </Card>
+        <BuddyCard>
+          <AvatarBuilder initial={buddy ?? DEFAULT_AVATAR} hasBuddy={buddy !== null} />
+        </BuddyCard>
+      </Section>
+
+      <Section id="security" title="Security">
+        <Card title="App lock" note="Asked when hidl opens on this device, and before a letter's seal is broken.">
+          <AppLockSettings userId={user.id} email={user.email ?? ""} />
+        </Card>
+      </Section>
+
+      <Section id="preferences" title="Preferences">
+        <Card title="Calendar">
+          <CalendarChoice current={calendar} />
+        </Card>
+      </Section>
+
       {!inApp && (
-        <div id="phone-app" className="card mt-4 scroll-mt-6 p-5 sm:p-6">
-          <p className="eyebrow mb-1">phone app</p>
-          <h2 className="font-display text-xl font-semibold">Sign in on the phone app</h2>
-          <p className="mt-1 mb-4 text-ink-soft">
-            Get a code here and type it on the app&apos;s sign-in screen. No email needed.{" "}
-            <Link href="/install" className="font-semibold text-accent hover:underline">
-              Get the app
-            </Link>
-          </p>
-          <AppCodeCard />
-        </div>
+        <Section id="phone-app" title="Phone app">
+          <Card
+            title="Sign in on the phone app"
+            note={
+              <>
+                Type this code on the app&apos;s sign-in screen.{" "}
+                <Link href="/install" className="font-semibold text-accent hover:underline">
+                  Get the app
+                </Link>
+              </>
+            }
+          >
+            <AppCodeCard />
+          </Card>
+        </Section>
       )}
 
-      <div id="profile" className="card mt-4 scroll-mt-6 p-5 sm:p-6">
-        <p className="eyebrow mb-1">profile</p>
-        <h2 className="font-display text-xl font-semibold">How others see you</h2>
-        <p className="mt-1 mb-5 text-ink-soft">Your name and buddy on the leaderboard. Your email is never shown to anyone.</p>
-        <ProfileEditor
-          displayName={profile.displayName}
-          avatar={buddy}
-          showOnLeaderboard={profile.showOnLeaderboard}
-        />
-      </div>
-
-      <div id="buddy" className="card mt-4 scroll-mt-6 p-5 sm:p-6">
-        <p className="eyebrow mb-1">you</p>
-        <h2 className="font-display text-xl font-semibold">Your buddy</h2>
-        <p className="mt-1 mb-5 text-ink-soft">Make a little character that&apos;s yours. It takes Hidi&apos;s place around the app (Hidi keeps the logo).</p>
-        <AvatarBuilder initial={buddy ?? DEFAULT_AVATAR} hasBuddy={buddy !== null} />
-      </div>
-
-      <div className="card mt-4 p-5 sm:p-6">
-        <p className="eyebrow mb-1">appearance</p>
-        <h2 className="font-display text-xl font-semibold">Theme</h2>
-        <p className="mt-1 mb-4 text-ink-soft">
-          How hidl looks on this device. Hidi and your buddy change color with it. You can also switch with the{" "}
-          <span className="font-semibold">half-circle</span> button in the menu.
-        </p>
-        <ThemeChoice serverTheme={theme} />
-      </div>
-
-      <div className="card mt-4 p-5 sm:p-6">
-        <p className="eyebrow mb-1">dates</p>
-        <h2 className="font-display text-xl font-semibold">Calendar</h2>
-        <p className="mt-1 mb-4 text-ink-soft">Which calendar hidl shows your dates in.</p>
-        <CalendarChoice current={calendar} now={requestNow()} />
-        <p className="mt-4 text-sm text-muted">
-          Times and &ldquo;today&rdquo; follow your device&rsquo;s time zone, now{" "}
-          <span className="font-semibold text-ink-soft">{timeZoneCity(timeZone)}</span> ({timeZone}). It updates by itself when you
-          travel.
-        </p>
-      </div>
-
-      <div className="card mt-4 p-5 sm:p-6">
-        <p className="eyebrow mb-1">privacy</p>
-        <h2 className="font-display text-xl font-semibold">Private letters</h2>
-        <p className="mt-1 mb-4 text-ink-soft">End-to-end encryption for what you write in your letters.</p>
-        <LetterEncryption user={{ id: user.id, email: user.email ?? "" }} bundle={bundle} passkeys={passkeys} />
-      </div>
-
-      <div className="card mt-4 p-5 sm:p-6">
-        <p className="eyebrow mb-1">privacy</p>
-        <h2 className="font-display text-xl font-semibold">Lock this device</h2>
-        <p className="mt-1 mb-4 text-ink-soft">
-          Ask for a PIN or pattern when hidl opens on this phone or computer, so nobody who picks it up can look through your
-          journal. Set it on each device you want locked. Forgot it? Sign out and back in with your email.
-        </p>
-        <AppLockSettings userId={user.id} email={user.email ?? ""} />
-      </div>
-
-      <div className="card mt-4 p-5 sm:p-6">
-        <p className="eyebrow mb-1">leaderboard</p>
-        <h2 className="font-display text-xl font-semibold">Photo streaks</h2>
-        <p className="mt-1 mb-4 text-ink-soft">See who kept the longest photo streak this week and this month.</p>
-        <Link href="/leaderboard" className="btn btn-ghost">
-          Open the leaderboard
-        </Link>
-      </div>
-
-      <div className="card mt-4 p-5 sm:p-6">
-        <p className="eyebrow mb-1">feedback</p>
-        <h2 className="font-display text-xl font-semibold">Tell us what you think</h2>
-        <p className="mt-1 mb-4 text-ink-soft">Report a bug, suggest an idea, or just say hi. You&apos;ll see any reply on the feedback page.</p>
-        <Link href="/feedback?from=/account" className="btn btn-ghost">
-          Send feedback
-        </Link>
-      </div>
-
-      {admin && (
-        <div className="card mt-4 p-5 sm:p-6">
-          <p className="eyebrow mb-1">admin</p>
-          <h2 className="font-display text-xl font-semibold">Admin panel</h2>
-          <p className="mt-1 mb-4 text-ink-soft">Usage numbers, accounts, feedback and the audit log.</p>
-          <Link href="/admin" className="btn btn-ghost">
-            Open the admin panel
-          </Link>
+      <Section id="help" title="Help">
+        <div className="card divide-y divide-line overflow-hidden">
+          <RowLink href="/feedback?from=/account" title="Send feedback" note="A bug, an idea, or just hi" />
+          {admin && <RowLink href="/admin" title="Admin panel" note="Usage, accounts, feedback" />}
         </div>
-      )}
+      </Section>
 
-      <div className="card mt-4 border-wax/30 p-5 sm:p-6">
-        <p className="eyebrow mb-1 text-wax">danger zone</p>
-        <h2 className="font-display text-xl font-semibold">Delete your account</h2>
-        <p className="mt-1 text-ink-soft">
-          Permanently removes your letters, photos, and countdowns. This can&apos;t be undone.
-        </p>
-        <div className="mt-4">
+      <section aria-labelledby="danger-title" className="mt-10">
+        <div className="card border-wax/30 p-5 sm:p-6">
+          <h2 id="danger-title" className="font-display text-lg font-semibold">
+            Delete your account
+          </h2>
+          <p className="mt-1 mb-4 text-sm text-ink-soft">Removes your letters, photos and countdowns for good.</p>
           <DeleteAccountButton />
         </div>
-      </div>
+      </section>
     </>
+  );
+}
+
+function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return (
+    <section id={id} aria-labelledby={`${id}-title`} className="mt-8 scroll-mt-24">
+      <h2 id={`${id}-title`} className="mb-3 px-1 text-sm font-extrabold tracking-wider text-muted uppercase">
+        {title}
+      </h2>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
+
+function Card({ title, note, children }: { title: string; note?: ReactNode; children: ReactNode }) {
+  return (
+    <div className="card p-5 sm:p-6">
+      <h3 className="font-display text-lg font-semibold">{title}</h3>
+      {note && <p className="mt-0.5 text-sm text-ink-soft">{note}</p>}
+      <div className="mt-4">{children}</div>
+    </div>
+  );
+}
+
+function RowLink({ href, title, note }: { href: string; title: string; note: string }) {
+  return (
+    <Link href={href} className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-mint/60">
+      <span>
+        <span className="block font-semibold text-ink">{title}</span>
+        <span className="block text-sm text-muted">{note}</span>
+      </span>
+      <span aria-hidden className="text-xl text-muted">
+        ›
+      </span>
+    </Link>
   );
 }

@@ -9,7 +9,9 @@ import { Markdown } from "@/components/markdown";
 import { useCalendarPref, useTimeZone } from "@/components/calendar-pref";
 import { formatEthiopian } from "@/lib/ethiopian";
 import { formatInTz, localToUtc, timeZoneCity } from "@/lib/time";
-import { useLetterWriter } from "./letter-key";
+
+/** Mirrors LETTER_BODY_MAX in src/lib/validation/letters.ts (which a client component can't import). */
+const BODY_MAX = 30000;
 
 export const DRAFT_KEY = "hidl:letter-draft";
 const RECIPIENTS = ["Future me", "Me in five years", "Me in ten years", "Me on my next birthday", "Me, after the big day"];
@@ -38,9 +40,6 @@ export function LetterForm() {
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [tab, setTab] = useState<"write" | "preview">("write");
   const [confirming, setConfirming] = useState(false);
-  const [encrypting, setEncrypting] = useState(false);
-  const [encryptError, setEncryptError] = useState<string | null>(null);
-  const writer = useLetterWriter();
   const formRef = useRef<HTMLFormElement>(null);
   const loaded = useRef(false);
 
@@ -73,29 +72,17 @@ export function LetterForm() {
     if (formRef.current?.reportValidity()) setConfirming(true);
   }
 
-  /**
-   * Encrypts the letter text on this device, then sends the form with the ciphertext as
-   * `body`. The textarea has no `name`, so the plain text is never part of a submission.
-   */
-  async function seal() {
+  /** Sends the letter; the server encrypts it before it's stored (src/lib/letter-crypto.ts). */
+  function seal() {
     setConfirming(false);
     const form = formRef.current;
     if (!form) return;
-    setEncryptError(null);
-    setEncrypting(true);
-    try {
-      const fd = new FormData(form);
-      fd.set("body", await writer.encrypt(draft.body.trim()));
-      startTransition(() => action(fd));
-    } catch {
-      setEncryptError("Couldn't encrypt the letter on this device. Try again.");
-    } finally {
-      setEncrypting(false);
-    }
+    const fd = new FormData(form);
+    startTransition(() => action(fd));
   }
 
-  const busy = pending || encrypting;
-  const message = encryptError ?? state.message;
+  const busy = pending;
+  const message = state.message;
 
   return (
     <form
@@ -144,7 +131,7 @@ export function LetterForm() {
             ))}
           </div>
         </div>
-        <textarea id="body" required maxLength={50000} rows={12}
+        <textarea id="body" name="body" required maxLength={BODY_MAX} rows={12}
           className={`field letter-paper prose-letter min-h-72 resize-y px-4 py-[1.4rem] ${tab === "preview" ? "sr-only" : ""}`}
           placeholder={"Dear me,\n\nBy the time you read this…"} value={draft.body} onChange={set("body")}
           aria-invalid={Boolean(err("body"))} />
@@ -154,8 +141,8 @@ export function LetterForm() {
           </div>
         )}
         <p className="mt-1.5 text-sm text-muted">
-          Markdown works: **bold**, *italic*, lists, &gt; quotes. Your draft is kept on this device until you seal it,
-          then it&apos;s encrypted here before it&apos;s sent: only you can read it.
+          Markdown works: **bold**, *italic*, lists, &gt; quotes. Your draft stays on this device until you seal it.
+          Sealed letters are stored encrypted.
         </p>
         {err("body") && <p className="mt-1 text-sm text-wax">{err("body")}</p>}
       </div>
@@ -177,7 +164,7 @@ export function LetterForm() {
       <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted">Once sealed, it can&apos;t be edited or opened early.</p>
         <button type="button" className="btn btn-primary" onClick={askToSeal} disabled={busy}>
-          {encrypting ? "Encrypting…" : pending ? "Sealing…" : "Seal letter"}
+          {pending ? "Sealing…" : "Seal letter"}
         </button>
       </div>
 

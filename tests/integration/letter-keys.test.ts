@@ -55,7 +55,7 @@ describe("setting up without a passphrase", () => {
       .single();
     expect(error).toBeNull();
     await sleep(2500);
-    const opened = await openLetter(me.client, data!.id);
+    const opened = await openLetter(me.client, data!.id, me.id);
     const { data: bundle } = await me.client.from("letter_keys").select("*").single();
     const key = await unlockWithEmailKey(bundle, email.emailKey);
     expect(await decryptLetter(key, bundle, opened.body)).toBe("five years later");

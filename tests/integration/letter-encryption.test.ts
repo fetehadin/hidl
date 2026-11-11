@@ -89,10 +89,10 @@ describe("encrypted letters", () => {
   it("is still time-locked, then opens to ciphertext only the passphrase can decrypt", async () => {
     const text = "Only future me reads this.";
     const { data } = await insert(await encryptBody(mine.letterKey, text), true, inSeconds(2));
-    await expect(openLetter(me.client, data!.id)).rejects.toThrow();
+    await expect(openLetter(me.client, data!.id, me.id)).rejects.toThrow();
 
     await sleep(2500);
-    const opened = await openLetter(me.client, data!.id);
+    const opened = await openLetter(me.client, data!.id, me.id);
     expect(opened.body).not.toContain("future me");
     const key = await unlockWithPassphrase(mine.bundle, "my long passphrase");
     expect(await decryptBody(key, opened.body)).toBe(text);

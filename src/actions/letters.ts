@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { LetterSealedError, getLetterMeta, openLetter } from "@/lib/data/letters";
+import { sealLetterBody } from "@/lib/letter-crypto";
 import { requireUser } from "@/lib/supabase/server";
 import { localToUtc } from "@/lib/time";
 import { letterIdSchema, newLetterSchema, changeDateSchema } from "@/lib/validation/letters";
@@ -26,16 +27,23 @@ export async function createLetter(_prev: FormState, formData: FormData): Promis
     };
   }
 
-  const { supabase, timeZone } = await requireUser();
+  const { supabase, user, timeZone } = await requireUser();
   const unlockAt = localToUtc(parsed.data.unlock_local, timeZone);
   if (unlockAt.getTime() < Date.now() + MIN_LEAD_MS) {
     return { status: "error", fieldErrors: { unlock_local: ["Pick a time in the future."] } };
   }
 
   const { title, recipient, occasion, body } = parsed.data;
+  let sealed: string;
+  try {
+    sealed = sealLetterBody(body, user.id);
+  } catch (error) {
+    console.error("createLetter", error);
+    return { status: "error", message: "Couldn't seal the letter. Try again." };
+  }
   const { error } = await supabase
     .from("letters")
-    .insert({ title, recipient, occasion, body, encrypted: true, unlock_at: unlockAt.toISOString() })
+    .insert({ title, recipient, occasion, body: sealed, encrypted: false, unlock_at: unlockAt.toISOString() })
     .select("id")
     .single();
 
@@ -57,9 +65,9 @@ export async function openLetterAction(id: string): Promise<OpenResult> {
   const parsedId = letterIdSchema.safeParse(id);
   if (!parsedId.success) return { ok: false, message: "Letter not found." };
 
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
   try {
-    const letter = await openLetter(supabase, parsedId.data);
+    const letter = await openLetter(supabase, parsedId.data, user.id);
     revalidatePath("/letters");
     revalidatePath("/");
     return { ok: true, body: letter.body, openedAt: letter.opened_at! };

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { openLetterBody } from "@/lib/letter-crypto";
 
 /** Every column except `body`, which the database refuses to return directly. */
 export const LETTER_META_COLUMNS =
@@ -9,7 +10,10 @@ export type LetterMeta = {
   title: string;
   recipient: string;
   occasion: string | null;
-  /** The body is end-to-end encrypted (src/lib/e2ee.ts); older letters are plain text. */
+  /**
+   * The body is end-to-end encrypted in the browser (src/lib/e2ee.ts, letters from before
+   * Nov 11, 2026). Otherwise it's sealed on the server (src/lib/letter-crypto.ts) or, older, plain.
+   */
   encrypted: boolean;
   unlock_at: string;
   created_at: string;
@@ -47,15 +51,18 @@ export async function getLetterMeta(supabase: SupabaseClient, id: string) {
 
 /**
  * Reads a letter's body through the database's `open_letter` function, which
- * refuses while now() < unlock_at and records opened_at on first open.
+ * refuses while now() < unlock_at and records opened_at on first open. A body the server
+ * sealed (src/lib/letter-crypto.ts) comes back decrypted; an end-to-end one stays as it is
+ * for the browser to decrypt.
  */
-export async function openLetter(supabase: SupabaseClient, id: string): Promise<OpenedLetter> {
+export async function openLetter(supabase: SupabaseClient, id: string, userId: string): Promise<OpenedLetter> {
   const { data, error } = await supabase.rpc("open_letter", { letter_id: id }).single();
   if (error) {
     if (error.hint === "sealed") throw new LetterSealedError();
     throw error;
   }
-  return data as OpenedLetter;
+  const letter = data as OpenedLetter;
+  return { ...letter, body: openLetterBody(letter.body, userId) };
 }
 
 /** The soonest letter still sealed, plus how many are unlocked but unread. */

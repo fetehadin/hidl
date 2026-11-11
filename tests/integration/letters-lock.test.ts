@@ -69,7 +69,7 @@ describe("a sealed letter's body is not retrievable before unlock_at", () => {
   });
 
   it("open_letter refuses while sealed and does not mark it opened", async () => {
-    await expect(openLetter(me.client, sealedId)).rejects.toBeInstanceOf(LetterSealedError);
+    await expect(openLetter(me.client, sealedId, me.id)).rejects.toBeInstanceOf(LetterSealedError);
     const meta = await getLetterMeta(me.client, sealedId);
     expect(meta?.opened_at).toBeNull();
   });
@@ -104,7 +104,7 @@ describe("a sealed letter's body is not retrievable before unlock_at", () => {
     expect(new Date(moveEarlier.data![0].unlock_at).toISOString()).toBe(earlier);
 
     // Still sealed after moving it earlier.
-    await expect(openLetter(me.client, sealedId)).rejects.toBeInstanceOf(LetterSealedError);
+    await expect(openLetter(me.client, sealedId, me.id)).rejects.toBeInstanceOf(LetterSealedError);
 
     // "Open it now" by the back door is still refused.
     const toPast = await me.client.from("letters").update({ unlock_at: inSeconds(-5) }).eq("id", sealedId);
@@ -124,7 +124,7 @@ describe("a sealed letter's body is not retrievable before unlock_at", () => {
 
   it("another user can neither see nor open it", async () => {
     expect(await getLetterMeta(other.client, sealedId)).toBeNull();
-    await expect(openLetter(other.client, sealedId)).rejects.toMatchObject({ code: "P0002" });
+    await expect(openLetter(other.client, sealedId, other.id)).rejects.toMatchObject({ code: "P0002" });
     const del = await other.client.from("letters").delete().eq("id", sealedId).select("id");
     expect(del.data).toEqual([]);
   });
@@ -142,14 +142,14 @@ describe("a sealed letter's body is not retrievable before unlock_at", () => {
 describe("once unlock_at passes", () => {
   it("open_letter returns the body and records opened_at once", async () => {
     const id = await insertLetter(me, inSeconds(2), "now you can read me");
-    await expect(openLetter(me.client, id)).rejects.toBeInstanceOf(LetterSealedError);
+    await expect(openLetter(me.client, id, me.id)).rejects.toBeInstanceOf(LetterSealedError);
 
     await sleep(2500);
-    const first = await openLetter(me.client, id);
+    const first = await openLetter(me.client, id, me.id);
     expect(first.body).toBe("now you can read me");
     expect(first.opened_at).not.toBeNull();
 
-    const second = await openLetter(me.client, id);
+    const second = await openLetter(me.client, id, me.id);
     expect(second.opened_at).toBe(first.opened_at);
 
     // Still unreadable through the table itself, and its date is now frozen.
