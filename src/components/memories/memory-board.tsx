@@ -119,6 +119,8 @@ export function MemoryBoard({
   usePreloadPhotoTools();
   const ethiopian = useCalendarPref() === "ethiopian";
   const [by, setBy] = useState<MemoryGroupBy>(groupBy);
+  /** Which camera button matches the view: the whole board, its middle island, or neither once moved by hand. */
+  const [view, setView] = useState<"all" | "home" | null>("home");
   const groupOrder = useMemo(() => groups.map((g) => g.id), [groups]);
   const groupNames = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
   const clusters = useMemo(() => layoutMemories(photos, by, groupOrder), [photos, by, groupOrder]);
@@ -340,6 +342,7 @@ export function MemoryBoard({
     const c = cam.current;
     cam.current = { tx: board.clientWidth / 2, ty: board.clientHeight / 2, scale: c.scale };
     apply();
+    setView("home");
     // Only when the grouping changes, not when the photos refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [by]);
@@ -405,6 +408,7 @@ export function MemoryBoard({
       e.preventDefault();
       stopAnim();
       setHint(false);
+      setView(null);
       const rect = board.getBoundingClientRect();
       if (e.ctrlKey || e.metaKey) {
         zoomAt(e.clientX - rect.left, e.clientY - rect.top, cam.current.scale * Math.exp(-e.deltaY * 0.01));
@@ -451,6 +455,7 @@ export function MemoryBoard({
       gesture.current.lastX = (a.x + b.x) / 2;
       gesture.current.lastY = (a.y + b.y) / 2;
       gesture.current.dragging = true;
+      setView(null);
       boardRef.current?.setPointerCapture(e.pointerId);
     }
   }
@@ -483,6 +488,7 @@ export function MemoryBoard({
       board.setPointerCapture(e.pointerId);
       board.dataset.dragging = "true";
       setHint(false);
+      setView(null);
     }
     if (!g.dragging) return;
 
@@ -560,13 +566,22 @@ export function MemoryBoard({
       "-": () => centerZoom(1 / 1.2),
       "0": () => flyTo(0, 0, 1),
     };
+    const home = e.key === "0";
     const move = moves[e.key];
     if (!move) return;
     e.preventDefault();
     stopAnim();
     setHint(false);
+    setView(home ? "home" : null);
     move();
     apply();
+  }
+
+  /** The camera buttons: the whole board, or back to its middle island (newest day / first group). */
+  function showView(key: "all" | "home") {
+    if (key === "all") fitAll();
+    else flyTo(0, 0, 1);
+    setView(key);
   }
 
   function openPhoto(cluster: MemoryCluster<PhotoView>, id: string, trigger: HTMLElement) {
@@ -729,12 +744,19 @@ export function MemoryBoard({
               <GatherIcon width={20} height={20} />
             </button>
             <span className="mx-0.5 h-6 w-px bg-line" aria-hidden />
-            <button type="button" className="rounded-full px-3 py-2 text-sm font-bold text-ink-soft hover:bg-paper-deep" onClick={fitAll}>
-              All
-            </button>
-            <button type="button" className="rounded-full bg-teal px-3.5 py-2 text-[15px] font-bold text-accent-ink hover:opacity-90" onClick={() => flyTo(0, 0, 1)}>
-              {by === "group" ? "Middle" : "Latest"}
-            </button>
+            {(["all", "home"] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={view === key}
+                className={`rounded-full px-3.5 py-2 text-sm font-bold transition-colors ${
+                  view === key ? "bg-teal text-accent-ink" : "text-ink-soft hover:bg-paper-deep"
+                }`}
+                onClick={() => showView(key)}
+              >
+                {key === "all" ? "All" : by === "group" ? "First group" : "Latest"}
+              </button>
+            ))}
             <span className="mx-0.5 h-6 w-px bg-line" aria-hidden />
             <button
               type="button"

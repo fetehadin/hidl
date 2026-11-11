@@ -11,9 +11,11 @@ export default async function MarketingLayout({ children }: { children: React.Re
   return (
     <div className="min-h-dvh">
       <Analytics />
-      <header className="mx-auto flex max-w-[72rem] items-center justify-between gap-4 px-5 pt-5 sm:px-8 sm:pt-7">
+      {/* Stays on screen while scrolling, so the menu and Sign in are always one tap away. */}
+      <header className="sticky top-[var(--safe-top)] z-40 border-b border-line/70 bg-paper/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-[72rem] items-center justify-between gap-3 px-5 py-2.5 sm:px-8 sm:py-3">
         <Link href="/" className="group flex items-center gap-2 font-brand text-[1.9rem] leading-none font-semibold tracking-tight text-teal">
-          <Mascot size={46} float={false} className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
+          <Mascot size={40} float={false} className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110 sm:w-[46px]" />
           Hidl
         </Link>
         <nav aria-label="Site" className="flex items-center gap-1 sm:gap-2">
@@ -27,10 +29,14 @@ export default async function MarketingLayout({ children }: { children: React.Re
             Get the app
           </Link>
           <ThemeToggle serverTheme={theme} className={"grid size-11 place-items-center rounded-full text-ink-soft transition-colors hover:bg-mint hover:text-ocean"} />
-          <Link href="/login" className="btn btn-primary min-h-11 px-5">
+          <Link href="/login?mode=signin" className="hidden rounded-full px-2.5 py-2 font-bold text-ink-soft hover:bg-mint hover:text-ocean min-[360px]:block sm:px-3">
             Sign in
           </Link>
+          <Link href="/login" className="btn btn-primary min-h-11 px-4 sm:px-5">
+            Get started
+          </Link>
         </nav>
+        </div>
       </header>
 
       <main className="mx-auto max-w-[72rem] px-5 pb-16 sm:px-8">{children}</main>
@@ -46,7 +52,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
           <p className="flex gap-4 font-semibold">
             <Link href="/install" className="hover:text-ocean">Install the app</Link>
             <Link href="/privacy" className="hover:text-ocean">Privacy</Link>
-            <Link href="/login" className="hover:text-ocean">Sign in</Link>
+            <Link href="/login?mode=signin" className="hover:text-ocean">Sign in</Link>
           </p>
         </div>
       </footer>

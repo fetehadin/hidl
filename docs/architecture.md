@@ -404,7 +404,8 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   may pull up to `MAX_PULL` (72 px) past it, stiffer the further it goes, and springs back on release; a fling
   stops at the edge. Wheel, keys and zoom stop firmly.
 - **The board's controls** are one bar at the bottom: the "Gather photos" menu, All (fit every island), Latest
-  (Middle when by group) and Share. There are no zoom buttons: pinch, ctrl+wheel and the + / − keys zoom. The title
+  ("First group" when by group) and Share. All and Latest are a pair: the one matching the view is filled teal,
+  and neither is once the board is moved by hand. There are no zoom buttons: pinch, ctrl+wheel and the + / − keys zoom. The title
   card at the top only names the page.
 - **Share as a picture** (`share-sheet.tsx` + `snapshot.ts`, loaded on tap). The sheet offers a **day, a week or a
   month** (in the person's calendar, Gregorian or Ethiopian, `src/lib/share-periods.ts`, with arrows to step back and

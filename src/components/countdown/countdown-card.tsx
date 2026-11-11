@@ -84,7 +84,7 @@ export function CountdownCard({
 
       {done && (
         <div className="mt-4 space-y-4">
-          <p className="font-display text-3xl font-semibold text-accent">{info.doneText}</p>
+          <p className="font-display text-xl font-bold text-accent sm:text-2xl">{info.doneText}</p>
           {countdown.kind === "exam" && countdown.max_score !== null && countdown.target_score !== null && (
             <>
               {countdown.actual_score !== null && (

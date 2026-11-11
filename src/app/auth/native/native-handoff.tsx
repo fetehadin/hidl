@@ -13,7 +13,7 @@ export function NativeHandoff() {
     // Out of the address bar and history before anything else.
     window.history.replaceState(null, "", window.location.pathname);
     if (!access_token || !refresh_token) {
-      window.location.replace("/login");
+      window.location.replace("/login?mode=signin");
       return;
     }
     createClient()
@@ -27,7 +27,7 @@ export function NativeHandoff() {
   if (!failed) return null;
   return (
     <p className="text-ink-soft">
-      That didn&rsquo;t work. <a href="/login" className="font-semibold text-accent underline">Sign in again</a>
+      That didn&rsquo;t work. <a href="/login?mode=signin" className="font-semibold text-accent underline">Sign in again</a>
     </p>
   );
 }

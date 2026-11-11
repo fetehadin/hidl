@@ -74,7 +74,7 @@ export default async function InstallPage() {
       </div>
 
       <p className="mt-10 text-center">
-        <Link href="/login" className="btn btn-primary min-h-12 px-6">
+        <Link href="/login?mode=signin" className="btn btn-primary min-h-12 px-6">
           Sign in to Hidl
         </Link>
       </p>
@@ -118,7 +118,7 @@ const SECTIONS: Record<Platform, { title: string; browser: string; steps: React.
 function Section({ platform, yours, siteUrl }: { platform: Platform; yours: boolean; siteUrl: string }) {
   const s = SECTIONS[platform];
   return (
-    <section id={platform} className={`card scroll-mt-6 p-6 ${yours ? "ring-4 ring-aqua" : ""}`}>
+    <section id={platform} className={`card scroll-mt-24 p-6 ${yours ? "ring-4 ring-aqua" : ""}`}>
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="font-display text-2xl font-semibold">{s.title}</h2>
         <span className="rounded-full bg-mint px-2.5 py-0.5 text-sm font-bold text-ocean">{s.browser}</span>
