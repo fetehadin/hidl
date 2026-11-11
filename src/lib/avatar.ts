@@ -29,12 +29,14 @@ export const AVATAR_PARTS = {
 export type AvatarPart = keyof typeof AVATAR_PARTS;
 export type AvatarConfig = { [K in AvatarPart]: (typeof AVATAR_PARTS)[K][number] };
 
+// The builder's tabs, in the usual avatar-maker order: the body first, then the face from the top
+// down, then what's worn, then the background. The keys stay as stored (avatar_ok in Postgres).
 export const PART_LABELS: Record<AvatarPart, string> = {
-  theme: "Color",
+  theme: "Body",
   eyes: "Eyes",
   mouth: "Mouth",
-  top: "Top",
-  extra: "Extra",
+  top: "Head",
+  extra: "Accessory",
   bg: "Background",
 };
 

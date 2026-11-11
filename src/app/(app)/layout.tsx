@@ -46,7 +46,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             </Link>
             <div className="flex items-center gap-1.5 sm:hidden">
               <ThemeToggle serverTheme={theme} className={"grid size-10 place-items-center rounded-full text-ink-soft transition-colors hover:bg-mint hover:text-ocean"} />
-              <Link href="/account" aria-label="Account" className="clay grid size-10 place-items-center overflow-hidden rounded-full">
+              <Link href="/account" aria-label="Account" className="grid size-10 place-items-center overflow-hidden rounded-full ring-2 ring-aqua transition-transform active:scale-95">
                 <ProfileImage avatar={buddy} size={40} />
               </Link>
             </div>

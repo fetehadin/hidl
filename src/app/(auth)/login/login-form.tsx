@@ -18,7 +18,7 @@ declare global {
   }
 }
 
-type Props = { turnstileSiteKey?: string; google?: boolean };
+type Props = { turnstileSiteKey?: string; google?: boolean; newAccount?: boolean };
 
 export function LoginForm(props: Props) {
   // "Use a different email" starts over with a fresh form (a new key resets its state).
@@ -26,7 +26,7 @@ export function LoginForm(props: Props) {
   return <LoginFlow key={round} {...props} onRestart={() => setRound((r) => r + 1)} />;
 }
 
-function LoginFlow({ turnstileSiteKey, google = false, onRestart }: Props & { onRestart: () => void }) {
+function LoginFlow({ turnstileSiteKey, google = false, newAccount = false, onRestart }: Props & { onRestart: () => void }) {
   const [state, action, pending] = useActionState(sendMagicLink, initial);
   const [, startResend] = useTransition();
   // Counts sends, so the code step's resend timer restarts after each one.
@@ -119,8 +119,9 @@ function LoginFlow({ turnstileSiteKey, google = false, onRestart }: Props & { on
           className="btn btn-primary w-full"
           disabled={pending || (!!turnstileSiteKey && !captchaToken)}
         >
-          {pending ? "Sending…" : "Email me a sign-in code"}
+          {pending ? "Sending…" : newAccount ? "Create my journal" : "Email me a sign-in code"}
         </button>
+        {newAccount && <p className="text-center text-sm text-muted">We&apos;ll email you a 6-digit code. No password to remember.</p>}
       </form>
     </>
   );

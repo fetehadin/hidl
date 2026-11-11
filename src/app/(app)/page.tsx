@@ -231,7 +231,10 @@ function CountdownHero({
           </div>
           <div className="flex min-w-0 lg:flex-1 lg:justify-end">
             {done ? (
-              <p className="animate-pop-in font-display text-5xl font-semibold text-accent sm:text-6xl">{info.doneText}</p>
+              <p className="animate-pop-in inline-flex items-center gap-2 rounded-full bg-mint px-4 py-2 font-display text-lg font-bold text-ocean sm:text-xl">
+                <span aria-hidden className="grid size-6 place-items-center rounded-full bg-teal text-sm text-accent-ink">✓</span>
+                {info.doneText}
+              </p>
             ) : (
               <LiveCountdown target={countdown.target_at} serverNow={now} units={countdown.units} size="large" />
             )}

@@ -88,7 +88,7 @@ export default function WelcomePage() {
       </section>
 
       {/* Features */}
-      <section id="features" className="scroll-mt-8 py-10">
+      <section id="features" className="scroll-mt-24 py-10">
         <p className="eyebrow mb-2 text-center">what&apos;s inside</p>
         <h2 className="text-center font-display text-4xl font-semibold tracking-tight">Four small things, kept well</h2>
 
@@ -151,7 +151,7 @@ export default function WelcomePage() {
       </section>
 
       {/* Privacy */}
-      <section id="privacy" className="scroll-mt-8 py-14">
+      <section id="privacy" className="scroll-mt-24 py-14">
         <div className="grid items-center gap-10 lg:grid-cols-[auto_1fr]">
           <MascotSays mood="curious" size={120} className="justify-center lg:justify-start">
             Psst. What you write
@@ -187,7 +187,7 @@ export default function WelcomePage() {
       </section>
 
       {/* Get the app */}
-      <section id="app" className="scroll-mt-8 py-6">
+      <section id="app" className="scroll-mt-24 py-6">
         <div className="card grid items-center gap-8 overflow-hidden p-6 md:grid-cols-[1fr_auto] md:p-10">
           <div>
             <p className="eyebrow mb-2">on your phone</p>
@@ -238,7 +238,7 @@ export default function WelcomePage() {
 
 function Feature({ icon, title, text, children }: { icon: React.ReactNode; title: string; text: string; children: React.ReactNode }) {
   return (
-    <article className="card flex flex-col p-6">
+    <article className="card flex min-w-0 flex-col p-6">
       <div className="flex items-center gap-3">
         <span className="grid size-11 shrink-0 place-items-center rounded-full bg-mint text-teal">{icon}</span>
         <h3 className="font-display text-xl font-semibold">{title}</h3>
@@ -290,7 +290,7 @@ function CountdownRow({ icon, title, sub, value, unit }: { icon: React.ReactNode
 
 function MiniLetter({ label, when, tilt }: { label: string; when: string; tilt?: boolean }) {
   return (
-    <div className={`w-44 ${tilt ? "rotate-[4deg]" : "-rotate-[3deg]"}`}>
+    <div className={`w-44 min-w-0 shrink ${tilt ? "rotate-[4deg]" : "-rotate-[3deg]"}`}>
       <Envelope state="sealed" initial="M">
         <div className="text-center">
           <p className="font-hand text-base text-accent">{label}</p>
