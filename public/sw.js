@@ -253,7 +253,10 @@ async function refreshSavedPage(url) {
   refreshing.add(key);
   try {
     const html = await savePage(url, await fetch(key, { credentials: "same-origin", headers: { accept: "text/html" } }));
-    if (html) await savePreviews(html);
+    if (html) {
+      await saveAppFiles(html);
+      await savePreviews(html);
+    }
   } catch {
     // Offline or failed: the old copy stays.
   } finally {
@@ -281,11 +284,35 @@ async function saveAllPages() {
     try {
       const url = new URL(path, self.location.origin);
       const html = await savePage(url, await fetch(path, { credentials: "same-origin", headers: { accept: "text/html" } }));
-      if (html) await savePreviews(html);
+      if (html) {
+        await saveAppFiles(html);
+        await savePreviews(html);
+      }
     } catch {
       return; // Offline again: try next time.
     } finally {
       refreshing.delete(path);
+    }
+  }
+}
+
+// The app's own files a saved page loads (its scripts, styles and fonts).
+const APP_FILE_LINK = /\/_next\/static\/[^"'\s<>\\)]+/g;
+
+/**
+ * Keeps the scripts and styles a saved page needs. A page saved without being visited would
+ * otherwise open offline as bare HTML that can't start (its code was never downloaded).
+ */
+async function saveAppFiles(html) {
+  const cache = await caches.open(STATIC_CACHE);
+  const paths = new Set([...html.matchAll(APP_FILE_LINK)].map((m) => m[0]));
+  for (const path of paths) {
+    if (await cache.match(path)) continue;
+    try {
+      const response = await fetch(path);
+      if (response.ok && (response.headers.get("cache-control") ?? "").includes("immutable")) await cache.put(path, response);
+    } catch {
+      return;
     }
   }
 }

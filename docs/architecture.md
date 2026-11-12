@@ -361,8 +361,11 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   - **Photos** are cached by storage path, ignoring the signed-URL token (paths are immutable; the token changes
     every render). Videos never are (Range requests).
   - **Saved pages:** the main pages (`PAGE_PATHS`: Today, Letters list, Countdown, Calendar, year, Memories,
-    Leaderboard) are kept as HTML when they load, and refreshed in the background (at most every 15 min per page)
-    after an in-app move to them. Only pages carrying `<meta name="hidl-offline">` (the `(app)` layout) are saved,
+    Leaderboard) are kept as HTML when they load, refreshed in the background (at most every 15 min per page)
+    after an in-app move to them, and all saved once the app has loaded online (`saveAllPages`, asked for by
+    `<OfflineStatus>`; each page at most once an hour, so at most one extra render per page per hour per person),
+    together with the scripts and styles each page loads (`saveAppFiles`: a page never visited would otherwise
+    open as HTML that can't start) and the photo previews on it (`savePreviews`, up to 150 a page). Only pages carrying `<meta name="hidl-offline">` (the `(app)` layout) are saved,
     so never the sign-in or welcome page, a letter (`/letters/<id>`), Account or Admin. Navigations are network
     first; the saved copy is served when the network fails or takes over 8 s, with `window.__hidlSavedAt` set (a
     script, because React removes extra `<head>` tags while hydrating). With no saved copy, `public/offline.html`.
@@ -371,9 +374,13 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   - **Page data** (Next's RSC requests): when one fails, Next falls back to a full reload, and a saved copy that
     refreshes itself on load would then reload forever. So offline, the worker holds the request and retries every
     5 s for up to 4 min.
-  - `<OfflineStatus>` (`src/components/offline-status.tsx`, in the `(app)` header) shows "Waiting for network…"
-    while `/api/health` can't be reached (a phone can be on Wi-Fi with no internet), then "Updating…" while it
-    calls `router.refresh()`. While waiting, links do full-page loads, which the worker answers from saved copies.
+  - `<OfflineStatus>` (`src/components/offline-status.tsx`, wrapping the logo in the `(app)` header) shows, in the
+    logo's place (Telegram-style), "Waiting for network…" while `/api/health` can't be reached (a phone can be on
+    Wi-Fi with no internet), then "Updating…" while it calls `router.refresh()`. While waiting, links do full-page
+    loads, which the worker answers from saved copies.
+  - **Phone app:** Android's web view can report a failed connection even when the worker showed a saved page, so
+    on a load error `WebShell` first asks the page (`PAGE_CHECK`) and shows its own offline screen only if no Hidl
+    page is there; the library's error view is turned off (`renderError`).
   - **Storage settings** (Account → Preferences, `src/components/account/storage-settings.tsx`,
     `src/lib/offline-storage.ts`, mirrored in `sw.js` and checked by `tests/unit/offline-storage.test.ts`): space
     used, Clear, how long unopened photos stay (1 week / **1 month** / forever), a space limit (**100 MB** / 500 MB /
