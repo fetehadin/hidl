@@ -17,13 +17,15 @@ import { getWidgetInfo, requestPinWidget } from 'react-native-android-widget';
 import { fetchFeed, saveFeedUrl } from '../feed';
 import { type Palette, THEME_KEY, type ThemeName, palettes, parseTheme } from '../theme';
 import { canCopyImages, canShareImages, copyImage, saveImage, shareImage } from '../share-image';
+import { biometricAvailable, canBiometric, checkBiometric } from '../biometric';
 import { refreshWidgets } from '../widget/connect';
 import { WIDGET_NAME, WIDGET_NAMES } from '../widget/CountdownWidget';
 
 // Tells the page, before its own scripts run, what this app can do (read in app-widget-help.tsx
 // and the memories share sheet). `widgets` (how many hidl widgets are on the home screen) is filled
-// in once the page has loaded. `shareImage` only where this APK has the native share modules.
-const ANNOUNCE = `window.hidlApp = { pinWidget: true, widgets: null, shareImage: ${canShareImages}, saveImage: ${canShareImages}, copyImage: ${canCopyImages} }; true;`;
+// in once the page has loaded. `shareImage` only where this APK has the native share modules;
+// `biometric` where it has the fingerprint module (the page then asks whether one is enrolled).
+const ANNOUNCE = `window.hidlApp = { pinWidget: true, widgets: null, shareImage: ${canShareImages}, saveImage: ${canShareImages}, copyImage: ${canCopyImages}, biometric: ${canBiometric} }; true;`;
 
 /** Answers the page with a "hidl-app" event. */
 function answerScript(detail: Record<string, unknown>) {
@@ -81,7 +83,7 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
   }, []);
 
   function onMessage(e: WebViewMessageEvent) {
-    let msg: { type?: string; theme?: unknown; feedUrl?: unknown; name?: unknown; data?: unknown };
+    let msg: { type?: string; theme?: unknown; feedUrl?: unknown; name?: unknown; data?: unknown; purpose?: unknown };
     try {
       msg = JSON.parse(e.nativeEvent.data);
     } catch {
@@ -102,6 +104,16 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
       copyImage(msg.name, msg.data)
         .catch(() => false)
         .then((ok) => web.current?.injectJavaScript(answerScript({ type: 'copy-image', ok })));
+    }
+    if (msg.type === 'biometric-available') {
+      biometricAvailable()
+        .catch(() => false)
+        .then((ok) => web.current?.injectJavaScript(answerScript({ type: 'biometric-available', ok })));
+    }
+    if (msg.type === 'biometric-check') {
+      checkBiometric(msg.purpose)
+        .catch(() => ({ ok: false, reason: 'failed' }))
+        .then((result) => web.current?.injectJavaScript(answerScript({ type: 'biometric-check', ...result })));
     }
     if (msg.type === 'save-image') {
       saveImage(msg.name, msg.data)

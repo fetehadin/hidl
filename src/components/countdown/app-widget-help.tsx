@@ -16,6 +16,8 @@ type HidlApp = {
   shareImage?: boolean;
   saveImage?: boolean;
   copyImage?: boolean;
+  /** The app can show the phone's fingerprint prompt (src/lib/app-biometric.ts). */
+  biometric?: boolean;
 };
 type AppEvent = { type: "pin-widget"; ok: boolean; supported: boolean } | { type: "widgets"; count: number };
 

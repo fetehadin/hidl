@@ -15,6 +15,7 @@ import {
 } from "@/lib/app-lock";
 import { KeypadIcon, PatternIcon } from "@/components/icons";
 import { FingerprintIcon } from "@/components/letters/letter-key";
+import { APP_BIOMETRIC_ID, appBiometricAvailable, checkAppBiometric } from "@/lib/app-biometric";
 import { PasskeyError, createLockPasskey, passkeysAvailable } from "@/lib/passkey";
 import { clearLock, markSeen, readLock, writeLock } from "./lock-store";
 import { PatternPad } from "./pattern-pad";
@@ -43,10 +44,16 @@ export function AppLockSettings({ userId, email }: { userId: string; email: stri
   const [reset, setReset] = useState(0);
   const [busy, setBusy] = useState(false);
   const [canPasskey, setCanPasskey] = useState(false);
+  // In the phone app the web view has no passkeys: the app's own fingerprint prompt stands in.
+  const [viaApp, setViaApp] = useState(false);
 
   useEffect(() => {
     let live = true;
-    passkeysAvailable().then((ok) => live && setCanPasskey(ok));
+    appBiometricAvailable().then(async (app) => {
+      if (!live) return;
+      setViaApp(app);
+      setCanPasskey(app || (await passkeysAvailable()));
+    });
     return () => {
       live = false;
     };
@@ -72,7 +79,13 @@ export function AppLockSettings({ userId, email }: { userId: string; email: stri
     if (on) {
       setBusy(true);
       try {
-        next = { ...base, passkeyId: await createLockPasskey({ id: userId, email }) };
+        if (viaApp) {
+          const r = await checkAppBiometric("setup");
+          if (!r.ok) throw r.cancelled ? new PasskeyError("cancelled", "") : new Error("Couldn't read your fingerprint. Try again.");
+          next = { ...base, passkeyId: APP_BIOMETRIC_ID };
+        } else {
+          next = { ...base, passkeyId: await createLockPasskey({ id: userId, email }) };
+        }
       } catch (e) {
         setBusy(false);
         if (!(e instanceof PasskeyError && e.reason === "cancelled")) {
