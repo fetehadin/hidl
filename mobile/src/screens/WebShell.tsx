@@ -19,13 +19,13 @@ import { type Palette, THEME_KEY, type ThemeName, palettes, parseTheme } from '.
 import { canCopyImages, canShareImages, copyImage, saveImage, shareImage } from '../share-image';
 import { biometricAvailable, canBiometric, checkBiometric } from '../biometric';
 import { refreshWidgets } from '../widget/connect';
-import { WIDGET_NAME, WIDGET_NAMES } from '../widget/CountdownWidget';
+import { WIDGET_NAMES, widgetNameForSize } from '../widget/CountdownWidget';
 
 // Tells the page, before its own scripts run, what this app can do (read in app-widget-help.tsx
 // and the memories share sheet). `widgets` (how many hidl widgets are on the home screen) is filled
 // in once the page has loaded. `shareImage` only where this APK has the native share modules;
 // `biometric` where it has the fingerprint module (the page then asks whether one is enrolled).
-const ANNOUNCE = `window.hidlApp = { pinWidget: true, widgets: null, shareImage: ${canShareImages}, saveImage: ${canShareImages}, copyImage: ${canCopyImages}, biometric: ${canBiometric} }; true;`;
+const ANNOUNCE = `window.hidlApp = { pinWidget: true, pinSizes: true, widgets: null, shareImage: ${canShareImages}, saveImage: ${canShareImages}, copyImage: ${canCopyImages}, biometric: ${canBiometric} }; true;`;
 
 /** Answers the page with a "hidl-app" event. */
 function answerScript(detail: Record<string, unknown>) {
@@ -83,7 +83,7 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
   }, []);
 
   function onMessage(e: WebViewMessageEvent) {
-    let msg: { type?: string; theme?: unknown; feedUrl?: unknown; name?: unknown; data?: unknown; purpose?: unknown };
+    let msg: { type?: string; theme?: unknown; feedUrl?: unknown; size?: unknown; name?: unknown; data?: unknown; purpose?: unknown };
     try {
       msg = JSON.parse(e.nativeEvent.data);
     } catch {
@@ -94,7 +94,7 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
       setTheme(next);
       AsyncStorage.setItem(THEME_KEY, next).catch(() => {});
     }
-    if (msg.type === 'pin-widget' && typeof msg.feedUrl === 'string') pinWidget(msg.feedUrl);
+    if (msg.type === 'pin-widget' && typeof msg.feedUrl === 'string') pinWidget(msg.feedUrl, msg.size);
     if (msg.type === 'share-image') {
       shareImage(msg.name, msg.data)
         .catch(() => false)
@@ -159,7 +159,7 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
    * to place the widget (its own "Add to Home screen?" box). `supported` is false on launchers
    * that don't allow it; the page then shows the manual steps.
    */
-  async function pinWidget(feedUrl: string) {
+  async function pinWidget(feedUrl: string, size: unknown) {
     let ok = false;
     let supported = false;
     try {
@@ -169,7 +169,8 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
       await saveFeedUrl(feedUrl, feed);
       await refreshWidgets();
       ok = true;
-      supported = await requestPinWidget({ widgetName: WIDGET_NAME }).catch(() => false);
+      // The size picked on the page (small, medium or large); older pages send none: medium.
+      supported = await requestPinWidget({ widgetName: widgetNameForSize(size) }).catch(() => false);
     } catch {}
     web.current?.injectJavaScript(answerScript({ type: 'pin-widget', ok, supported }));
   }

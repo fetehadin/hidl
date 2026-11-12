@@ -8,6 +8,7 @@ import { pathFromLink, widgetIdFromLink } from './src/deep-link';
 import { SignInScreen } from './src/screens/SignInScreen';
 import { WebShell } from './src/screens/WebShell';
 import { colors } from './src/theme';
+import { applyUpdatesSoon } from './src/updates';
 import { connectWidget, disconnectWidget } from './src/widget/connect';
 import { WidgetSettingsScreen } from './src/widget/WidgetSettingsScreen';
 
@@ -18,6 +19,9 @@ export default function App() {
   // The widget settings opened from a widget's sliders button: the widget's id (null = the first).
   const [widgetSettings, setWidgetSettings] = useState<number | null | undefined>(undefined);
   const closeWidgetSettings = useCallback(() => setWidgetSettings(undefined), []);
+
+  // New app code (and widget designs) as soon as it's out: see src/updates.ts.
+  useEffect(() => applyUpdatesSoon(), []);
 
   useEffect(() => {
     // Opened from a widget tap: start on that page (the countdown tapped) instead of Today, or
