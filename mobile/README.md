@@ -50,7 +50,8 @@ website, because they come from the same place. Native screens can replace web o
      `WebShell.tsx` before the page loads). Its **Add to home screen** button calls `prepareAppWidget` (issues a
      fresh account feed link) and posts `{ type: "pin-widget", feedUrl }`. The app saves the link
      (same site only), then calls `requestPinWidget`, and answers with a `hidl-app` event. Launchers that don't allow
-     apps to place widgets get the manual steps instead.
+     apps to place widgets get the manual steps instead. The page offers Small / Medium / Large when the app
+     announces `pinSizes`, and sends `size`; the app pins that picker entry (`widgetNameForSize`).
    - **Sharing and saving pictures:** the memories "Share as a picture" sheet can't use Web Share or downloads in a
      web view, so the page posts `{ type: "share-image" | "save-image", name, data }` (a base64 JPEG). Share writes it
      to the app's cache and opens Android's share sheet (`expo-sharing`); save opens Android's folder picker and
@@ -94,7 +95,9 @@ countdown widget dialog). After `npm run build:apk`, download the .apk from the 
 server as `/opt/hidl/downloads/hidl.apk` (e.g. `scp hidl.apk deploy@169.58.96.52:/opt/hidl/downloads/`). No
 restart needed.
 
-**Over-the-air updates.** `expo-updates` checks for an update each time the app starts. `npm run update` reaches
+**Over-the-air updates.** `expo-updates` checks for an update each time the app starts, and `src/updates.ts`
+applies it soon: at once if it arrives while the splash is up, else the next time the app goes to the background.
+The first launch on new code redraws every widget, so a new widget design shows without waiting. `npm run update` reaches
 every installed build with the same app `version` (`runtimeVersion` policy `appVersion`). Anything native (a new
 package with native code, `app.json` plugins or permissions, the widget's size) needs a new APK: bump `version` in
 `app.json`, build, and publish it as above.
