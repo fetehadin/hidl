@@ -316,9 +316,10 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   via `BuddyProvider`; once a user has one, `<Mascot>` draws their buddy (in the same mood/pose) everywhere in the
   app except where it's passed `brand` (the header logo). No row = Hidi. Public pages have no provider, so they
   always show Hidi. The nav's Account icon shows the buddy (the default look until they make one).
-- **Navigation:** on sm+ the nav is a left-side panel (`AppShell`/`SideNav` in `src/components/nav.tsx`) that
-  collapses to icons only (a Gemini-style side-panel icon button, "Open sidebar" / "Close sidebar"); its state is the `hidl-nav` cookie (`src/lib/nav-cookie.ts`) so the server renders the
-  right width. `AppShell` sets `--nav-w`; full-screen fixed overlays (the memories board) use
+- **Navigation:** on sm+ the nav is a left-side panel (`AppShell`/`SideNav` in `src/components/nav.tsx`) with the
+  Hidl logo at its top (the page header is phones-only), that collapses to icons and Hidi only. Its open/close
+  button ("Open sidebar" / "Close sidebar") sits just outside the panel's top right edge; the state is the
+  `hidl-nav` cookie (`src/lib/nav-cookie.ts`) so the server renders the right width. `AppShell` sets `--nav-w`; full-screen fixed overlays (the memories board) use
   `sm:left-[var(--nav-w)]` to stay clear of it. Phones keep the bottom tab bar.
 - **Hidi's quick menu** (`src/components/hidi-menu.tsx`) is fixed in the bottom-right corner of every app page
   (above the tab bar on phones). Tapping it makes Hidi hop into the `hi` mood (big open smile, arms
@@ -363,7 +364,7 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   - **Saved pages:** the main pages (`PAGE_PATHS`: Today, Letters list, Countdown, Calendar, year, Memories,
     Leaderboard) are kept as HTML when they load, refreshed in the background (at most every 15 min per page)
     after an in-app move to them, and all saved once the app has loaded online (`saveAllPages`, asked for by
-    `<OfflineStatus>`; each page at most once an hour, so at most one extra render per page per hour per person),
+    `<OfflineStatusProvider>`; each page at most once an hour, so at most one extra render per page per hour per person),
     together with the scripts and styles each page loads (`saveAppFiles`: a page never visited would otherwise
     open as HTML that can't start) and the photo previews on it (`savePreviews`, up to 150 a page). Only pages carrying `<meta name="hidl-offline">` (the `(app)` layout) are saved,
     so never the sign-in or welcome page, a letter (`/letters/<id>`), Account or Admin. Navigations are network
@@ -374,8 +375,9 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   - **Page data** (Next's RSC requests): when one fails, Next falls back to a full reload, and a saved copy that
     refreshes itself on load would then reload forever. So offline, the worker holds the request and retries every
     5 s for up to 4 min.
-  - `<OfflineStatus>` (`src/components/offline-status.tsx`, wrapping the logo in the `(app)` header) shows, in the
-    logo's place (Telegram-style), "Waiting for network…" while `/api/health` can't be reached (a phone can be on
+  - `<OfflineStatusProvider>` (`src/components/offline-status.tsx`, around the `(app)` layout) watches the
+    connection once; `<OfflineTitle>` wraps the logo in the phone header and the side nav and shows, in the
+    logo's place (Telegram-style; just the spinner in the collapsed side nav), "Waiting for network…" while `/api/health` can't be reached (a phone can be on
     Wi-Fi with no internet), then "Updating…" while it calls `router.refresh()`. While waiting, links do full-page
     loads, which the worker answers from saved copies.
   - **Phone app:** Android's web view can report a failed connection even when the worker showed a saved page, so
