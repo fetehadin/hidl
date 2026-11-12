@@ -317,9 +317,11 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   app except where it's passed `brand` (the header logo). No row = Hidi. Public pages have no provider, so they
   always show Hidi. The nav's Account icon shows the buddy (the default look until they make one).
 - **Navigation:** on sm+ the nav is a left-side panel (`AppShell`/`SideNav` in `src/components/nav.tsx`) with the
-  Hidl logo at its top (the page header is phones-only), that collapses to icons and Hidi only. Its open/close
-  button ("Open sidebar" / "Close sidebar") sits just outside the panel's top right edge; the state is the
-  `hidl-nav` cookie (`src/lib/nav-cookie.ts`) so the server renders the right width. `AppShell` sets `--nav-w`; full-screen fixed overlays (the memories board) use
+  Hidl logo at its top and the theme switch at that row's end (the page header is phones-only), that collapses to
+  icons and Hidi only; then Hidi turns into the theme switch under the pointer. Its open/close button ("Open
+  sidebar" / "Close sidebar") sits just outside the panel, level with the logo, in `AppShell` and not fixed, so
+  it scrolls away with the page instead of covering it (a mouse click doesn't leave a focus ring on it). The state
+  is the `hidl-nav` cookie (`src/lib/nav-cookie.ts`) so the server renders the right width. `AppShell` sets `--nav-w`; full-screen fixed overlays (the memories board) use
   `sm:left-[var(--nav-w)]` to stay clear of it. Phones keep the bottom tab bar.
 - **Hidi's quick menu** (`src/components/hidi-menu.tsx`) is fixed in the bottom-right corner of every app page
   (above the tab bar on phones). Tapping it makes Hidi hop into the `hi` mood (big open smile, arms
