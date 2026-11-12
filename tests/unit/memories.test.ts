@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, photoStreak } from "@/lib/calendar";
+import { addDays } from "@/lib/calendar";
 import { UNSORTED, boardRegion, clampToRegion, groupMemories, layoutMemories } from "@/lib/memories";
 
 function photos(spec: Record<string, number>) {
@@ -113,17 +113,3 @@ describe("board region", () => {
   });
 });
 
-describe("photoStreak", () => {
-  it("counts consecutive days ending today", () => {
-    expect(photoStreak(["2026-10-29", "2026-10-30", "2026-10-31"], "2026-10-31")).toEqual({ count: 3, todayDone: true });
-  });
-
-  it("doesn't break the streak before today is captured", () => {
-    expect(photoStreak(["2026-10-29", "2026-10-30"], "2026-10-31")).toEqual({ count: 2, todayDone: false });
-  });
-
-  it("resets after a missed day, across month boundaries", () => {
-    expect(photoStreak(["2026-09-29", "2026-09-30", "2026-10-01"], "2026-10-03")).toEqual({ count: 0, todayDone: false });
-    expect(photoStreak(["2026-09-30", "2026-10-01"], "2026-10-01")).toEqual({ count: 2, todayDone: true });
-  });
-});

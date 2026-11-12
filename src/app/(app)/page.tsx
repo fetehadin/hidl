@@ -8,12 +8,12 @@ import { LetterTile } from "@/components/today/letter-tile";
 import { MonthGlance } from "@/components/today/month-glance";
 import { StreakRow } from "@/components/today/streak-row";
 import { TodayPhoto } from "@/components/today/today-photo";
-import { addDays, photoStreak, weekOf } from "@/lib/calendar";
+import { weekOf } from "@/lib/calendar";
 import { calendarMonth, monthKeyOf } from "@/lib/calendar-months";
 import { type CountdownKind, KIND_INFO } from "@/lib/countdown-kinds";
 import { type Countdown, listCountdowns } from "@/lib/data/countdowns";
 import { letterSummary } from "@/lib/data/letters";
-import { type PhotoRow, listPhotoDates, listPhotos, signPhotos } from "@/lib/data/photos";
+import { type PhotoRow, listPhotos, signPhotos } from "@/lib/data/photos";
 import { getLeaderboard } from "@/lib/data/leaderboard";
 import { getProfile } from "@/lib/data/profile";
 import { getStreakState } from "@/lib/data/streak";
@@ -44,19 +44,18 @@ export default async function DashboardPage() {
   const month = calendarMonth(calendar, monthKeyOf(calendar, today));
   const from = month.days[0] < week[0] ? month.days[0] : week[0];
 
-  // Streak state first: it may spend freezes on missed days, which the streak below counts.
-  const streakState = await getStreakState(supabase);
-  const [countdowns, letters, photos, recentDates, profile, board] = await Promise.all([
+  // The streak is counted in Postgres (my_streak): only days captured on the day, or kept by a
+  // freeze. It also spends freezes on missed days.
+  const [streakState, countdowns, letters, photos, profile, board] = await Promise.all([
+    getStreakState(supabase),
     listCountdowns(supabase),
     letterSummary(supabase),
     listPhotos(supabase, from, today),
-    listPhotoDates(supabase, addDays(today, -400), today),
     getProfile(supabase),
     getLeaderboard(supabase, "week"),
   ]);
   const name = greetingName(profile.displayName, accountName);
-  // A day a freeze covered keeps the streak going, like a day with a photo.
-  const streak = photoStreak([...recentDates, ...streakState.frozenDays], today);
+  const streak = { count: streakState.streak, todayDone: streakState.todayDone };
 
   const upcoming = countdowns
     .filter((c) => new Date(c.target_at).getTime() > now)
@@ -88,7 +87,7 @@ export default async function DashboardPage() {
     lettersReady: letters.readyCount,
     nextCountdown: upcoming[0] ?? null,
     freezeSaved: streakState.usedNow > 0,
-    newcomer: recentDates.length === 0 && countdowns.length === 0 && !letters.next && letters.readyCount === 0,
+    newcomer: !streakState.hasPhotos && countdowns.length === 0 && !letters.next && letters.readyCount === 0,
   });
 
   return (
