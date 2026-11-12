@@ -13,9 +13,9 @@ import { renderCountdownWidget } from './task-handler';
 const c = palettes.teal;
 
 const THEMES: { value: WidgetTheme; label: string }[] = [
-  { value: 'system', label: 'Follow phone' },
   { value: 'light', label: 'Teal' },
-  { value: 'dark', label: 'Dark' },
+  { value: 'dark', label: 'Deep teal' },
+  { value: 'system', label: 'Follow phone' },
 ];
 
 type Loaded = { state: 'loading' } | { state: 'ready'; items: FeedItem[]; tz?: string } | { state: 'none'; connected: boolean };

@@ -4,7 +4,7 @@
     "slug": "hidl",
     "owner": "fetebuild",
     "scheme": "hidl",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -47,9 +47,22 @@
               "widgetFeatures": "reconfigurable"
             },
             {
+              "name": "CountdownTall",
+              "label": "Hidl countdown · tall",
+              "description": "Hidi big, the number below. Tap to flip.",
+              "minWidth": "110dp",
+              "minHeight": "180dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 3,
+              "previewImage": "./assets/widget/preview-tall.png",
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000,
+              "widgetFeatures": "reconfigurable"
+            },
+            {
               "name": "Countdown",
               "label": "Hidl countdown",
-              "description": "A smart stack of your countdowns. Tap to flip.",
+              "description": "Your countdowns as a stack of cards. Tap to flip.",
               "minWidth": "250dp",
               "minHeight": "110dp",
               "targetCellWidth": 4,

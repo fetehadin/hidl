@@ -22,16 +22,19 @@ website, because they come from the same place. Native screens can replace web o
      and photo uploads can use the camera.
    - **Offline:** the app shows its own offline screen.
    - **Signing out:** signing out on the site brings back the native sign-in screen and unhooks the widget.
-3. **Widget (`src/widget/`):** three entries in the widget picker, all the same widget: `CountdownSmall` (2×2),
-   `Countdown` (4×2, the original name so placed widgets keep working) and `CountdownLarge` (4×4). What's drawn
+3. **Widget (`src/widget/`):** four entries in the widget picker, all the same widget: `CountdownSmall` (2×2),
+   `CountdownTall` (2×3, from app version 0.5.0), `Countdown` (4×2, the original name so placed widgets keep
+   working) and `CountdownLarge` (4×4). The app tells the page which it can place (`PIN_SIZES`, announced as
+   `window.hidlApp.pinSizes`), so the Widget dialog only offers sizes this APK has. What's drawn
    follows the real size (`layoutFor` in `CountdownWidget.tsx`), so any of them stays readable when resized.
-   Small and medium are a **smart stack of cards**: a `ListWidget` whose every item fills the whole widget, drawn
+   Small, tall and medium are a **stack of cards**: a `ListWidget` whose every item fills the whole widget, drawn
    by Android's `AdapterViewFlipper` (`patches/react-native-android-widget+0.26.0.patch`, applied by
    `patch-package` on every install, EAS builds included). A tap on a card (`FLIP_NEXT`) is handled natively by the
    patch (`showNext` with a slide-up animation from `res/animator/hidl_flip_*`), so it's instant and works on every
    launcher (Samsung's home screen keeps vertical swipes, so swiping isn't used). The title and Hidi open the
-   countdown. Which card is on top is `smartOrder` (`mood.ts`): one flipped to recently, else one due within a
-   day, else the upcoming ones take turns every 3 hours. APKs without the patch get `FLIP_NEXT` in JS and redraw
+   countdown. The soonest is on top (`smartOrder` in `mood.ts`); the cards are sized from the prototype's
+   proportions (`scale`), so they keep the same balance on any phone. Teal is the default look; "Deep teal" and
+   "Follow phone" are in the widget's settings. APKs without the patch get `FLIP_NEXT` in JS and redraw
    with the next card on top. Each card is one big
    number (Nunito), what it's for, a thin bar, and Hidi with a speech bubble, in Hidl's deep teal (`look.ts`).
    Hidi's mood follows the date (`mood.ts`: calm, excited, nervous, party, sleepy; tested in the web app's
@@ -42,7 +45,7 @@ website, because they come from the same place. Native screens can replace web o
    The art is SVG strings (`hidi.ts`). Each widget keeps its own settings (`settings.ts`, `hidl.widget.<id>`):
    which countdowns to leave out (new ones join by themselves) and Light / Dark / Follow phone. The settings screen
    (`WidgetSetup.tsx`, with a live preview) opens when a widget is added, from the launcher's widget
-   settings, and from the **sliders button on the widget** (`hidl://widget?id=<widgetId>`, opened over the journal
+   settings (long-press the widget), and from the **sliders button on the large widget** (`hidl://widget?id=<widgetId>`, opened over the journal
    by `WidgetSettingsScreen.tsx` in `App.tsx`). Tapping a card opens that countdown
    (`hidl://open?path=/countdown#c-<id>`). Both links are checked by `src/deep-link.ts`. Fonts are bundled from
    `assets/fonts` (OFL) and the picker previews are `assets/widget/preview-*.png`. Nothing animates or ticks

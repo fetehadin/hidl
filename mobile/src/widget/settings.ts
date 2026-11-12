@@ -12,7 +12,8 @@ const key = (widgetId: number) => `hidl.widget.${widgetId}`;
 // Before per-widget settings, only the page number was kept.
 const oldPageKey = (widgetId: number) => `hidl.widgetPage.${widgetId}`;
 
-export const DEFAULT_SETTINGS: WidgetSettings = { exclude: [], theme: 'system', current: null };
+// Hidl's teal unless picked otherwise: the dark look is for those who ask for it.
+export const DEFAULT_SETTINGS: WidgetSettings = { exclude: [], theme: 'light', current: null };
 
 export async function readSettings(widgetId: number): Promise<WidgetSettings> {
   try {
@@ -21,7 +22,7 @@ export async function readSettings(widgetId: number): Promise<WidgetSettings> {
     const s = JSON.parse(raw) as Partial<WidgetSettings>;
     return {
       exclude: Array.isArray(s.exclude) ? s.exclude.filter((x): x is string => typeof x === 'string') : [],
-      theme: s.theme === 'light' || s.theme === 'dark' ? s.theme : 'system',
+      theme: s.theme === 'dark' || s.theme === 'system' ? s.theme : 'light',
       current: typeof s.current === 'string' ? s.current : null,
       ...(typeof s.pickedAt === 'number' ? { pickedAt: s.pickedAt } : {}),
     };

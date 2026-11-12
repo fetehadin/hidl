@@ -147,16 +147,14 @@ export function orderCountdowns<T extends WidgetCountdown>(items: T[], now: numb
   return [...ahead, ...behind];
 }
 
-/** How long a countdown stays on top before the stack rotates to the next one. */
-export const ROTATE_MS = 3 * 3_600_000;
+/** How long a countdown flipped to on an older APK (which flips by redrawing) stays on top. */
+export const PICK_MS = 3 * 3_600_000;
 
 /**
- * Which countdown goes on top of the stack, like an iPhone Smart Stack:
- *  - one picked by a tap in the last ROTATE_MS stays on top (older app versions flip by redrawing);
- *  - else one that's today or less than a day away leads (the soonest of them);
- *  - otherwise the upcoming ones take turns, a new one every ROTATE_MS.
- * The rest follow in soonest-first order, wrapping round, so flipping goes on to the next one.
- * `positions` is each item's place in that soonest-first order, for the dots.
+ * The stack's order: soonest first (today's and the next one on top), then the ones that passed.
+ * On APKs without the native flip, a tap redraws with the card after it on top, and that pick holds
+ * for PICK_MS. The rest follow round from it, so flipping goes on in order. `positions` is each
+ * item's place in the soonest-first order, for the dots.
  */
 export function smartOrder<T extends WidgetCountdown>(
   items: T[],
@@ -165,19 +163,8 @@ export function smartOrder<T extends WidgetCountdown>(
   picked?: { id: string | null; at?: number } | null,
 ): { items: T[]; positions: number[] } {
   const ordered = orderCountdowns(items, now, tz);
-  if (ordered.length < 2) return { items: ordered, positions: ordered.map((_, i) => i) };
-
-  const left = (i: T) => Date.parse(i.targetAt) - now;
-  const isToday = (i: T) => daysFromToday(i.targetAt, now, tz) === 0;
-  const urgent = ordered.findIndex((i) => isToday(i) || (left(i) > 0 && left(i) < DAY));
-  const upcoming = ordered.filter((i) => left(i) > 0 || isToday(i)).length;
-
-  let top: number;
-  const pickedIndex = picked?.id && picked.at !== undefined && now - picked.at < ROTATE_MS ? ordered.findIndex((i) => i.id === picked.id) : -1;
-  if (pickedIndex >= 0) top = pickedIndex;
-  else if (urgent >= 0) top = urgent;
-  else top = upcoming > 0 ? Math.floor(now / ROTATE_MS) % upcoming : 0;
-
+  const recent = picked?.id && picked.at !== undefined && now - picked.at < PICK_MS;
+  const top = recent ? Math.max(0, ordered.findIndex((i) => i.id === picked.id)) : 0;
   const positions = ordered.map((_, i) => (top + i) % ordered.length);
   return { items: positions.map((p) => ordered[p]), positions };
 }

@@ -5,12 +5,18 @@ import { describe, type Mood, type Shown, type WidgetCountdown } from './mood';
 
 /** The three entries in the widget picker (app.json). "Countdown" is the original, kept so
  *  widgets already on home screens keep working; it's the medium one. */
-export const WIDGET_NAMES = ['CountdownSmall', 'Countdown', 'CountdownLarge'] as const;
+export const WIDGET_NAMES = ['CountdownSmall', 'CountdownTall', 'Countdown', 'CountdownLarge'] as const;
 export const WIDGET_NAME = 'Countdown';
 
-/** The picker entry for a size the page asks for ("small" | "medium" | "large"); medium otherwise. */
+/** The sizes this app can place (the page offers these). 2×3 ("tall") came with app version 0.5.0. */
+export const PIN_SIZES = ['small', 'tall', 'medium', 'large'] as const;
+
+/** The picker entry for a size the page asks for; medium otherwise. */
 export function widgetNameForSize(size: unknown): (typeof WIDGET_NAMES)[number] {
-  return size === 'small' ? 'CountdownSmall' : size === 'large' ? 'CountdownLarge' : 'Countdown';
+  if (size === 'small') return 'CountdownSmall';
+  if (size === 'tall') return 'CountdownTall';
+  if (size === 'large') return 'CountdownLarge';
+  return 'Countdown';
 }
 
 /** clickAction names from older widget versions, still handled in task-handler.tsx (a widget
@@ -48,8 +54,8 @@ export type WidgetProps =
  * The size breakpoints: what's drawn depends on the widget's real size, so any of the three
  * picker entries stays readable when resized.
  */
-export function layoutFor(size: Size): 'small' | 'medium' | 'large' {
-  if (size.width < 230) return 'small';
+export function layoutFor(size: Size): 'small' | 'tall' | 'medium' | 'large' {
+  if (size.width < 230) return size.height >= 230 ? 'tall' : 'small';
   if (size.height >= 280) return 'large';
   return 'medium';
 }
@@ -64,20 +70,9 @@ export function settingsUri(widgetId?: number) {
   return widgetId === undefined ? 'hidl://widget' : `hidl://widget?id=${widgetId}`;
 }
 
-const KIND_LABEL: Record<string, string> = {
-  exam: 'Exam',
-  graduation: 'Graduation',
-  birthday: 'Birthday',
-  wedding: 'Wedding',
-  work: 'Work',
-  trip: 'Trip',
-  life: 'Life',
-};
-
 /**
- * The Hidl home-screen widget, a stack of cards, like an iPhone Smart Stack: every countdown fills
- * the whole widget, Hidl puts the one that matters most on top (`smartOrder` in mood.ts), and a tap
- * slides the next one up. The `ListWidget` is drawn by Android's AdapterViewFlipper, not a
+ * The Hidl home-screen widget, a stack of cards: every countdown fills the whole widget, the
+ * soonest on top (`smartOrder` in mood.ts), and a tap slides the next one up. The `ListWidget` is drawn by Android's AdapterViewFlipper, not a
  * scrolling list: mobile/patches/ swaps it in the widget library, with the slide and the tap
  * (`FLIP_NEXT`) handled natively, so it works on every launcher. Each card is one huge
  * number, what it's for, a thin bar of how far along it is, and Hidi, whose mood follows the date
@@ -92,7 +87,7 @@ export function CountdownWidget(props: WidgetProps) {
 
   let body: React.JSX.Element;
   if (props.state !== 'ready' || props.items.length === 0) {
-    body = <EmptyCard look={look} small={layout === 'small'} props={props} />;
+    body = <EmptyCard look={look} small={layout === 'small' || layout === 'tall'} props={props} />;
   } else if (layout === 'large') {
     body = <LargeList look={look} props={props} />;
   } else {
@@ -109,10 +104,13 @@ export function CountdownWidget(props: WidgetProps) {
             tz,
             widgetId: props.widgetId,
             stale: props.stale,
+            width: props.size.width,
             height: props.size.height,
           };
           const key = item.id ?? `${item.title}-${i}`;
-          return layout === 'small' ? <SmallPage key={key} {...page} /> : <MediumPage key={key} {...page} />;
+          if (layout === 'small') return <SmallPage key={key} {...page} />;
+          if (layout === 'tall') return <TallPage key={key} {...page} />;
+          return <MediumPage key={key} {...page} />;
         })}
       </ListWidget>
     );
@@ -146,6 +144,7 @@ type PageProps = {
   tz?: string;
   widgetId?: number;
   stale?: boolean;
+  width: number;
   height: number;
 };
 
@@ -154,8 +153,9 @@ type PageProps = {
  * title and Hidi (`Opens`) open the countdown. With only one, the whole card opens it.
  */
 function Page({ look, item, shown, padding, count, children }: {
-  look: Look; item: WidgetItem; shown: Shown; padding: number; count: number; children: React.ReactNode;
+  look: Look; item: WidgetItem; shown: Shown; padding: number | { v: number; h: number }; count: number; children: React.ReactNode;
 }) {
+  const pad = typeof padding === 'number' ? { paddingVertical: padding, paddingHorizontal: padding } : { paddingVertical: padding.v, paddingHorizontal: padding.h };
   const skin = skinFor(look, shown.mood);
   return (
     <FlexWidget
@@ -167,7 +167,7 @@ function Page({ look, item, shown, padding, count, children }: {
         height: 'match_parent',
         borderRadius: 28,
         backgroundGradient: { from: skin.from, to: skin.to, orientation: 'TL_BR' },
-        padding,
+        ...pad,
         flexDirection: 'column',
       }}
     >
@@ -216,16 +216,6 @@ function Text({ text, size, color, font = FONT.round, lines = 1, align, marginTo
   );
 }
 
-/** The kind's icon on its colored tile, and its name: "EXAM", "TRIP". */
-function KindTag({ look, kind, size = 10 }: { look: Look; kind: string; size?: number }) {
-  return (
-    <FlexWidget style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <SvgWidget svg={kindSvg(kind)} style={{ width: size + 8, height: size + 8 }} />
-      <Text text={(KIND_LABEL[kind] ?? 'Countdown').toUpperCase()} size={size} color={look.soft} font={FONT.mono} marginLeft={5} />
-    </FlexWidget>
-  );
-}
-
 /** A round glass button with the sliders icon: this widget's settings (which countdowns, look). */
 function EditButton({ look, widgetId, size = 32 }: { look: Look; widgetId?: number; size?: number }) {
   return (
@@ -255,15 +245,16 @@ function EditButton({ look, widgetId, size = 32 }: { look: Look; widgetId?: numb
 }
 
 /** Where you are in the stack, standing up, so it says "scroll up and down". */
-function StackDots({ look, count, index }: { look: Look; count: number; index: number }) {
+function StackDots({ look, count, index, k = 1 }: { look: Look; count: number; index: number; k?: number }) {
   if (count < 2) return null;
-  if (count > 7) return <Text text={`${index + 1}/${count}`} size={10} color={look.soft} font={FONT.mono} />;
+  if (count > 7) return <Text text={`${index + 1}/${count}`} size={Math.round(10 * k)} color={look.soft} font={FONT.mono} />;
+  const w = Math.max(4, Math.round(5 * k));
   return (
     <FlexWidget style={{ flexDirection: 'column', alignItems: 'center' }}>
       {Array.from({ length: count }, (_, i) => (
         <FlexWidget
           key={i}
-          style={{ width: 5, height: i === index ? 14 : 5, borderRadius: 3, marginVertical: 2, backgroundColor: i === index ? look.dot : look.dotOff }}
+          style={{ width: w, height: i === index ? Math.round(13 * k) : w, borderRadius: w / 2, marginVertical: Math.round(2 * k), backgroundColor: i === index ? look.dot : look.dotOff }}
         />
       ))}
     </FlexWidget>
@@ -275,11 +266,11 @@ function BigNumber({ look, shown, size }: { look: Look; shown: Shown; size: numb
   const [unit, ...rest] = shown.chips;
   return (
     <FlexWidget style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Text text={shown.big} size={shown.bigIsWord ? Math.round(size * 0.55) : size} color={look.text} font={FONT.roundHeavy} />
+      <Text text={shown.big} size={shown.bigIsWord ? Math.round(size * 0.6) : size} color={look.text} font={FONT.roundHeavy} />
       {unit && (
-        <FlexWidget style={{ flexDirection: 'column', marginLeft: 8 }}>
-          <Text text={unit} size={Math.round(size * 0.28)} color={look.text} font={FONT.roundHeavy} />
-          {rest.length > 0 && <Text text={rest.slice(0, 2).join(' ')} size={Math.round(size * 0.24)} color={look.soft} />}
+        <FlexWidget style={{ flexDirection: 'column', marginLeft: Math.round(size * 0.15) }}>
+          <Text text={unit} size={Math.round(size * 0.3)} color={look.text} font={FONT.roundHeavy} />
+          {rest.length > 0 && <Text text={rest.slice(0, 2).join(' ')} size={Math.round(size * 0.25)} color={look.soft} />}
         </FlexWidget>
       )}
     </FlexWidget>
@@ -299,84 +290,134 @@ function Bar({ look, progress, height = 6, marginTop = 10 }: { look: Look; progr
 }
 
 /** Hidi's line, in a white bubble. */
-function Bubble({ look, text, size = 13 }: { look: Look; text: string; size?: number }) {
+function Bubble({ look, text, size = 13, lines = 1 }: { look: Look; text: string; size?: number; lines?: number }) {
   return (
-    <FlexWidget style={{ backgroundColor: look.bubble, borderRadius: 14, paddingHorizontal: 11, paddingVertical: 5 }}>
-      <Text text={text} size={size} color={look.bubbleText} />
+    <FlexWidget
+      style={{
+        backgroundColor: look.bubble,
+        borderRadius: Math.round(size * 1.1),
+        paddingHorizontal: Math.round(size * 0.82),
+        paddingVertical: Math.round(size * 0.3),
+      }}
+    >
+      <Text text={text} size={size} color={look.bubbleText} lines={lines} />
     </FlexWidget>
   );
 }
 
+/** The prototype's proportions (a 300×150 medium, a 170×170 small) scaled to the real size. */
+const scale = (actual: number, designed: number) => Math.max(0.75, Math.min(1.5, actual / designed));
+
 // ---- the layouts
 
 /**
- * 4×2: Hidi's line and the settings button on top; the big number, what it's for and when on
- * the left; Hidi big on the right; the stack dots at the edge; the bar along the bottom.
+ * 4×2: Hidi's line on top; the big number with its units, the title, and the kind and date on the
+ * left; Hidi on the right with the stack dots at the edge; the bar along the bottom. Sized from the
+ * prototype (300×150), so it keeps the same balance on any phone.
  */
-function MediumPage({ look, item, shown, index, count, tz, widgetId, stale, height }: PageProps) {
-  const roomy = height >= 200;
-  const hidi = roomy ? 92 : height >= 160 ? 76 : 60;
+function MediumPage({ look, item, shown, index, count, tz, stale, width, height }: PageProps) {
+  const k = Math.min(scale(height, 150), scale(width, 300));
+  const r = (n: number) => Math.round(n * k);
   return (
-    <Page look={look} item={item} shown={shown} padding={roomy ? 16 : 12} count={count}>
-      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center' }}>
-        <FlexWidget style={{ flex: 1, flexDirection: 'row' }}>
-          <Bubble look={look} text={stale ? 'Offline: counting from my last look.' : speech(shown)} size={roomy ? 13 : 12} />
-        </FlexWidget>
-        <EditButton look={look} widgetId={widgetId} size={roomy ? 32 : 28} />
+    <Page look={look} item={item} shown={shown} padding={{ v: r(12), h: r(14) }} count={count}>
+      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row' }}>
+        <Bubble look={look} text={stale ? 'Offline: counting from my last look.' : speech(shown)} size={r(11)} />
       </FlexWidget>
 
       <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-        <FlexWidget style={{ flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
-          <BigNumber look={look} shown={shown} size={roomy ? 60 : 46} />
+        <FlexWidget style={{ flex: 1, flexDirection: 'column' }}>
+          <BigNumber look={look} shown={shown} size={r(40)} />
           <Opens item={item}>
-            <Text text={item.title} size={roomy ? 17 : 15} color={look.text} font={FONT.roundHeavy} />
-            <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
-              <KindTag look={look} kind={item.kind} size={roomy ? 10 : 9} />
-              <Text text={`· ${dateOf(item.targetAt, tz)}`} size={roomy ? 12 : 11} color={look.soft} marginLeft={6} />
+            <Text text={item.title} size={r(14)} color={look.text} font={FONT.roundHeavy} />
+            <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', marginTop: r(2) }}>
+              <SvgWidget svg={kindSvg(item.kind)} style={{ width: r(15), height: r(15) }} />
+              <Text text={dateOf(item.targetAt, tz)} size={r(11)} color={look.soft} marginLeft={r(5)} />
             </FlexWidget>
           </Opens>
         </FlexWidget>
         <Opens item={item}>
-          <Hidi mood={shown.mood} width={hidi} />
+          <Hidi mood={shown.mood} width={r(64)} />
         </Opens>
         {count > 1 && (
-          <FlexWidget style={{ marginLeft: 8 }}>
-            <StackDots look={look} count={count} index={index} />
+          <FlexWidget style={{ marginLeft: r(10) }}>
+            <StackDots look={look} count={count} index={index} k={k} />
           </FlexWidget>
         )}
       </FlexWidget>
 
-      <Bar look={look} progress={shown.progress} marginTop={roomy ? 10 : 6} />
+      <Bar look={look} progress={shown.progress} height={r(5)} marginTop={r(4)} />
     </Page>
   );
 }
 
-/** 2×2: the kind and Hidi on top, then the big number, the title and its units, and the bar. */
-function SmallPage({ look, item, shown, index, count, height }: PageProps) {
-  const roomy = height >= 165;
+/**
+ * 2×2: the kind and the stack dots on top, the big number beside Hidi, then the title and its
+ * units, and the bar. Sized from a 170×170 design.
+ */
+function SmallPage({ look, item, shown, index, count, width, height }: PageProps) {
+  const k = scale(Math.min(width, height), 170);
+  const r = (n: number) => Math.round(n * k);
   return (
-    <Page look={look} item={item} shown={shown} padding={roomy ? 14 : 11} count={count}>
-      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'flex-start' }}>
-        <FlexWidget style={{ flex: 1, flexDirection: 'column' }}>
-          <SvgWidget svg={kindSvg(item.kind)} style={{ width: 22, height: 22 }} />
+    <Page look={look} item={item} shown={shown} padding={r(14)} count={count}>
+      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center' }}>
+        <FlexWidget style={{ flex: 1, flexDirection: 'row' }}>
+          <SvgWidget svg={kindSvg(item.kind)} style={{ width: r(22), height: r(22) }} />
+        </FlexWidget>
+        {count > 1 && <StackDots look={look} count={count} index={index} k={k * 0.9} />}
+      </FlexWidget>
+      <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+        <FlexWidget style={{ flex: 1 }}>
+          <Text text={shown.big} size={shown.bigIsWord ? r(24) : r(46)} color={look.text} font={FONT.roundHeavy} />
         </FlexWidget>
         <Opens item={item}>
-          <Hidi mood={shown.mood} width={roomy ? 56 : 44} />
+          <Hidi mood={shown.mood} width={r(62)} />
         </Opens>
+      </FlexWidget>
+      <Opens item={item}>
+        <Text text={item.title} size={r(14)} color={look.text} font={FONT.roundHeavy} />
+        {shown.chips.length > 0 && <Text text={shown.chips.slice(0, 2).join(' · ')} size={r(11)} color={look.soft} />}
+      </Opens>
+      <Bar look={look} progress={shown.progress} height={r(5)} marginTop={r(8)} />
+    </Page>
+  );
+}
+
+/**
+ * 2×3: Hidi's line on top, Hidi big in the middle, then the number with its units, the title, the
+ * kind and date, and the bar, all centered. Sized from a 170 wide design.
+ */
+function TallPage({ look, item, shown, index, count, tz, stale, width }: PageProps) {
+  const k = scale(width, 170);
+  const r = (n: number) => Math.round(n * k);
+  return (
+    <Page look={look} item={item} shown={shown} padding={r(14)} count={count}>
+      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'flex-start' }}>
+        <FlexWidget style={{ flex: 1, flexDirection: 'row' }}>
+          {/* Just Hidi's line: the number is right below, and it has to fit two lines. */}
+          <Bubble look={look} text={stale ? 'Offline for now.' : shown.line} size={r(11)} lines={2} />
+        </FlexWidget>
         {count > 1 && (
-          <FlexWidget style={{ marginLeft: 4 }}>
-            <StackDots look={look} count={count} index={index} />
+          <FlexWidget style={{ marginLeft: r(6) }}>
+            <StackDots look={look} count={count} index={index} k={k * 0.9} />
           </FlexWidget>
         )}
       </FlexWidget>
-      <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'column', justifyContent: 'flex-end' }}>
-        <Text text={shown.big} size={shown.bigIsWord ? (roomy ? 24 : 20) : roomy ? 46 : 38} color={look.text} font={FONT.roundHeavy} />
+      <FlexWidget style={{ width: 'match_parent', flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <Opens item={item}>
-          <Text text={item.title} size={roomy ? 14 : 13} color={look.text} font={FONT.roundHeavy} />
-          {shown.chips.length > 0 && <Text text={shown.chips.slice(0, 2).join(' · ')} size={11} color={look.soft} />}
+          <Hidi mood={shown.mood} width={r(84)} />
         </Opens>
       </FlexWidget>
-      <Bar look={look} progress={shown.progress} height={5} marginTop={roomy ? 8 : 6} />
+      <FlexWidget style={{ width: 'match_parent', flexDirection: 'column', alignItems: 'center' }}>
+        <BigNumber look={look} shown={shown} size={r(40)} />
+        <Opens item={item}>
+          <Text text={item.title} size={r(14)} color={look.text} font={FONT.roundHeavy} align="center" />
+          <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: r(2) }}>
+            <SvgWidget svg={kindSvg(item.kind)} style={{ width: r(14), height: r(14) }} />
+            <Text text={dateOf(item.targetAt, tz)} size={r(11)} color={look.soft} marginLeft={r(5)} />
+          </FlexWidget>
+        </Opens>
+      </FlexWidget>
+      <Bar look={look} progress={shown.progress} height={r(5)} marginTop={r(10)} />
     </Page>
   );
 }

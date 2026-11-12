@@ -19,13 +19,13 @@ import { type Palette, THEME_KEY, type ThemeName, palettes, parseTheme } from '.
 import { canCopyImages, canShareImages, copyImage, saveImage, shareImage } from '../share-image';
 import { biometricAvailable, canBiometric, checkBiometric } from '../biometric';
 import { refreshWidgets } from '../widget/connect';
-import { WIDGET_NAMES, widgetNameForSize } from '../widget/CountdownWidget';
+import { PIN_SIZES, WIDGET_NAMES, widgetNameForSize } from '../widget/CountdownWidget';
 
 // Tells the page, before its own scripts run, what this app can do (read in app-widget-help.tsx
 // and the memories share sheet). `widgets` (how many hidl widgets are on the home screen) is filled
 // in once the page has loaded. `shareImage` only where this APK has the native share modules;
 // `biometric` where it has the fingerprint module (the page then asks whether one is enrolled).
-const ANNOUNCE = `window.hidlApp = { pinWidget: true, pinSizes: true, widgets: null, shareImage: ${canShareImages}, saveImage: ${canShareImages}, copyImage: ${canCopyImages}, biometric: ${canBiometric} }; true;`;
+const ANNOUNCE = `window.hidlApp = { pinWidget: true, pinSizes: ${JSON.stringify(PIN_SIZES)}, widgets: null, shareImage: ${canShareImages}, saveImage: ${canShareImages}, copyImage: ${canCopyImages}, biometric: ${canBiometric} }; true;`;
 
 /** Answers the page with a "hidl-app" event. */
 function answerScript(detail: Record<string, unknown>) {
