@@ -8,6 +8,11 @@ import { describe, type Mood, type Shown, type WidgetCountdown } from './mood';
 export const WIDGET_NAMES = ['CountdownSmall', 'Countdown', 'CountdownLarge'] as const;
 export const WIDGET_NAME = 'Countdown';
 
+/** The picker entry for a size the page asks for ("small" | "medium" | "large"); medium otherwise. */
+export function widgetNameForSize(size: unknown): (typeof WIDGET_NAMES)[number] {
+  return size === 'small' ? 'CountdownSmall' : size === 'large' ? 'CountdownLarge' : 'Countdown';
+}
+
 /** clickAction names from older widget versions, still handled in task-handler.tsx (a widget
  *  drawn by an older version keeps its buttons until it's redrawn). */
 export const PREV = 'PREV_COUNTDOWN';
