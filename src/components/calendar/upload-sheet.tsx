@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { addPhoto, discardUpload, photoSpace, prepareUpload, replacePhoto } from "@/actions/photos";
-import { CameraIcon } from "@/components/icons";
 import { PhotoSpaceNotice } from "@/components/photo-space-notice";
 import { dayLabel } from "@/lib/calendar";
 import { type ProcessedMedia, processMedia } from "@/lib/image";
@@ -65,6 +64,26 @@ function itemsLabel(items: PendingItem[]) {
 
 let nextKey = 0;
 
+/**
+ * Inside the phone app (with its photo picker): the app's own Telegram-style sheet replaces the
+ * browser's file picker (mobile/src/screens/MediaPickerSheet.tsx). It sends the chosen files back
+ * as "hidl-app" events: picked-start, picked-file (base64) each, picked-error, picked-done.
+ */
+const appCanPick = () => typeof window !== "undefined" && Boolean(window.ReactNativeWebView && window.hidlApp?.pickMedia);
+
+function fileFromBase64(name: string, type: string, data: string) {
+  const bin = atob(data);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new File([bytes], name, { type });
+}
+
+type PickedEvent =
+  | { type: "picked-start"; count: number }
+  | { type: "picked-file"; name: string; mime: string; data: string }
+  | { type: "picked-error"; message: string }
+  | { type: "picked-done"; count: number };
+
 export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; initialCaption?: string | null; onClose: () => void }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -82,10 +101,12 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [space, setSpace] = useState<{ used: number; quota: number } | null>(null);
+  // Files on their way from the phone app's picker.
+  const [receiving, setReceiving] = useState(false);
 
   const isReplace = mode.kind === "replace";
   const maxFiles = isReplace ? 1 : Infinity;
-  const busy = processing || uploading;
+  const busy = processing || uploading || receiving;
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -101,6 +122,31 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
         discard(item.upload);
       }
     };
+  }, []);
+
+  /** The phone app's picker, for one photo (replacing) or several. */
+  function openAppPicker() {
+    window.ReactNativeWebView?.postMessage(JSON.stringify({ type: "pick-media", multiple: !isReplace }));
+  }
+
+  // In the app the picker opens at once, like Telegram's attach sheet; backing out of it with
+  // nothing picked closes this sheet too.
+  useEffect(() => {
+    if (!appCanPick()) return;
+    const onAnswer = (e: Event) => {
+      const d = (e as CustomEvent<PickedEvent>).detail;
+      if (d?.type === "picked-start") setReceiving(true);
+      else if (d?.type === "picked-file") void addFiles([fileFromBase64(d.name, d.mime, d.data)]);
+      else if (d?.type === "picked-error") setError(d.message);
+      else if (d?.type === "picked-done") {
+        setReceiving(false);
+        if (d.count === 0 && itemsRef.current.length === 0) onClose();
+      }
+    };
+    window.addEventListener("hidl-app", onAnswer);
+    openAppPicker();
+    return () => window.removeEventListener("hidl-app", onAnswer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the sheet opens
   }, []);
 
   async function addFiles(files: FileList | File[] | null) {
@@ -212,6 +258,11 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
         {items.length < maxFiles && (
           <label
             htmlFor={inputId}
+            onClick={(e) => {
+              if (!appCanPick()) return;
+              e.preventDefault();
+              if (!busy) openAppPicker();
+            }}
             onDragOver={(e) => {
               e.preventDefault();
               setDragOver(true);
@@ -228,7 +279,7 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
           >
             <span className="px-6 text-ink-soft">
               <span className="block font-hand text-2xl text-accent">
-                {processing ? "developing…" : "tap, or drop photos or videos here"}
+                {processing || receiving ? "developing…" : "tap, or drop photos or videos here"}
               </span>
               <span className="text-sm">
                 {isReplace ? "Photos are resized on your phone before upload." : "Pick or drop as many as you like."}
@@ -237,30 +288,6 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
             </span>
           </label>
         )}
-        {items.length < maxFiles && (
-          // Phones and tablets: straight to the camera, or the gallery (the box above does the
-          // same as "Gallery"). capture= opens the camera app; desktops ignore it, so it's hidden there.
-          <div className="mt-2 hidden grid-cols-2 gap-2 pointer-coarse:grid">
-            <label htmlFor={`${inputId}-camera`} className={`btn btn-primary ${busy ? "pointer-events-none opacity-70" : ""}`}>
-              <CameraIcon width={18} height={18} /> Take a photo
-            </label>
-            <label htmlFor={inputId} className={`btn btn-ghost ${busy ? "pointer-events-none opacity-70" : ""}`}>
-              <GalleryIcon /> Gallery
-            </label>
-          </div>
-        )}
-        <input
-          id={`${inputId}-camera`}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="sr-only"
-          disabled={busy || items.length >= maxFiles}
-          onChange={(e) => {
-            addFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
         <input
           id={inputId}
           type="file"
@@ -355,12 +382,3 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
 
 
 
-function GalleryIcon() {
-  return (
-    <svg aria-hidden viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <circle cx="9" cy="10" r="1.6" />
-      <path d="m21 16-5-5-8 8" />
-    </svg>
-  );
-}

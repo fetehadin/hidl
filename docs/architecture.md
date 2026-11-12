@@ -110,6 +110,14 @@ layer physically cannot violate it, even with a bug:
 `letters`, `letter_keys`, `photos`, `media_objects`, `countdowns`, `widget_tokens`, and `profiles`. A new user table needs the same
 `references auth.users (id) on delete cascade`, or account deletion leaves its rows behind. Covered end-to-end in `tests/integration/account-deletion.test.ts`.
 
+**Picking photos.** On the website the photo sheet (`src/components/calendar/upload-sheet.tsx`) uses the browser's
+file picker (phones offer the camera there too). Inside the phone app (`window.hidlApp.pickMedia`) the sheet opens
+the app's own Telegram-style picker at once (`mobile/src/screens/MediaPickerSheet.tsx`, `mobile/src/media-picker.ts`:
+recent photos and videos in a grid via expo-media-library, a camera tile via expo-image-picker, numbered
+multi-select, "All photos" for Android's picker). The app shrinks photos to 2400px JPEG (expo-image-manipulator)
+and sends each file to the page as base64 (`picked-start` / `picked-file` / `picked-error` / `picked-done`
+"hidl-app" events); the sheet then treats them like any picked file. Backing out with nothing picked closes it.
+
 **Photo upload is two-step and never passes through the app server, on purpose.** Images are resized client-side
 (`src/lib/image.ts` `processMedia`: 1600px full image + 480px thumbnail, WebP or JPEG; videos ≤ 5 MB go up as-is
 with a frame-grab thumbnail) and uploaded directly to the media store (Garage on the VPS, or Supabase Storage;
