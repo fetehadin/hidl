@@ -22,7 +22,7 @@ type Loaded = { state: 'loading' } | { state: 'ready'; items: FeedItem[]; tz?: s
 
 /**
  * One widget's settings: which countdowns it stacks (switch any off to take it off the widget,
- * on to bring it back) and its look, with a live preview that scrolls like the real one. Opens
+ * on to bring it back) and its look, with a live preview. Opens
  * when a widget is added, from the launcher's "widget settings", and from the sliders button on
  * the widget itself (App.tsx). Choices are kept per widget on the phone.
  */
@@ -103,7 +103,7 @@ export function WidgetSetup({ widgetInfo, renderWidget, setResult }: WidgetConfi
           <SvgXml xml={hidiSvg('excited')} width={56} height={hidiHeight(56)} />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.title}>Your widget</Text>
-            <Text style={styles.subtitle}>Scroll up and down on it to flip through your countdowns.</Text>
+            <Text style={styles.subtitle}>The one that matters most comes up top. Tap it to flip.</Text>
           </View>
         </View>
 

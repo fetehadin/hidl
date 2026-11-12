@@ -1,8 +1,8 @@
 import type { WidgetInfo, WidgetRepresentation, WidgetTaskHandlerProps } from 'react-native-android-widget';
 import { FeedError, cacheFeed, feedItems, fetchFeed, getCachedFeed, getFeedUrl, type CachedFeed } from '../feed';
-import { CountdownWidget, NEXT, PREV, SELECT, type WidgetItem, type WidgetProps } from './CountdownWidget';
-import { orderCountdowns } from './mood';
-import { forgetSettings, readSettings, type WidgetSettings } from './settings';
+import { CountdownWidget, FLIP_NEXT, NEXT, PREV, SELECT, type WidgetItem, type WidgetProps } from './CountdownWidget';
+import { orderCountdowns, smartOrder } from './mood';
+import { forgetSettings, readSettings, writeSettings, type WidgetSettings } from './settings';
 
 type Info = Pick<WidgetInfo, 'width' | 'height' | 'widgetId'>;
 type Loaded =
@@ -41,13 +41,29 @@ export function widgetItems(cached: CachedFeed, settings: WidgetSettings, now = 
   return orderCountdowns(all, now, cached.feed.timeZone);
 }
 
+function clickedId(data: unknown): string | null {
+  const id = (data as { id?: unknown } | undefined)?.id;
+  return typeof id === 'string' && id ? id : null;
+}
+
 /** Builds one widget (both looks when it follows the system theme). */
 export async function renderCountdownWidget(
   info: Info,
-  opts: { fromCache?: boolean; settings?: WidgetSettings } = {},
+  opts: { fromCache?: boolean; settings?: WidgetSettings; flipFrom?: string | null } = {},
 ): Promise<WidgetRepresentation> {
-  const settings = opts.settings ?? (await readSettings(info.widgetId));
+  let settings = opts.settings ?? (await readSettings(info.widgetId));
   const loaded = await load(Boolean(opts.fromCache));
+
+  // Flip by redrawing (APKs without the native flip): the one after the tapped card goes on top.
+  if (opts.flipFrom !== undefined && loaded.kind === 'ready') {
+    const list = orderCountdowns(widgetItems(loaded.cached, settings), Date.now(), loaded.cached.feed.timeZone);
+    const from = list.findIndex((i) => i.id === opts.flipFrom);
+    const next = list[(from + 1) % list.length];
+    if (next?.id) {
+      settings = { ...settings, current: next.id, pickedAt: Date.now() };
+      await writeSettings(info.widgetId, settings);
+    }
+  }
   const size = { width: info.width, height: info.height };
   const now = Date.now();
   const widgetId = info.widgetId;
@@ -57,10 +73,12 @@ export async function renderCountdownWidget(
     if (loaded.kind === 'error') props = { state: 'error', message: loaded.message, size, look, widgetId };
     else if (loaded.kind === 'empty') props = { state: 'empty', connected: loaded.connected, size, look, widgetId };
     else {
-      const items = widgetItems(loaded.cached, settings, now);
-      const nonePicked = items.length === 0 && feedItems(loaded.cached.feed).some((i) => i.targetAt);
+      const tz = loaded.cached.feed.timeZone;
+      const all = widgetItems(loaded.cached, settings, now);
+      const nonePicked = all.length === 0 && feedItems(loaded.cached.feed).some((i) => i.targetAt);
+      const { items, positions } = smartOrder(all, now, tz, { id: settings.current, at: settings.pickedAt });
       props = items.length
-        ? { state: 'ready', items, tz: loaded.cached.feed.timeZone, now, stale: loaded.stale, size, look, widgetId }
+        ? { state: 'ready', items, positions, tz, now, stale: loaded.stale, size, look, widgetId }
         : { state: 'empty', connected: true, nonePicked, size, look, widgetId };
     }
     return <CountdownWidget {...props} />;
@@ -82,7 +100,11 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
       props.renderWidget(await renderCountdownWidget(info, { fromCache: true }));
       break;
     case 'WIDGET_CLICK':
-      // The arrows and list rows of older versions: redraw, which brings the new scrolling stack.
+      // A card tapped on an APK without the native flip: put the next one on top and redraw.
+      if (props.clickAction === FLIP_NEXT) {
+        props.renderWidget(await renderCountdownWidget(info, { fromCache: true, flipFrom: clickedId(props.clickActionData) }));
+      }
+      // The arrows and list rows of older versions: redraw, which brings the new stack.
       if (props.clickAction === NEXT || props.clickAction === PREV || props.clickAction === SELECT) {
         props.renderWidget(await renderCountdownWidget(info, { fromCache: true }));
       }

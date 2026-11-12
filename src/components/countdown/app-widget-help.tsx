@@ -48,7 +48,7 @@ const placedWidgets = () => window.hidlApp?.widgets ?? null;
 
 /**
  * The easy way to a home-screen widget: the hidl Android app's widget, which shows every
- * countdown still to come (scroll through them; new ones appear by themselves). Inside the app
+ * countdown still to come (the one that matters most on top; tap to flip; new ones appear by themselves). Inside the app
  * it's one tap; Android then asks "Add to Home screen?". Elsewhere it points to the app.
  */
 export function AppWidgetHelp({ title }: { title?: string }) {
@@ -230,7 +230,7 @@ function Bar({ className = "" }: { className?: string }) {
  * A picture of the widget in the size picked, so the dialog shows what you get instead of
  * explaining it. Colors are the widget's own (mobile/src/widget/look.ts, light), not the page
  * theme's: it's a picture of something on the home screen. Cards peek out below the small and
- * medium ones to show they scroll.
+ * medium ones to show they stack.
  */
 function WidgetPreview({ title, size = "medium" }: { title?: string; size?: WidgetSize }) {
   const name = title ?? "Your countdown";

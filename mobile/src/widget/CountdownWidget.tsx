@@ -19,12 +19,28 @@ export const PREV = 'PREV_COUNTDOWN';
 export const NEXT = 'NEXT_COUNTDOWN';
 export const SELECT = 'SELECT_COUNTDOWN';
 
+/**
+ * A tap on a card: the APK's patched widget library (mobile/patches/) flips the card stack itself,
+ * with a slide, without waking the app. Older APKs pass it to task-handler.tsx, which redraws
+ * with the next countdown on top instead.
+ */
+export const FLIP_NEXT = 'HIDL_FLIP_NEXT';
+
 export type Size = { width: number; height: number };
 export type WidgetItem = WidgetCountdown & { id?: string };
 
 type Common = { size: Size; look: LookName; widgetId?: number };
 export type WidgetProps =
-  | (Common & { state: 'ready'; items: WidgetItem[]; tz?: string; now: number; stale?: boolean })
+  | (Common & {
+      state: 'ready';
+      /** In the order shown: the one on top first (see `smartOrder`). */
+      items: WidgetItem[];
+      /** Each item's place soonest-first, for the dots (the stack may start mid-way). */
+      positions?: number[];
+      tz?: string;
+      now: number;
+      stale?: boolean;
+    })
   | (Common & { state: 'empty'; connected: boolean; nonePicked?: boolean })
   | (Common & { state: 'error'; message: string });
 
@@ -59,10 +75,11 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 /**
- * The Hidl home-screen widget, a stack of cards: every countdown fills the whole widget, and a
- * swipe up or down brings the next one, one card at a time (like a stack of widgets on an iPhone).
- * The `ListWidget` is drawn by Android's StackView, not a scrolling list: patches/ swaps it in the
- * widget library, so it snaps to whole cards and loops round. Each card is one huge
+ * The Hidl home-screen widget, a stack of cards, like an iPhone Smart Stack: every countdown fills
+ * the whole widget, Hidl puts the one that matters most on top (`smartOrder` in mood.ts), and a tap
+ * slides the next one up. The `ListWidget` is drawn by Android's AdapterViewFlipper, not a
+ * scrolling list: mobile/patches/ swaps it in the widget library, with the slide and the tap
+ * (`FLIP_NEXT`) handled natively, so it works on every launcher. Each card is one huge
  * number, what it's for, a thin bar of how far along it is, and Hidi, whose mood follows the date
  * and colors the card (gold on the day, slate once it's passed). The large size is a list.
  *
@@ -87,7 +104,7 @@ export function CountdownWidget(props: WidgetProps) {
             look,
             item,
             shown: describe(item, now, tz),
-            index: i,
+            index: props.positions?.[i] ?? i,
             count: items.length,
             tz,
             widgetId: props.widgetId,
@@ -132,13 +149,18 @@ type PageProps = {
   height: number;
 };
 
-/** One countdown's card: fills the list, in its mood's colors, and opens that countdown. */
-function Page({ look, item, shown, padding, children }: { look: Look; item: WidgetItem; shown: Shown; padding: number; children: React.ReactNode }) {
+/**
+ * One countdown's card: fills the stack, in its mood's colors. A tap flips to the next one; the
+ * title and Hidi (`Opens`) open the countdown. With only one, the whole card opens it.
+ */
+function Page({ look, item, shown, padding, count, children }: {
+  look: Look; item: WidgetItem; shown: Shown; padding: number; count: number; children: React.ReactNode;
+}) {
   const skin = skinFor(look, shown.mood);
   return (
     <FlexWidget
-      clickAction="OPEN_URI"
-      clickActionData={{ uri: countdownUri(item.id) }}
+      clickAction={count > 1 ? FLIP_NEXT : 'OPEN_URI'}
+      clickActionData={count > 1 ? { id: item.id ?? '' } : { uri: countdownUri(item.id) }}
       accessibilityLabel={`${item.title}: ${shown.short}`}
       style={{
         width: 'match_parent',
@@ -148,6 +170,20 @@ function Page({ look, item, shown, padding, children }: { look: Look; item: Widg
         padding,
         flexDirection: 'column',
       }}
+    >
+      {children}
+    </FlexWidget>
+  );
+}
+
+/** Opens this countdown in the app (inside a card, where a tap elsewhere flips). */
+function Opens({ item, children, flex }: { item: WidgetItem; children: React.ReactNode; flex?: number }) {
+  return (
+    <FlexWidget
+      clickAction="OPEN_URI"
+      clickActionData={{ uri: countdownUri(item.id) }}
+      accessibilityLabel={`Open ${item.title}`}
+      style={{ flexDirection: 'column', ...(flex ? { flex } : {}) }}
     >
       {children}
     </FlexWidget>
@@ -281,7 +317,7 @@ function MediumPage({ look, item, shown, index, count, tz, widgetId, stale, heig
   const roomy = height >= 200;
   const hidi = roomy ? 92 : height >= 160 ? 76 : 60;
   return (
-    <Page look={look} item={item} shown={shown} padding={roomy ? 16 : 12}>
+    <Page look={look} item={item} shown={shown} padding={roomy ? 16 : 12} count={count}>
       <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center' }}>
         <FlexWidget style={{ flex: 1, flexDirection: 'row' }}>
           <Bubble look={look} text={stale ? 'Offline: counting from my last look.' : speech(shown)} size={roomy ? 13 : 12} />
@@ -292,13 +328,17 @@ function MediumPage({ look, item, shown, index, count, tz, widgetId, stale, heig
       <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'row', alignItems: 'center' }}>
         <FlexWidget style={{ flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
           <BigNumber look={look} shown={shown} size={roomy ? 60 : 46} />
-          <Text text={item.title} size={roomy ? 17 : 15} color={look.text} font={FONT.roundHeavy} />
-          <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
-            <KindTag look={look} kind={item.kind} size={roomy ? 10 : 9} />
-            <Text text={`· ${dateOf(item.targetAt, tz)}`} size={roomy ? 12 : 11} color={look.soft} marginLeft={6} />
-          </FlexWidget>
+          <Opens item={item}>
+            <Text text={item.title} size={roomy ? 17 : 15} color={look.text} font={FONT.roundHeavy} />
+            <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+              <KindTag look={look} kind={item.kind} size={roomy ? 10 : 9} />
+              <Text text={`· ${dateOf(item.targetAt, tz)}`} size={roomy ? 12 : 11} color={look.soft} marginLeft={6} />
+            </FlexWidget>
+          </Opens>
         </FlexWidget>
-        <Hidi mood={shown.mood} width={hidi} />
+        <Opens item={item}>
+          <Hidi mood={shown.mood} width={hidi} />
+        </Opens>
         {count > 1 && (
           <FlexWidget style={{ marginLeft: 8 }}>
             <StackDots look={look} count={count} index={index} />
@@ -315,12 +355,14 @@ function MediumPage({ look, item, shown, index, count, tz, widgetId, stale, heig
 function SmallPage({ look, item, shown, index, count, height }: PageProps) {
   const roomy = height >= 165;
   return (
-    <Page look={look} item={item} shown={shown} padding={roomy ? 14 : 11}>
+    <Page look={look} item={item} shown={shown} padding={roomy ? 14 : 11} count={count}>
       <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'flex-start' }}>
         <FlexWidget style={{ flex: 1, flexDirection: 'column' }}>
           <SvgWidget svg={kindSvg(item.kind)} style={{ width: 22, height: 22 }} />
         </FlexWidget>
-        <Hidi mood={shown.mood} width={roomy ? 56 : 44} />
+        <Opens item={item}>
+          <Hidi mood={shown.mood} width={roomy ? 56 : 44} />
+        </Opens>
         {count > 1 && (
           <FlexWidget style={{ marginLeft: 4 }}>
             <StackDots look={look} count={count} index={index} />
@@ -329,8 +371,10 @@ function SmallPage({ look, item, shown, index, count, height }: PageProps) {
       </FlexWidget>
       <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'column', justifyContent: 'flex-end' }}>
         <Text text={shown.big} size={shown.bigIsWord ? (roomy ? 24 : 20) : roomy ? 46 : 38} color={look.text} font={FONT.roundHeavy} />
-        <Text text={item.title} size={roomy ? 14 : 13} color={look.text} font={FONT.roundHeavy} />
-        {shown.chips.length > 0 && <Text text={shown.chips.slice(0, 2).join(' · ')} size={11} color={look.soft} />}
+        <Opens item={item}>
+          <Text text={item.title} size={roomy ? 14 : 13} color={look.text} font={FONT.roundHeavy} />
+          {shown.chips.length > 0 && <Text text={shown.chips.slice(0, 2).join(' · ')} size={11} color={look.soft} />}
+        </Opens>
       </FlexWidget>
       <Bar look={look} progress={shown.progress} height={5} marginTop={roomy ? 8 : 6} />
     </Page>
