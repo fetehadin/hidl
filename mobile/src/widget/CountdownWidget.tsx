@@ -1,6 +1,6 @@
 import { FlexWidget, ListWidget, SvgWidget, TextWidget } from 'react-native-android-widget';
-import { FONT, LOOKS, type Look, type LookName } from './look';
-import { accentOf, chevronSvg, hidiHeight, hidiSvg, kindLineSvg } from './hidi';
+import { FONT, LOOKS, skinFor, type Look, type LookName } from './look';
+import { editSvg, hidiHeight, hidiSvg, kindSvg } from './hidi';
 import { describe, type Mood, type Shown, type WidgetCountdown } from './mood';
 
 /** The three entries in the widget picker (app.json). "Countdown" is the original, kept so
@@ -8,7 +8,8 @@ import { describe, type Mood, type Shown, type WidgetCountdown } from './mood';
 export const WIDGET_NAMES = ['CountdownSmall', 'Countdown', 'CountdownLarge'] as const;
 export const WIDGET_NAME = 'Countdown';
 
-/** clickAction names, handled in task-handler.tsx. */
+/** clickAction names from older widget versions, still handled in task-handler.tsx (a widget
+ *  drawn by an older version keeps its buttons until it's redrawn). */
 export const PREV = 'PREV_COUNTDOWN';
 export const NEXT = 'NEXT_COUNTDOWN';
 export const SELECT = 'SELECT_COUNTDOWN';
@@ -16,10 +17,11 @@ export const SELECT = 'SELECT_COUNTDOWN';
 export type Size = { width: number; height: number };
 export type WidgetItem = WidgetCountdown & { id?: string };
 
+type Common = { size: Size; look: LookName; widgetId?: number };
 export type WidgetProps =
-  | { state: 'ready'; items: WidgetItem[]; index: number; tz?: string; now: number; stale?: boolean; size: Size; look: LookName }
-  | { state: 'empty'; connected: boolean; size: Size; look: LookName }
-  | { state: 'error'; message: string; size: Size; look: LookName };
+  | (Common & { state: 'ready'; items: WidgetItem[]; tz?: string; now: number; stale?: boolean })
+  | (Common & { state: 'empty'; connected: boolean; nonePicked?: boolean })
+  | (Common & { state: 'error'; message: string });
 
 /**
  * The size breakpoints: what's drawn depends on the widget's real size, so any of the three
@@ -36,57 +38,71 @@ export function countdownUri(id?: string) {
   return `hidl://open?path=${encodeURIComponent(id ? `/countdown#c-${id}` : '/countdown')}`;
 }
 
+/** Opens this widget's settings in the app: which countdowns it shows, and its look (App.tsx). */
+export function settingsUri(widgetId?: number) {
+  return widgetId === undefined ? 'hidl://widget' : `hidl://widget?id=${widgetId}`;
+}
+
+const KIND_LABEL: Record<string, string> = {
+  exam: 'Exam',
+  graduation: 'Graduation',
+  birthday: 'Birthday',
+  wedding: 'Wedding',
+  work: 'Work',
+  trip: 'Trip',
+  life: 'Life',
+};
+
 /**
- * The hidl home-screen widget, "chunky" style: a teal (or near-black) frame with "hidl" on it, a
- * white (or lighter) card on a darker bottom edge like a pressed button, Hidi in a mood that
- * follows the date with a speech bubble, and big rounded numbers. Drawn to a picture by
- * react-native-android-widget, so only its primitives work here (no React Native views, no
- * fragments), and nothing animates or ticks between redraws.
+ * The Hidl home-screen widget, a stack of cards: every countdown fills the whole widget, and you
+ * scroll up or down to the next one (like a stack of widgets on an iPhone). Each card is one huge
+ * number, what it's for, a thin bar of how far along it is, and Hidi, whose mood follows the date
+ * and colors the card (gold on the day, slate once it's passed). The large size is a list.
+ *
+ * Drawn to pictures by react-native-android-widget, so only its primitives work here (no React
+ * Native views, no fragments), and nothing ticks between redraws.
  */
 export function CountdownWidget(props: WidgetProps) {
   const look = LOOKS[props.look];
   const layout = layoutFor(props.size);
-  const { height } = props.size;
 
   let body: React.JSX.Element;
   if (props.state !== 'ready' || props.items.length === 0) {
-    body = <EmptyCard look={look} layout={layout} props={props} />;
+    body = <EmptyCard look={look} small={layout === 'small'} props={props} />;
+  } else if (layout === 'large') {
+    body = <LargeList look={look} props={props} />;
   } else {
-    const item = props.items[props.index];
-    const shown = describe(item, props.now, props.tz);
-    body =
-      layout === 'small' ? (
-        <SmallCard look={look} item={item} shown={shown} count={props.items.length} index={props.index} height={height} />
-      ) : layout === 'large' ? (
-        <FlexWidget style={{ width: 'match_parent', height: 'match_parent', flexDirection: 'column' }}>
-          <Header look={look} stale={props.stale} right={<Text text={`${props.items.length} countdown${props.items.length === 1 ? '' : 's'}`} size={12} color={look.onBgSoft} font={FONT.mono} />} />
-          <ListCard look={look} items={props.items} index={props.index} now={props.now} tz={props.tz} shown={shown} />
-        </FlexWidget>
-      ) : (
-        <FlexWidget style={{ width: 'match_parent', height: 'match_parent', flexDirection: 'column' }}>
-          <Header
-            look={look}
-            stale={props.stale}
-            compact={height < 210}
-            right={props.items.length > 1 ? <Pager look={look} count={props.items.length} index={props.index} /> : undefined}
-          />
-          <FeaturedCard look={look} item={item} shown={shown} tz={props.tz} height={height} />
-        </FlexWidget>
-      );
+    const { items, now, tz } = props;
+    body = (
+      <ListWidget style={{ width: 'match_parent', height: 'match_parent' }}>
+        {items.map((item, i) => {
+          const page = {
+            look,
+            item,
+            shown: describe(item, now, tz),
+            index: i,
+            count: items.length,
+            tz,
+            widgetId: props.widgetId,
+            stale: props.stale,
+            height: props.size.height,
+          };
+          const key = item.id ?? `${item.title}-${i}`;
+          return layout === 'small' ? <SmallPage key={key} {...page} /> : <MediumPage key={key} {...page} />;
+        })}
+      </ListWidget>
+    );
   }
 
-  const flips = props.state === 'ready' && props.items.length > 1;
   return (
     <FlexWidget
-      // The small widget flips on a tap; the others open hidl from anywhere outside the buttons.
-      clickAction={layout === 'small' && flips ? NEXT : 'OPEN_APP'}
+      clickAction="OPEN_APP"
       accessibilityLabel="Hidl countdowns"
       style={{
         width: 'match_parent',
         height: 'match_parent',
-        backgroundColor: look.bg,
         borderRadius: 28,
-        padding: layout === 'small' ? 8 : height < 210 ? 9 : 12,
+        backgroundGradient: { from: look.from, to: look.to, orientation: 'TL_BR' },
         flexDirection: 'column',
       }}
     >
@@ -97,29 +113,36 @@ export function CountdownWidget(props: WidgetProps) {
 
 // ---- building blocks
 
-/** A white (or lighter) card on a darker edge that's thicker at the bottom: a pressed button. */
-function Chunky({ look, children, flex, clickAction, uri, marginTop = 0, padding = 12, center }: {
-  look: Look; children: React.ReactNode; flex?: number; clickAction?: string; uri?: string; marginTop?: number; padding?: number; center?: boolean;
-}) {
+type PageProps = {
+  look: Look;
+  item: WidgetItem;
+  shown: Shown;
+  index: number;
+  count: number;
+  tz?: string;
+  widgetId?: number;
+  stale?: boolean;
+  height: number;
+};
+
+/** One countdown's card: fills the list, in its mood's colors, and opens that countdown. */
+function Page({ look, item, shown, padding, children }: { look: Look; item: WidgetItem; shown: Shown; padding: number; children: React.ReactNode }) {
+  const skin = skinFor(look, shown.mood);
   return (
     <FlexWidget
-      clickAction={clickAction ?? (uri ? 'OPEN_URI' : undefined)}
-      clickActionData={uri ? { uri } : undefined}
-      style={{ width: 'match_parent', ...(flex ? { flex } : {}), marginTop, backgroundColor: look.edge, borderRadius: 22, paddingBottom: 5 }}
+      clickAction="OPEN_URI"
+      clickActionData={{ uri: countdownUri(item.id) }}
+      accessibilityLabel={`${item.title}: ${shown.short}`}
+      style={{
+        width: 'match_parent',
+        height: 'match_parent',
+        borderRadius: 28,
+        backgroundGradient: { from: skin.from, to: skin.to, orientation: 'TL_BR' },
+        padding,
+        flexDirection: 'column',
+      }}
     >
-      <FlexWidget
-        style={{
-          width: 'match_parent',
-          ...(flex ? { flex: 1 } : {}),
-          backgroundColor: look.card,
-          borderRadius: 22,
-          padding,
-          flexDirection: 'column',
-          ...(center ? { alignItems: 'center', justifyContent: 'center' } : {}),
-        }}
-      >
-        {children}
-      </FlexWidget>
+      {children}
     </FlexWidget>
   );
 }
@@ -150,109 +173,80 @@ function Text({ text, size, color, font = FONT.round, lines = 1, align, marginTo
   );
 }
 
-/** Hidi and "hidl" on the frame, with the arrows and dots (or a count) on the right. */
-function Header({ look, stale, right, compact }: { look: Look; stale?: boolean; right?: React.JSX.Element; compact?: boolean }) {
-  return (
-    <FlexWidget style={{ width: 'match_parent', height: compact ? 34 : 40, flexDirection: 'row', alignItems: 'center', paddingLeft: 4, marginBottom: compact ? 4 : 6 }}>
-      <FlexWidget style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-        <Hidi mood="calm" width={compact ? 24 : 28} />
-        <Text text="Hidl" size={compact ? 17 : 19} color={look.onBg} font={FONT.roundHeavy} marginLeft={6} />
-        {stale && <Text text="· offline" size={10} color={look.onBgSoft} font={FONT.mono} marginLeft={6} />}
-      </FlexWidget>
-      {right}
-    </FlexWidget>
-  );
-}
-
-/** ‹ ••• › : glassy buttons on the frame with the page dots between them. */
-function Pager({ look, count, index }: { look: Look; count: number; index: number }) {
+/** The kind's icon on its colored tile, and its name: "EXAM", "TRIP". */
+function KindTag({ look, kind, size = 10 }: { look: Look; kind: string; size?: number }) {
   return (
     <FlexWidget style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Arrow look={look} dir="left" />
-      <Dots on={look.dot} off={look.dotOff} count={count} index={index} textColor={look.onBg} />
-      <Arrow look={look} dir="right" />
+      <SvgWidget svg={kindSvg(kind)} style={{ width: size + 8, height: size + 8 }} />
+      <Text text={(KIND_LABEL[kind] ?? 'Countdown').toUpperCase()} size={size} color={look.soft} font={FONT.mono} marginLeft={5} />
     </FlexWidget>
   );
 }
 
-/** 32dp visible, inside a 40dp tap area. */
-function Arrow({ look, dir }: { look: Look; dir: 'left' | 'right' }) {
+/** A round glass button with the sliders icon: this widget's settings (which countdowns, look). */
+function EditButton({ look, widgetId, size = 32 }: { look: Look; widgetId?: number; size?: number }) {
   return (
     <FlexWidget
-      clickAction={dir === 'left' ? PREV : NEXT}
-      accessibilityLabel={dir === 'left' ? 'Previous countdown' : 'Next countdown'}
-      style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}
+      clickAction="OPEN_URI"
+      clickActionData={{ uri: settingsUri(widgetId) }}
+      accessibilityLabel="Choose countdowns for this widget"
+      // A tap area bigger than the button, so it's easy to hit.
+      style={{ width: size + 12, height: size + 12, justifyContent: 'center', alignItems: 'center' }}
     >
       <FlexWidget
         style={{
-          width: 32,
-          height: 30,
-          backgroundColor: look.button,
-          borderColor: look.buttonLine,
-          borderWidth: 1.5,
-          borderRadius: 10,
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: look.glass,
+          borderColor: look.glassLine,
+          borderWidth: 1,
           justifyContent: 'center',
           alignItems: 'center',
         }}
       >
-        <SvgWidget svg={chevronSvg(dir, look.onBg)} style={{ width: 16, height: 16 }} />
+        <SvgWidget svg={editSvg(look.text)} style={{ width: Math.round(size * 0.55), height: Math.round(size * 0.55) }} />
       </FlexWidget>
     </FlexWidget>
   );
 }
 
-/** The one on show is a pill, the rest small dots; a "3/9" past six. */
-function Dots({ on, off, count, index, textColor }: { on: string; off: string; count: number; index: number; textColor: string }) {
-  if (count > 6) return <Text text={`${index + 1}/${count}`} size={11} color={textColor} font={FONT.mono} />;
+/** Where you are in the stack, standing up, so it says "scroll up and down". */
+function StackDots({ look, count, index }: { look: Look; count: number; index: number }) {
+  if (count < 2) return null;
+  if (count > 7) return <Text text={`${index + 1}/${count}`} size={10} color={look.soft} font={FONT.mono} />;
   return (
-    <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 2 }}>
+    <FlexWidget style={{ flexDirection: 'column', alignItems: 'center' }}>
       {Array.from({ length: count }, (_, i) => (
         <FlexWidget
           key={i}
-          style={{ width: i === index ? 16 : 6, height: 6, borderRadius: 3, marginHorizontal: 2, backgroundColor: (i === index ? on : off) as `#${string}` }}
+          style={{ width: 5, height: i === index ? 14 : 5, borderRadius: 3, marginVertical: 2, backgroundColor: i === index ? look.dot : look.dotOff }}
         />
       ))}
     </FlexWidget>
   );
 }
 
-/** Hidi with what Hidi says, in a soft bubble. */
-function HidiSays({ look, shown, hidi, size = 14, marginBottom = 8 }: { look: Look; shown: Shown; hidi: number; size?: number; marginBottom?: number }) {
-  return (
-    <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center', marginBottom }}>
-      <Hidi mood={shown.mood} width={hidi} />
-      <FlexWidget style={{ flex: 1, marginLeft: 10, backgroundColor: look.bubble, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 }}>
-        <Text text={speech(shown)} size={size} color={look.text} lines={2} />
-      </FlexWidget>
-    </FlexWidget>
-  );
-}
-
-/** A unit chip: "days", "21h". */
-function Chip({ look, text, size = 13, marginLeft = 0, marginTop = 0 }: { look: Look; text: string; size?: number; marginLeft?: number; marginTop?: number }) {
-  return (
-    <FlexWidget style={{ backgroundColor: look.chip, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginLeft, marginTop }}>
-      <Text text={text} size={size} color={look.text} />
-    </FlexWidget>
-  );
-}
-
-/** Big number with its unit chips beside it: "5" [days] [21h]; a word on the day itself. */
+/** The big number with its units beside it: "3" days / 20h; a word on the day itself. */
 function BigNumber({ look, shown, size }: { look: Look; shown: Shown; size: number }) {
+  const [unit, ...rest] = shown.chips;
   return (
-    <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}>
-      <Text text={shown.big} size={shown.bigIsWord ? Math.round(size * 0.6) : size} color={look.text} font={FONT.roundHeavy} />
-      {shown.chips.slice(0, 2).map((c, i) => (
-        <Chip key={c} look={look} text={c} marginLeft={i ? 5 : 7} />
-      ))}
+    <FlexWidget style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Text text={shown.big} size={shown.bigIsWord ? Math.round(size * 0.55) : size} color={look.text} font={FONT.roundHeavy} />
+      {unit && (
+        <FlexWidget style={{ flexDirection: 'column', marginLeft: 8 }}>
+          <Text text={unit} size={Math.round(size * 0.28)} color={look.text} font={FONT.roundHeavy} />
+          {rest.length > 0 && <Text text={rest.slice(0, 2).join(' ')} size={Math.round(size * 0.24)} color={look.soft} />}
+        </FlexWidget>
+      )}
     </FlexWidget>
   );
 }
 
-/** A thick rounded bar: how far from "made" to "the day". */
-function Bar({ look, progress, height = 10, marginTop = 10 }: { look: Look; progress: number | null; height?: number; marginTop?: number }) {
+/** A thin white bar: how far from "made" to "the day". */
+function Bar({ look, progress, height = 6, marginTop = 10 }: { look: Look; progress: number | null; height?: number; marginTop?: number }) {
   if (progress === null) return null;
-  const filled = Math.max(Math.round(progress * 1000), 40);
+  const filled = Math.max(Math.round(progress * 1000), 30);
   return (
     <FlexWidget style={{ width: 'match_parent', height, marginTop, backgroundColor: look.track, borderRadius: height / 2, flexDirection: 'row' }}>
       <FlexWidget style={{ flex: filled, height, backgroundColor: look.fill, borderRadius: height / 2 }} />
@@ -261,122 +255,205 @@ function Bar({ look, progress, height = 10, marginTop = 10 }: { look: Look; prog
   );
 }
 
+/** Hidi's line, in a white bubble. */
+function Bubble({ look, text, size = 13 }: { look: Look; text: string; size?: number }) {
+  return (
+    <FlexWidget style={{ backgroundColor: look.bubble, borderRadius: 14, paddingHorizontal: 11, paddingVertical: 5 }}>
+      <Text text={text} size={size} color={look.bubbleText} />
+    </FlexWidget>
+  );
+}
+
 // ---- the layouts
 
-/** Medium: Hidi and the bubble (when there's room), the title and date, the big number, the bar. */
-function FeaturedCard({ look, item, shown, tz, height }: { look: Look; item: WidgetItem; shown: Shown; tz?: string; height: number }) {
-  const roomy = height >= 210;
-  const withHidi = height >= 172;
+/**
+ * 4×2: Hidi's line and the settings button on top; the big number, what it's for and when on
+ * the left; Hidi big on the right; the stack dots at the edge; the bar along the bottom.
+ */
+function MediumPage({ look, item, shown, index, count, tz, widgetId, stale, height }: PageProps) {
+  const roomy = height >= 200;
+  const hidi = roomy ? 92 : height >= 160 ? 76 : 60;
   return (
-    <Chunky look={look} flex={1} uri={countdownUri(item.id)} padding={roomy ? 14 : 10}>
-      {withHidi && <HidiSays look={look} shown={shown} hidi={roomy ? 54 : 38} size={roomy ? 14 : 12} marginBottom={roomy ? 8 : 4} />}
+    <Page look={look} item={item} shown={shown} padding={roomy ? 16 : 12}>
+      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center' }}>
+        <FlexWidget style={{ flex: 1, flexDirection: 'row' }}>
+          <Bubble look={look} text={stale ? 'Offline: counting from my last look.' : speech(shown)} size={roomy ? 13 : 12} />
+        </FlexWidget>
+        <EditButton look={look} widgetId={widgetId} size={roomy ? 32 : 28} />
+      </FlexWidget>
+
       <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-        <FlexWidget style={{ flex: 1, flexDirection: 'column' }}>
-          <FlexWidget style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <SvgWidget svg={kindLineSvg(item.kind, look.icon)} style={{ width: roomy ? 18 : 16, height: roomy ? 18 : 16 }} />
-            <Text text={item.title} size={roomy ? 17 : 15} color={look.text} font={FONT.roundHeavy} marginLeft={6} flex={1} />
+        <FlexWidget style={{ flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
+          <BigNumber look={look} shown={shown} size={roomy ? 60 : 46} />
+          <Text text={item.title} size={roomy ? 17 : 15} color={look.text} font={FONT.roundHeavy} />
+          <FlexWidget style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+            <KindTag look={look} kind={item.kind} size={roomy ? 10 : 9} />
+            <Text text={`· ${dateOf(item.targetAt, tz)}`} size={roomy ? 12 : 11} color={look.soft} marginLeft={6} />
           </FlexWidget>
-          <Text text={dateOf(item.targetAt, tz)} size={roomy ? 13 : 11} color={look.muted} />
         </FlexWidget>
-        <BigNumber look={look} shown={shown} size={roomy ? 40 : 32} />
+        <Hidi mood={shown.mood} width={hidi} />
+        {count > 1 && (
+          <FlexWidget style={{ marginLeft: 8 }}>
+            <StackDots look={look} count={count} index={index} />
+          </FlexWidget>
+        )}
       </FlexWidget>
-      <Bar look={look} progress={shown.progress} height={roomy ? 10 : 8} marginTop={roomy ? 8 : 6} />
-    </Chunky>
+
+      <Bar look={look} progress={shown.progress} marginTop={roomy ? 10 : 6} />
+    </Page>
   );
 }
 
-/** 2×2: Hidi, the big number on a soft tile, its unit, the title and the dots. A tap flips. */
-function SmallCard({ look, item, shown, count, index, height }: { look: Look; item: WidgetItem; shown: Shown; count: number; index: number; height: number }) {
-  // Room left inside the frame's and the card's padding.
-  const room = height - 16 - 21 - (count > 1 ? 12 : 0);
-  const hidi = room >= 150 ? 46 : room >= 128 ? 36 : room >= 110 ? 26 : 0;
-  const big = room >= 150 ? 34 : 28;
+/** 2×2: the kind and Hidi on top, then the big number, the title and its units, and the bar. */
+function SmallPage({ look, item, shown, index, count, height }: PageProps) {
+  const roomy = height >= 165;
   return (
-    <Chunky look={look} flex={1} padding={8} center>
-      {hidi > 0 && <Hidi mood={shown.mood} width={hidi} />}
-      <FlexWidget style={{ backgroundColor: look.chip, borderRadius: 12, paddingHorizontal: 12, marginTop: hidi ? 2 : 0 }}>
-        <Text text={shown.big} size={shown.bigIsWord ? Math.round(big * 0.6) : big} color={look.text} font={FONT.roundHeavy} />
-      </FlexWidget>
-      {shown.chips[0] && <Chip look={look} text={shown.chips[0]} size={11} marginTop={4} />}
-      <Text text={item.title} size={13} color={look.text} font={FONT.roundHeavy} align="center" marginTop={3} />
-      {count > 1 && (
-        <FlexWidget style={{ marginTop: 6 }}>
-          <Dots on={look.cardDot} off={look.cardDotOff} count={count} index={index} textColor={look.muted} />
+    <Page look={look} item={item} shown={shown} padding={roomy ? 14 : 11}>
+      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'flex-start' }}>
+        <FlexWidget style={{ flex: 1, flexDirection: 'column' }}>
+          <SvgWidget svg={kindSvg(item.kind)} style={{ width: 22, height: 22 }} />
         </FlexWidget>
-      )}
-    </Chunky>
+        <Hidi mood={shown.mood} width={roomy ? 56 : 44} />
+        {count > 1 && (
+          <FlexWidget style={{ marginLeft: 4 }}>
+            <StackDots look={look} count={count} index={index} />
+          </FlexWidget>
+        )}
+      </FlexWidget>
+      <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'column', justifyContent: 'flex-end' }}>
+        <Text text={shown.big} size={shown.bigIsWord ? (roomy ? 24 : 20) : roomy ? 46 : 38} color={look.text} font={FONT.roundHeavy} />
+        <Text text={item.title} size={roomy ? 14 : 13} color={look.text} font={FONT.roundHeavy} />
+        {shown.chips.length > 0 && <Text text={shown.chips.slice(0, 2).join(' · ')} size={11} color={look.soft} />}
+      </FlexWidget>
+      <Bar look={look} progress={shown.progress} height={5} marginTop={roomy ? 8 : 6} />
+    </Page>
   );
 }
 
-/** 4×4: Hidi on the one on show, then every countdown; tapping a row shows it. */
-function ListCard({ look, items, index, now, tz, shown }: { look: Look; items: WidgetItem[]; index: number; now: number; tz?: string; shown: Shown }) {
+/** 4×4: a header, the soonest as a big card with Hidi's bubble, then the rest as rows. All of it scrolls. */
+function LargeList({ look, props }: { look: Look; props: Extract<WidgetProps, { state: 'ready' }> }) {
+  const { items, now, tz, widgetId, stale } = props;
+  const [first, ...rest] = items;
+  const shown = describe(first, now, tz);
+  const skin = skinFor(look, shown.mood);
   return (
-    <Chunky look={look} flex={1} padding={12} uri={countdownUri(items[index]?.id)}>
-      <HidiSays look={look} shown={shown} hidi={54} />
-      <FlexWidget style={{ width: 'match_parent', flex: 1 }}>
+    <FlexWidget style={{ width: 'match_parent', height: 'match_parent', flexDirection: 'column', padding: 12 }}>
+      <FlexWidget style={{ width: 'match_parent', height: 40, flexDirection: 'row', alignItems: 'center', paddingLeft: 4 }}>
+        <Hidi mood="calm" width={26} />
+        <Text text="Hidl" size={18} color={look.text} font={FONT.roundHeavy} marginLeft={6} />
+        <Text
+          text={stale ? '· offline' : `· ${items.length} countdown${items.length === 1 ? '' : 's'}`}
+          size={12}
+          color={look.soft}
+          marginLeft={6}
+          flex={1}
+        />
+        <EditButton look={look} widgetId={widgetId} size={30} />
+      </FlexWidget>
+      <FlexWidget style={{ width: 'match_parent', flex: 1, marginTop: 4 }}>
         <ListWidget style={{ width: 'match_parent', height: 'match_parent' }}>
-          {items.map((item, i) => {
-            const on = i === index;
+          <FlexWidget
+            key="hero"
+            clickAction="OPEN_URI"
+            clickActionData={{ uri: countdownUri(first.id) }}
+            style={{
+              width: 'match_parent',
+              height: 170,
+              borderRadius: 22,
+              backgroundGradient: { from: skin.from, to: skin.to, orientation: 'TL_BR' },
+              borderColor: look.glassLine,
+              borderWidth: 1,
+              padding: 14,
+              flexDirection: 'column',
+            }}
+          >
+            <FlexWidget style={{ flexDirection: 'row' }}>
+              <Bubble look={look} text={speech(shown)} />
+            </FlexWidget>
+            <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+              <FlexWidget style={{ flex: 1, flexDirection: 'column' }}>
+                <BigNumber look={look} shown={shown} size={54} />
+                <Text text={first.title} size={16} color={look.text} font={FONT.roundHeavy} />
+                <Text text={dateOf(first.targetAt, tz)} size={12} color={look.soft} />
+              </FlexWidget>
+              <Hidi mood={shown.mood} width={84} />
+            </FlexWidget>
+            <Bar look={look} progress={shown.progress} marginTop={6} />
+          </FlexWidget>
+          {rest.map((item, i) => {
+            const s = describe(item, now, tz);
             return (
               <FlexWidget
                 key={item.id ?? `${item.title}-${i}`}
-                clickAction={SELECT}
-                clickActionData={{ index: i }}
-                style={{
-                  width: 'match_parent',
-                  height: 40,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: 10,
-                  borderRadius: 12,
-                  backgroundColor: (on ? look.rowOn : look.card) as `#${string}`,
-                }}
+                clickAction="OPEN_URI"
+                clickActionData={{ uri: countdownUri(item.id) }}
+                style={{ width: 'match_parent', height: 64, paddingTop: 8, flexDirection: 'column' }}
               >
-                <Text text={on ? '[/]' : '[ ]'} size={13} color={accentOf(item.kind)} font={FONT.mono} />
-                <Text text={item.title} size={15} color={look.text} font={FONT.roundHeavy} marginLeft={8} flex={1} />
-                <Text text={describe(item, now, tz).short} size={12} color={look.muted} font={FONT.mono} marginLeft={6} />
+                <FlexWidget
+                  style={{
+                    width: 'match_parent',
+                    height: 56,
+                    borderRadius: 18,
+                    backgroundColor: look.row,
+                    paddingHorizontal: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}
+                >
+                  <SvgWidget svg={kindSvg(item.kind)} style={{ width: 28, height: 28 }} />
+                  <FlexWidget style={{ flex: 1, marginLeft: 10, flexDirection: 'column' }}>
+                    <Text text={item.title} size={15} color={look.text} font={FONT.roundHeavy} />
+                    <Text text={dateOf(item.targetAt, tz)} size={11} color={look.soft} />
+                  </FlexWidget>
+                  <Text text={s.big} size={s.bigIsWord ? 15 : 24} color={look.text} font={FONT.roundHeavy} marginLeft={8} />
+                  {!s.bigIsWord && s.chips[0] && <Text text={s.chips[0]} size={11} color={look.soft} marginLeft={4} />}
+                </FlexWidget>
               </FlexWidget>
             );
           })}
         </ListWidget>
       </FlexWidget>
-    </Chunky>
-  );
-}
-
-function EmptyCard({ look, layout, props }: { look: Look; layout: ReturnType<typeof layoutFor>; props: WidgetProps }) {
-  const error = props.state === 'error';
-  const connected = props.state === 'empty' ? props.connected : true;
-  const title = error ? props.message : connected ? 'Add a countdown' : 'Open Hidl to connect';
-  const hint = error ? 'Tap to open Hidl' : connected ? 'Hidi is ready to count with you!' : 'Sign in once and I’ll count for you.';
-  const small = layout === 'small';
-  const card = (
-    <Chunky
-      look={look}
-      flex={1}
-      padding={small ? 10 : 14}
-      uri={connected && !error ? `hidl://open?path=${encodeURIComponent('/countdown/new')}` : undefined}
-      clickAction={connected && !error ? undefined : 'OPEN_APP'}
-    >
-      <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: small ? 'column' : 'row', alignItems: 'center', justifyContent: 'center' }}>
-        <Hidi mood={error ? 'sleepy' : 'calm'} width={small ? 50 : 60} />
-        <FlexWidget style={{ flex: small ? undefined : 1, marginLeft: small ? 0 : 12, marginTop: small ? 4 : 0, flexDirection: 'column' }}>
-          <Text text={title} size={small ? 14 : 18} color={look.text} font={FONT.roundHeavy} lines={2} align={small ? 'center' : undefined} />
-          {!small && <Text text={hint} size={13} color={look.muted} lines={2} marginTop={2} />}
-        </FlexWidget>
-      </FlexWidget>
-    </Chunky>
-  );
-  if (small) return card;
-  return (
-    <FlexWidget style={{ width: 'match_parent', height: 'match_parent', flexDirection: 'column' }}>
-      <Header look={look} compact={props.size.height < 210} />
-      {card}
     </FlexWidget>
   );
 }
 
-/** What Hidi says: "5 days to go. Almost there!" (just the line on the day and after it). */
+function EmptyCard({ look, small, props }: { look: Look; small: boolean; props: WidgetProps }) {
+  const error = props.state === 'error';
+  const connected = props.state === 'empty' ? props.connected : true;
+  // Connected with countdowns, but every one is switched off in this widget's settings.
+  const nonePicked = props.state === 'empty' && props.nonePicked === true;
+  const title = error ? props.message : !connected ? 'Open Hidl to connect' : nonePicked ? 'Nothing picked yet' : 'Add a countdown';
+  const hint = error
+    ? 'Tap to open Hidl'
+    : !connected
+      ? 'Sign in once and I’ll count for you.'
+      : nonePicked
+        ? 'Tap to choose what I count down.'
+        : 'Hidi is ready to count with you!';
+  const uri = !connected || error ? undefined : nonePicked ? settingsUri(props.widgetId) : `hidl://open?path=${encodeURIComponent('/countdown/new')}`;
+  return (
+    <FlexWidget
+      clickAction={uri ? 'OPEN_URI' : 'OPEN_APP'}
+      clickActionData={uri ? { uri } : undefined}
+      style={{
+        width: 'match_parent',
+        height: 'match_parent',
+        padding: small ? 12 : 16,
+        flexDirection: small ? 'column' : 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Hidi mood={error ? 'sleepy' : 'calm'} width={small ? 56 : 76} />
+      <FlexWidget style={{ flex: small ? undefined : 1, marginLeft: small ? 0 : 14, marginTop: small ? 6 : 0, flexDirection: 'column' }}>
+        <Text text={title} size={small ? 15 : 20} color={look.text} font={FONT.roundHeavy} lines={2} align={small ? 'center' : undefined} />
+        {!small && <Text text={hint} size={13} color={look.soft} lines={2} marginTop={2} />}
+      </FlexWidget>
+    </FlexWidget>
+  );
+}
+
+/** What Hidi says: "3 days to go. Almost there!" (just the line on the day and after it). */
 function speech(shown: Shown) {
   if (shown.bigIsWord || !shown.chips[0] || shown.mood === 'party' || shown.mood === 'sleepy') return shown.line;
   return `${shown.big} ${shown.chips[0]} ${shown.mood === 'nervous' ? 'left' : 'to go'}. ${shown.line}`;

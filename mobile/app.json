@@ -36,7 +36,7 @@
             {
               "name": "CountdownSmall",
               "label": "Hidl countdown · small",
-              "description": "Hidi and the big number. Tap to flip.",
+              "description": "Hidi and the big number. Scroll for the next one.",
               "minWidth": "110dp",
               "minHeight": "110dp",
               "targetCellWidth": 2,
@@ -49,7 +49,7 @@
             {
               "name": "Countdown",
               "label": "Hidl countdown",
-              "description": "Your countdowns, soonest first, with arrows to flip.",
+              "description": "Your countdowns as a stack of cards. Scroll up and down.",
               "minWidth": "250dp",
               "minHeight": "110dp",
               "targetCellWidth": 4,
