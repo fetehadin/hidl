@@ -356,13 +356,31 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   unauthenticated static asset or public route must be added to the right one, or it 307s to `/login` instead of
   serving. This has already happened twice (the widget API, then `sw.js`).
 - The PWA manifest/service worker (`src/app/manifest.ts`, `public/sw.js`, `RegisterServiceWorker` in
-  `src/app/layout.tsx`) make the app installable ("Add to Home Screen"). The service worker never caches pages
-  (every page is per-user and dynamic). It does two other things: caches **photo files** by storage path,
-  ignoring the signed-URL token (photo paths are immutable, but the token changes on every render, so without
-  this every visit re-downloaded every photo), wiped by `ClearPhotoCache` on `/login` (where sign-out and account
-  deletion land); and serves `public/offline.html` when a navigation fails offline (with navigation preload, so
-  online navigations aren't slowed). Bump the cache names in `sw.js` if the cached format changes. Installing
-  doesn't create a separate session; it's the same origin and cookie jar as the browser.
+  `src/app/layout.tsx`) make the app installable ("Add to Home Screen") and let it work offline, Telegram-style
+  (show what's on the device, catch up when the network is back). Installing doesn't create a separate session.
+  - **Photos** are cached by storage path, ignoring the signed-URL token (paths are immutable; the token changes
+    every render). Videos never are (Range requests).
+  - **Saved pages:** the main pages (`PAGE_PATHS`: Today, Letters list, Countdown, Calendar, year, Memories,
+    Leaderboard) are kept as HTML when they load, and refreshed in the background (at most every 15 min per page)
+    after an in-app move to them. Only pages carrying `<meta name="hidl-offline">` (the `(app)` layout) are saved,
+    so never the sign-in or welcome page, a letter (`/letters/<id>`), Account or Admin. Navigations are network
+    first; the saved copy is served when the network fails or takes over 8 s, with `window.__hidlSavedAt` set (a
+    script, because React removes extra `<head>` tags while hydrating). With no saved copy, `public/offline.html`.
+  - **The app's files** (`/_next/static`, only responses marked `immutable`, so never dev builds) are cached so a
+    saved page can run offline.
+  - **Page data** (Next's RSC requests): when one fails, Next falls back to a full reload, and a saved copy that
+    refreshes itself on load would then reload forever. So offline, the worker holds the request and retries every
+    5 s for up to 4 min.
+  - `<OfflineStatus>` (`src/components/offline-status.tsx`, in the `(app)` header) shows "Waiting for network…"
+    while `/api/health` can't be reached (a phone can be on Wi-Fi with no internet), then "Updating…" while it
+    calls `router.refresh()`. While waiting, links do full-page loads, which the worker answers from saved copies.
+  - **Storage settings** (Account → Preferences, `src/components/account/storage-settings.tsx`,
+    `src/lib/offline-storage.ts`, mirrored in `sw.js` and checked by `tests/unit/offline-storage.test.ts`): space
+    used, Clear, how long unopened photos stay (1 week / **1 month** / forever), a space limit (**100 MB** / 500 MB /
+    2 GB, oldest first), and whether full photos are kept on mobile data (**previews only**). Per device, in the
+    `hidl-settings-v1` cache; every saved file records `x-hidl-saved` and `x-hidl-bytes` for this.
+  - `ClearPhotoCache` on `/login` (where sign-out and account deletion land) wipes saved photos and pages. Bump
+    the cache names in `sw.js` if the cached format changes.
 - Performance rules this app relies on:
   - The app server and the Supabase project (`eu-central-1`, Frankfurt) should stay on the same continent: every
     page makes several round trips to the database. If either one moves, move the other too.

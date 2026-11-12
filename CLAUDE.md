@@ -108,9 +108,9 @@ src/lib/validation/          zod schemas used by every action and route handler 
 src/lib/                     Pure helpers: time, dates, ethiopian, calendar, calendar-months (Gregorian or Ethiopian
                              months for the photo calendar), names, countdown-kinds/units, e2ee,
                              key-store, letter-crypto (server-only), image, media, memories, photo-groups, share-periods, lane-layout, avatar, env, public-env, feedback, csv,
-                             admin-format, user-files, profile-rules, app-lock, app-biometric, media-sniff, user-agent
+                             admin-format, user-files, profile-rules, app-lock, app-biometric, offline-storage, media-sniff, user-agent
 src/components/              UI, grouped by feature (letters/, countdown/, calendar/, account/, ...)
-public/sw.js                 Service worker: caches photo files, offline page; never caches pages
+public/sw.js                 Service worker: offline use (saved main pages, photos, app files), storage settings
 supabase/migrations/         The schema, in order; supabase/config.toml is the local stack config
 supabase/templates/          Branded magic-link and confirm-signup emails (need custom SMTP in prod)
 tests/unit/                  Pure logic, no services
@@ -278,6 +278,8 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   (`data-app` on `<html>`, from the user agent) they're zero, because the app pads its web view natively and
   Android's web view reports the insets anyway (the status bar was counted twice).
 - **Service worker:** bump the cache names in `public/sw.js` if the cached format changes. Videos are never cached.
+  It saves only pages listed in `PAGE_PATHS` that carry `<meta name="hidl-offline">`: never add a letter page,
+  Account or Admin. Its names and defaults mirror `src/lib/offline-storage.ts` (a unit test checks).
 - **Stale `.next`:** mixing `pnpm build` and `pnpm dev` can break `next/font/google` in dev (a 500 on first load).
   `rm -rf .next` fixes it.
 - **`/calendar` layout:** the month grid fits the viewport using `--chrome`. Anything added above or below it needs
