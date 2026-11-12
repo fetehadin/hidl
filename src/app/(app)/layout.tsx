@@ -6,6 +6,7 @@ import { HidiMenu } from "@/components/hidi-menu";
 import { BuddyProvider } from "@/components/buddy-context";
 import { AppLockGate } from "@/components/lock/app-lock-gate";
 import { Mascot } from "@/components/mascot";
+import { OfflineStatus } from "@/components/offline-status";
 import { MediaLinkRefresher } from "@/components/media-link-refresher";
 import { AppShell, MobileTabBar } from "@/components/nav";
 import { ProfileImage } from "@/components/profile/profile-image";
@@ -30,6 +31,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <CalendarPrefProvider value={calendar} timeZone={timeZone}>
+      {/* Marks signed-in pages, so the service worker may save a copy for offline (public/sw.js). */}
+      <meta name="hidl-offline" content="1" />
       <BuddyProvider value={buddy}>
       <AppLockGate userId={user.id} initiallyLocked={lockedHere}>
       <Analytics userId={user.id} />
@@ -44,6 +47,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               <Mascot brand size={40} float={false} className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110 sm:h-auto sm:w-[46px]" />
               Hidl
             </Link>
+            <div className="mr-auto min-w-0">
+              <OfflineStatus />
+            </div>
             <div className="flex items-center gap-1.5 sm:hidden">
               <ThemeToggle serverTheme={theme} className={"grid size-10 place-items-center rounded-full text-ink-soft transition-colors hover:bg-mint hover:text-ocean"} />
               <Link href="/account" aria-label="Account" className="grid size-10 place-items-center overflow-hidden rounded-full ring-2 ring-aqua transition-transform active:scale-95">

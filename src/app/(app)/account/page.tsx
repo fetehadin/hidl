@@ -8,6 +8,7 @@ import { AvatarBuilder } from "@/components/account/avatar-builder";
 import { BuddyCard } from "@/components/account/buddy-card";
 import { CalendarChoice } from "@/components/account/calendar-choice";
 import { DeleteAccountButton } from "@/components/account/delete-account-button";
+import { StorageSettings } from "@/components/account/storage-settings";
 import { Avatar } from "@/components/avatar";
 import { AppLockSettings } from "@/components/lock/app-lock-settings";
 import { Mascot } from "@/components/mascot";
@@ -40,7 +41,7 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
   const sections: { id: SectionId; label: string; note: string; icon: ReactNode }[] = [
     { id: "profile", label: "Profile", note: "Your name and buddy", icon: <UserIcon /> },
     { id: "security", label: "Security", note: "App lock, fingerprint", icon: <ShieldIcon /> },
-    { id: "preferences", label: "Preferences", note: "Calendar", icon: <SlidersIcon /> },
+    { id: "preferences", label: "Preferences", note: "Calendar, storage", icon: <SlidersIcon /> },
     ...(inApp ? [] : [{ id: "phone-app" as const, label: "Phone app", note: "Sign in on your phone", icon: <PhoneIcon /> }]),
     { id: "help", label: "Help", note: "Feedback and support", icon: <ChatIcon /> },
     { id: "delete", label: "Delete account", note: "Remove everything for good", icon: <TrashIcon /> },
@@ -140,9 +141,14 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
             )}
 
             {open.id === "preferences" && (
-              <Card title="Calendar">
-                <CalendarChoice current={calendar} />
-              </Card>
+              <>
+                <Card title="Calendar">
+                  <CalendarChoice current={calendar} />
+                </Card>
+                <Card title="Storage on this phone" note="For using Hidl without internet. Only on this device.">
+                  <StorageSettings />
+                </Card>
+              </>
             )}
 
             {open.id === "phone-app" && (
