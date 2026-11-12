@@ -43,12 +43,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             pages like the memories board, which makes it see-through (.app-header in globals.css). */}
         <header className="app-header sticky top-[var(--safe-top)] z-30 border-b border-line/70 bg-paper/90 backdrop-blur-md sm:relative sm:top-auto sm:z-20 sm:border-0 sm:bg-transparent sm:backdrop-blur-none">
           <div className="mx-auto flex h-15 max-w-[70rem] items-center justify-between gap-3 px-4 min-[400px]:px-5 sm:h-auto sm:pt-6 sm:pb-2">
-            <Link href="/" className="group flex items-center gap-1.5 font-brand text-[1.65rem] leading-none font-semibold tracking-tight sm:gap-2 sm:text-[1.9rem] text-teal">
-              <Mascot brand size={40} float={false} className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110 sm:h-auto sm:w-[46px]" />
-              Hidl
-            </Link>
-            <div className="mr-auto min-w-0">
-              <OfflineStatus />
+            {/* The logo, or Telegram-style "Waiting for network…" in its place while offline. */}
+            <div className="min-w-0">
+              <OfflineStatus>
+                <Link href="/" className="group flex items-center gap-1.5 font-brand text-[1.65rem] leading-none font-semibold tracking-tight sm:gap-2 sm:text-[1.9rem] text-teal">
+                  <Mascot brand size={40} float={false} className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110 sm:h-auto sm:w-[46px]" />
+                  Hidl
+                </Link>
+              </OfflineStatus>
             </div>
             <div className="flex items-center gap-1.5 sm:hidden">
               <ThemeToggle serverTheme={theme} className={"grid size-10 place-items-center rounded-full text-ink-soft transition-colors hover:bg-mint hover:text-ocean"} />

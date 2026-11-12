@@ -9,7 +9,9 @@
 //    downloaded once.
 //
 // 3. Keep a saved copy of the main pages (PAGE_PATHS: Today, Letters list, Countdown, Calendar,
-//    Memories, Leaderboard) and the app's own files (/_next/static), so they open with no network.
+//    Memories, Leaderboard), with their photo previews, and the app's own files (/_next/static), so
+//    they open with no network. All of them are saved once the app has loaded online
+//    (saveAllPages), not only the ones visited.
 //    Pages always come from the network first; the saved copy is used only when the network fails
 //    or takes longer than PAGE_TIMEOUT_MS. A served copy sets window.__hidlSavedAt, and
 //    the page then refreshes itself once the network is back (src/components/offline-status.tsx).
@@ -66,6 +68,8 @@ self.addEventListener("activate", (event) => {
 // The storage page changed a setting: apply it (a shorter time or a smaller limit) right away.
 self.addEventListener("message", (event) => {
   if (event.data?.type === "storage-settings") event.waitUntil(tidy());
+  // The page has loaded online (offline-status.tsx): save every main page, Telegram-style.
+  if (event.data?.type === "save-pages") event.waitUntil(saveAllPages());
 });
 
 async function settings() {
@@ -192,6 +196,7 @@ async function savePage(url, response) {
   if (!html.includes('name="hidl-offline"')) return;
   const copy = new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
   await (await caches.open(PAGE_CACHE)).put(pageKey(url), await stamped(copy));
+  return html;
 }
 
 async function savedPage(url) {
@@ -247,12 +252,75 @@ async function refreshSavedPage(url) {
   if (hit && Date.now() - Number(hit.headers.get("x-hidl-saved")) < PAGE_REFRESH_MS) return;
   refreshing.add(key);
   try {
-    await savePage(url, await fetch(key, { credentials: "same-origin", headers: { accept: "text/html" } }));
+    const html = await savePage(url, await fetch(key, { credentials: "same-origin", headers: { accept: "text/html" } }));
+    if (html) await savePreviews(html);
   } catch {
     // Offline or failed: the old copy stays.
   } finally {
     refreshing.delete(key);
   }
+}
+
+/**
+ * Saves every main page whose copy is older than SAVE_ALL_EVERY_MS, one after another, with the
+ * photo previews on it, so each opens offline even if it wasn't visited (asked for by the page once
+ * it has loaded online). At most one run every 10 minutes, so each page costs the server at most
+ * one extra render an hour per person; never when the browser is asked to save data.
+ */
+const SAVE_ALL_EVERY_MS = 60 * 60 * 1000;
+let lastSaveAll = 0;
+async function saveAllPages() {
+  if (Date.now() - lastSaveAll < 10 * 60 * 1000 || self.navigator.connection?.saveData) return;
+  lastSaveAll = Date.now();
+  const cache = await caches.open(PAGE_CACHE);
+  for (const path of PAGE_PATHS) {
+    const hit = await cache.match(path);
+    if (hit && Date.now() - Number(hit.headers.get("x-hidl-saved")) < SAVE_ALL_EVERY_MS) continue;
+    if (refreshing.has(path)) continue;
+    refreshing.add(path);
+    try {
+      const url = new URL(path, self.location.origin);
+      const html = await savePage(url, await fetch(path, { credentials: "same-origin", headers: { accept: "text/html" } }));
+      if (html) await savePreviews(html);
+    } catch {
+      return; // Offline again: try next time.
+    } finally {
+      refreshing.delete(path);
+    }
+  }
+}
+
+// Photo previews in a saved page's HTML (img tags and the page data): signed links, valid for a
+// while after the page was made, so they're fetched right away.
+const THUMB_LINK = /https:\/\/[^"'\s<>]+?-thumb\.(?:webp|jpg)(?:\?[^"'\s<>]*)?/g;
+const MAX_PREVIEWS_PER_PAGE = 150;
+
+/** Keeps the photo previews a saved page shows, so its pictures appear offline too. */
+async function savePreviews(html) {
+  const cache = await caches.open(PHOTO_CACHE);
+  const seen = new Set();
+  let added = 0;
+  for (const match of html.matchAll(THUMB_LINK)) {
+    const raw = match[0].replace(/\\u0026/g, "&").replace(/&amp;/g, "&").replace(/\\+$/, "");
+    let url;
+    try {
+      url = new URL(raw);
+    } catch {
+      continue;
+    }
+    const key = url.origin + url.pathname;
+    if (seen.has(key) || !isPhoto(new Request(url.href))) continue;
+    seen.add(key);
+    if (await cache.match(key)) continue;
+    if (++added > MAX_PREVIEWS_PER_PAGE) break;
+    try {
+      const response = await fetch(url.href, { mode: "cors", credentials: "omit" });
+      if (response.ok) await cache.put(key, await stamped(response));
+    } catch {
+      break;
+    }
+  }
+  if (added > 0) await tidy();
 }
 
 /**

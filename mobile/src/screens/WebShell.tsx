@@ -43,6 +43,15 @@ const REPORT_THEME = `(function () {
 })();
 true;`;
 
+// Asked after a load error: is a Hidl page showing anyway? Offline, the site's service worker
+// answers with a saved copy of the page (or its own offline page), but Android's web view can
+// still report the failed connection. Only a real blank/error page should get the app's screen.
+const PAGE_CHECK = `(function () {
+  var hidl = !!document.querySelector('meta[name="hidl-offline"]') || typeof window.__hidlSavedAt === 'number' || location.pathname === '/offline.html';
+  try { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'page-check', hidl: hidl })); } catch (e) {}
+})();
+true;`;
+
 /**
  * The journal itself: the hidl website in a native shell, so letters, countdowns and photos are
  * the same everywhere and every website improvement ships to the app at once. The web view keeps
@@ -54,6 +63,7 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
   const [canGoBack, setCanGoBack] = useState(false);
   const [progress, setProgress] = useState(0);
   const [failed, setFailed] = useState(false);
+  const errorCheck = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [ready, setReady] = useState(false);
   // Right after sign-in the web view first opens /auth/native. If it ends up on /login before any
   // real page has loaded, the session handoff failed: say so, instead of dropping back to sign-in
@@ -87,6 +97,13 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
     try {
       msg = JSON.parse(e.nativeEvent.data);
     } catch {
+      return;
+    }
+    if (msg.type === 'page-check') {
+      if (errorCheck.current) clearTimeout(errorCheck.current);
+      errorCheck.current = null;
+      if ((msg as { hidl?: unknown }).hidl === true) setReady(true);
+      else setFailed(true);
       return;
     }
     if (msg.theme !== undefined) {
@@ -216,6 +233,16 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
     }
   }
 
+  /** A load failed: show the offline screen only if no Hidl page (saved copy) is showing. */
+  function onLoadError() {
+    if (errorCheck.current) clearTimeout(errorCheck.current);
+    // Give the saved copy a moment to render, then ask; no answer means an error page.
+    errorCheck.current = setTimeout(() => {
+      web.current?.injectJavaScript(PAGE_CHECK);
+      errorCheck.current = setTimeout(() => setFailed(true), 1500);
+    }, 600);
+  }
+
   function shouldLoad(req: { url: string }) {
     const { url } = req;
     if (url.startsWith('about:') || url.startsWith('blob:') || url.startsWith('data:')) return true;
@@ -244,7 +271,10 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
           setReady(true);
           reportWidgets();
         }}
-        onError={() => setFailed(true)}
+        onError={onLoadError}
+        // The library's own error view would cover a saved page the service worker showed; the
+        // app's offline screen (below) decides instead.
+        renderError={() => <View />}
         // Android can kill the web view's renderer (low memory); without this the screen goes blank for good.
         onRenderProcessGone={() => web.current?.reload()}
         onContentProcessDidTerminate={() => web.current?.reload()}

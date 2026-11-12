@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { type ReactNode, useEffect, useRef, useState, useTransition } from "react";
 
 type Net = "ok" | "waiting";
 
@@ -15,9 +15,17 @@ async function reachable() {
   }
 }
 
+/** Asks the service worker to save every main page for offline use (it decides how often). */
+function saveAllPagesSoon() {
+  const ask = () => navigator.serviceWorker?.controller?.postMessage({ type: "save-pages" });
+  if ("requestIdleCallback" in window) requestIdleCallback(ask, { timeout: 8000 });
+  else setTimeout(ask, 3000);
+}
+
 /**
- * Telegram-style connection line in the header: "Waiting for network…" while Hidl can't be
- * reached, then "Updating…" while the page catches up once it can. Nothing when all is well.
+ * The header's title, Telegram-style: the Hidl logo (`children`) when all is well; while Hidl
+ * can't be reached, "Waiting for network…" in its place, then "Updating…" while the page catches
+ * up once it can.
  *
  * Offline, pages open from the copies the service worker saved (public/sw.js). A saved copy says
  * so with window.__hidlSavedAt; it refreshes itself only after the server has answered a
@@ -25,7 +33,7 @@ async function reachable() {
  * would only fail. Moving between pages while waiting goes through whole-page loads, which the
  * worker answers from those copies: Next's own in-app moves would just wait for the network.
  */
-export function OfflineStatus() {
+export function OfflineStatus({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [net, setNet] = useState<Net>("ok");
   const waiting = useRef(false);
@@ -59,6 +67,7 @@ export function OfflineStatus() {
         (window as { __hidlSavedAt?: number }).__hidlSavedAt = 0;
         startUpdate(() => router.refresh());
       }
+      saveAllPagesSoon();
     };
     const lost = () => {
       set("waiting");
@@ -68,6 +77,7 @@ export function OfflineStatus() {
 
     if (!navigator.onLine) lost();
     else if (savedCopy) void check();
+    else saveAllPagesSoon();
 
     // While waiting: follow links with a whole-page load, so the saved copy opens instead of a wait.
     const onClick = (e: MouseEvent) => {
@@ -94,12 +104,14 @@ export function OfflineStatus() {
     };
   }, [router]);
 
-  if (net === "ok" && !updating) return null;
-  const isWaiting = net === "waiting";
+  if (net === "ok" && !updating) return children;
   return (
-    <span role="status" className="flex min-w-0 items-center gap-1.5 truncate text-sm font-bold text-muted">
-      <span aria-hidden className={`size-2 shrink-0 animate-pulse rounded-full ${isWaiting ? "bg-wax" : "bg-teal"}`} />
-      {isWaiting ? "Waiting for network…" : "Updating…"}
+    <span role="status" className="flex h-10 min-w-0 items-center gap-2.5 font-display text-lg font-bold text-ocean sm:h-12 sm:text-xl">
+      <svg aria-hidden viewBox="0 0 24 24" className="size-5 shrink-0 animate-spin text-teal" fill="none">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+        <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+      <span className="truncate">{net === "waiting" ? "Waiting for network…" : "Updating…"}</span>
     </span>
   );
 }
