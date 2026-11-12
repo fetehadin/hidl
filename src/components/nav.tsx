@@ -6,6 +6,8 @@ import { useState, type ReactNode } from "react";
 import { signOut } from "@/actions/auth";
 import type { AvatarConfig } from "@/lib/avatar";
 import { NAV_COOKIE } from "@/lib/nav-cookie";
+import { Mascot } from "./mascot";
+import { OfflineTitle } from "./offline-status";
 import { ProfileImage } from "./profile/profile-image";
 import { ThemeToggle } from "./theme/theme-toggle";
 import type { Theme } from "@/lib/theme";
@@ -81,9 +83,10 @@ export function AppShell({
 }
 
 /**
- * The desktop nav: a panel on the left edge. Collapsing it slides the labels away and
- * leaves only the icons; expanding slides them back. The active page sits in a pill that
- * glides between items.
+ * The desktop nav: a panel on the left edge, the Hidl logo at its top (or, offline, the
+ * connection status in its place). The open/close button sits just outside the panel's top
+ * right edge. Collapsing slides the labels away and leaves only the icons and Hidi; expanding
+ * slides them back. The active page sits in a pill that glides between items.
  */
 function SideNav({
   collapsed,
@@ -106,21 +109,34 @@ function SideNav({
       className="fixed top-0 bottom-0 left-0 z-30 hidden p-3 transition-[width] duration-300 ease-out sm:block"
       style={{ width: "var(--nav-w)" }}
     >
+      {/* Outside the panel, at its top right: a side panel icon pointing the way it will move. */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? "Open sidebar" : "Close sidebar"}
+        title={collapsed ? "Open sidebar" : "Close sidebar"}
+        className="absolute top-[1.9rem] left-full grid size-10 place-items-center rounded-xl text-muted transition-colors hover:bg-mint hover:text-ocean"
+      >
+        <SidebarIcon open={!collapsed} width={22} height={22} />
+      </button>
+
       <nav
         aria-label="Main"
         className="clay flex h-full flex-col overflow-hidden rounded-[1.75rem] px-3 py-4"
       >
-        {/* Icon-only, like Gemini's: a side panel with a chevron pointing the way it will move. */}
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? "Open sidebar" : "Close sidebar"}
-          title={collapsed ? "Open sidebar" : "Close sidebar"}
-          className="mb-4 flex h-11 w-fit shrink-0 items-center rounded-2xl px-3.5 text-muted transition-colors hover:bg-mint hover:text-ocean"
-        >
-          <SidebarIcon open={!collapsed} width={22} height={22} />
-        </button>
+        <div className="mb-4 flex h-11 shrink-0 items-center border-b border-line pb-4 box-content">
+          <OfflineTitle size="nav" iconOnly={collapsed}>
+            <Link
+              href="/"
+              title={collapsed ? "Today" : undefined}
+              className="group flex items-center gap-2 px-1.5 font-brand text-[1.6rem] leading-none font-semibold tracking-tight text-teal"
+            >
+              <Mascot brand size={38} float={false} className="shrink-0 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
+              <Label collapsed={collapsed}>Hidl</Label>
+            </Link>
+          </OfflineTitle>
+        </div>
 
         <ul className="relative flex flex-col gap-1.5">
           {/* The sliding "you are here" pill. Each item is 3rem tall with a 0.375rem gap. */}

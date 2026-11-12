@@ -1,9 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useRef, useState, useTransition } from "react";
+import { type ReactNode, createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
 
 type Net = "ok" | "waiting";
+type Status = { net: Net; updating: boolean };
+
+const OfflineContext = createContext<Status>({ net: "ok", updating: false });
 
 /** Asks the server's no-data health check whether Hidl can be reached right now. */
 async function reachable() {
@@ -23,9 +26,10 @@ function saveAllPagesSoon() {
 }
 
 /**
- * The header's title, Telegram-style: the Hidl logo (`children`) when all is well; while Hidl
- * can't be reached, "Waiting for network…" in its place, then "Updating…" while the page catches
- * up once it can.
+ * Watches the connection for the whole signed-in app, once (wraps the (app) layout). Titles read
+ * it through <OfflineTitle>: the phone header and the side nav each show the Hidl logo, or,
+ * Telegram-style, "Waiting for network…" in its place while Hidl can't be reached, then
+ * "Updating…" while the page catches up once it can.
  *
  * Offline, pages open from the copies the service worker saved (public/sw.js). A saved copy says
  * so with window.__hidlSavedAt; it refreshes itself only after the server has answered a
@@ -33,7 +37,7 @@ function saveAllPagesSoon() {
  * would only fail. Moving between pages while waiting goes through whole-page loads, which the
  * worker answers from those copies: Next's own in-app moves would just wait for the network.
  */
-export function OfflineStatus({ children }: { children: ReactNode }) {
+export function OfflineStatusProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [net, setNet] = useState<Net>("ok");
   const waiting = useRef(false);
@@ -104,14 +108,38 @@ export function OfflineStatus({ children }: { children: ReactNode }) {
     };
   }, [router]);
 
+  return <OfflineContext.Provider value={{ net, updating }}>{children}</OfflineContext.Provider>;
+}
+
+/**
+ * The logo (`children`) when all is well, or the connection status in its place. `size` fits it
+ * to the phone header or the side nav; `iconOnly` (the collapsed side nav) shows just the spinner.
+ */
+export function OfflineTitle({
+  children,
+  size = "header",
+  iconOnly = false,
+}: {
+  children: ReactNode;
+  size?: "header" | "nav";
+  iconOnly?: boolean;
+}) {
+  const { net, updating } = useContext(OfflineContext);
   if (net === "ok" && !updating) return children;
+  const text = net === "waiting" ? "Waiting for network…" : "Updating…";
   return (
-    <span role="status" className="flex h-10 min-w-0 items-center gap-2.5 font-display text-lg font-bold text-ocean sm:h-12 sm:text-xl">
-      <svg aria-hidden viewBox="0 0 24 24" className="size-5 shrink-0 animate-spin text-teal" fill="none">
+    <span
+      role="status"
+      title={iconOnly ? text : undefined}
+      className={`flex min-w-0 items-center font-display font-bold text-ocean ${
+        size === "header" ? "h-10 gap-2.5 text-lg" : "h-11 gap-2 text-[15px]"
+      } ${iconOnly ? "justify-center" : ""}`}
+    >
+      <svg aria-hidden viewBox="0 0 24 24" className={`shrink-0 animate-spin text-teal ${iconOnly ? "size-6" : "size-5"}`} fill="none">
         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
         <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
       </svg>
-      <span className="truncate">{net === "waiting" ? "Waiting for network…" : "Updating…"}</span>
+      <span className={iconOnly ? "sr-only" : "truncate"}>{text}</span>
     </span>
   );
 }
