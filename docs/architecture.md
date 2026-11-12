@@ -91,7 +91,7 @@ layer physically cannot violate it, even with a bug:
   `(user_id, date)`, and `set_cover_photo(id, pinned)` moves it (clear-then-set, like `set_widget_countdown`).
   The calendar, dashboard and month grid show the pinned photo, falling back to the first one.
 - *Widget tokens*: one row per feed. `countdown_id` null is the account feed (the next countdown, plus
-  the `countdowns` list the phone widget flips through: soonest first, including ones that ended in the last 7 days,
+  the `countdowns` list the phone widget stacks (scroll through): soonest first, including ones that ended in the last 7 days,
   each with `createdAt` for the progress bar); otherwise the token
   serves only that countdown (composite FK `(countdown_id, user_id)` → `countdowns (id, user_id)`, so it can't
   point at another user's countdown, and deleting the countdown deletes the token; `unique nulls not distinct

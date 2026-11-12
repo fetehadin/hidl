@@ -1,6 +1,6 @@
 import { describe as group, expect, it } from "vitest";
 import { describe, orderCountdowns } from "../../mobile/src/widget/mood";
-import { pathFromLink } from "../../mobile/src/deep-link";
+import { pathFromLink, widgetIdFromLink } from "../../mobile/src/deep-link";
 
 // The phone widget's wording and Hidi's mood (mobile/src/widget/mood.ts).
 const TZ = "Africa/Addis_Ababa";
@@ -90,5 +90,19 @@ group("widget links", () => {
     expect(pathFromLink("hidl://open?path=https%3A%2F%2Fevil.com")).toBeNull();
     expect(pathFromLink("hidl://auth?sealed=x")).toBeNull();
     expect(pathFromLink(null)).toBeNull();
+  });
+});
+
+group("widget settings link", () => {
+  it("reads the widget id from the sliders button's link", () => {
+    expect(widgetIdFromLink("hidl://widget?id=42")).toBe(42);
+    expect(widgetIdFromLink("hidl://widget")).toBeNull();
+  });
+
+  it("ignores anything else", () => {
+    expect(widgetIdFromLink("hidl://open?path=/countdown")).toBeUndefined();
+    expect(widgetIdFromLink("hidl://widget?id=abc")).toBeUndefined();
+    expect(widgetIdFromLink("https://example.com/widget?id=1")).toBeUndefined();
+    expect(widgetIdFromLink(null)).toBeUndefined();
   });
 });

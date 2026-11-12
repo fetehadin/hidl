@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
-import type { WidgetConfigurationScreenProps } from 'react-native-android-widget';
+import { WidgetPreview, type WidgetConfigurationScreenProps } from 'react-native-android-widget';
 import { cacheFeed, feedItems, fetchFeed, getCachedFeed, getFeedUrl, type FeedItem } from '../feed';
 import { palettes } from '../theme';
+import { CountdownWidget } from './CountdownWidget';
 import { hidiHeight, hidiSvg, kindSvg } from './hidi';
 import { describe, orderCountdowns } from './mood';
 import { readSettings, writeSettings, type WidgetSettings, type WidgetTheme } from './settings';
@@ -13,20 +14,24 @@ const c = palettes.teal;
 
 const THEMES: { value: WidgetTheme; label: string }[] = [
   { value: 'system', label: 'Follow phone' },
-  { value: 'light', label: 'Light' },
+  { value: 'light', label: 'Teal' },
   { value: 'dark', label: 'Dark' },
 ];
 
 type Loaded = { state: 'loading' } | { state: 'ready'; items: FeedItem[]; tz?: string } | { state: 'none'; connected: boolean };
 
 /**
- * Opens when a hidl widget is added (and from the launcher's "widget settings" later): which
- * countdowns this widget flips through, and its look. Choices are kept per widget on the phone.
+ * One widget's settings: which countdowns it stacks (switch any off to take it off the widget,
+ * on to bring it back) and its look, with a live preview that scrolls like the real one. Opens
+ * when a widget is added, from the launcher's "widget settings", and from the sliders button on
+ * the widget itself (App.tsx). Choices are kept per widget on the phone.
  */
 export function WidgetSetup({ widgetInfo, renderWidget, setResult }: WidgetConfigurationScreenProps) {
   const [settings, setSettings] = useState<WidgetSettings | null>(null);
   const [loaded, setLoaded] = useState<Loaded>({ state: 'loading' });
   const [saving, setSaving] = useState(false);
+  const scheme = useColorScheme();
+  const screen = useWindowDimensions();
 
   useEffect(() => {
     readSettings(widgetInfo.widgetId).then(setSettings);
@@ -51,6 +56,11 @@ export function WidgetSetup({ widgetInfo, renderWidget, setResult }: WidgetConfi
     setSettings({ ...settings, exclude });
   }
 
+  function pickAll(on: boolean) {
+    if (!settings || loaded.state !== 'ready') return;
+    setSettings({ ...settings, exclude: on ? [] : loaded.items.map((i) => i.id!) });
+  }
+
   async function save() {
     if (!settings || saving) return;
     setSaving(true);
@@ -61,21 +71,62 @@ export function WidgetSetup({ widgetInfo, renderWidget, setResult }: WidgetConfi
     setResult('ok');
   }
 
-  const included = loaded.state === 'ready' && settings ? loaded.items.filter((i) => !settings.exclude.includes(i.id!)).length : 0;
   const now = Date.now();
+  const included = loaded.state === 'ready' && settings ? loaded.items.filter((i) => !settings.exclude.includes(i.id!)) : [];
+
+  // The preview at the widget's real size, shrunk to fit narrow screens.
+  const width = Math.min(widgetInfo.width || 320, screen.width - 40);
+  const height = Math.min(widgetInfo.height || 180, 420);
+  const look = settings?.theme === 'dark' || (settings?.theme !== 'light' && scheme === 'dark') ? 'dark' : 'light';
+  const preview = useCallback(
+    () =>
+      loaded.state === 'ready' && included.length ? (
+        <CountdownWidget state="ready" items={included} tz={loaded.tz} now={now} size={{ width, height }} look={look} widgetId={widgetInfo.widgetId} />
+      ) : (
+        <CountdownWidget
+          state="empty"
+          connected={loaded.state !== 'none' || loaded.connected}
+          nonePicked={loaded.state === 'ready'}
+          size={{ width, height }}
+          look={look}
+        />
+      ),
+    // `now` and `included` follow `loaded` and `settings`; listing them would redraw every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loaded, settings, width, height, look, widgetInfo.widgetId],
+  );
 
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <SvgXml xml={hidiSvg('excited')} width={64} height={hidiHeight(64)} />
+          <SvgXml xml={hidiSvg('excited')} width={56} height={hidiHeight(56)} />
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.title}>Set up your widget</Text>
-            <Text style={styles.subtitle}>Hidi flips through these, soonest first.</Text>
+            <Text style={styles.title}>Your widget</Text>
+            <Text style={styles.subtitle}>Scroll up and down on it to flip through your countdowns.</Text>
           </View>
         </View>
 
-        <Text style={styles.label}>COUNTDOWNS</Text>
+        {settings && loaded.state !== 'loading' && (
+          <View style={styles.preview}>
+            <WidgetPreview renderWidget={preview} width={width} height={height} />
+          </View>
+        )}
+
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>ON THIS WIDGET</Text>
+          {loaded.state === 'ready' && settings && (
+            <View style={styles.quick}>
+              <Pressable onPress={() => pickAll(true)} hitSlop={8} accessibilityRole="button">
+                <Text style={styles.quickText}>All</Text>
+              </Pressable>
+              <Text style={styles.quickDot}>·</Text>
+              <Pressable onPress={() => pickAll(false)} hitSlop={8} accessibilityRole="button">
+                <Text style={styles.quickText}>None</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
         <View style={styles.card}>
           {loaded.state === 'loading' && <Text style={styles.note}>Loading your countdowns…</Text>}
           {loaded.state === 'none' && (
@@ -93,22 +144,27 @@ export function WidgetSetup({ widgetInfo, renderWidget, setResult }: WidgetConfi
                 <Pressable
                   key={item.id}
                   onPress={() => toggle(item.id!)}
-                  accessibilityRole="checkbox"
+                  accessibilityRole="switch"
                   accessibilityState={{ checked: on }}
+                  accessibilityLabel={item.title}
                   style={[styles.row, i > 0 && styles.rowLine]}
                 >
-                  <View style={[styles.box, on && styles.boxOn]}>{on && <Text style={styles.tick}>✓</Text>}</View>
-                  <SvgXml xml={kindSvg(item.kind)} width={26} height={26} style={{ marginLeft: 12 }} />
-                  <Text style={styles.rowTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <Text style={styles.rowLeft}>{describe({ ...item, units: item.units ?? [] }, now, loaded.tz).short}</Text>
+                  <SvgXml xml={kindSvg(item.kind)} width={30} height={30} style={{ opacity: on ? 1 : 0.45 }} />
+                  <View style={styles.rowText}>
+                    <Text style={[styles.rowTitle, !on && styles.off]} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.rowLeft}>{describe({ ...item, units: item.units ?? [] }, now, loaded.tz).short}</Text>
+                  </View>
+                  <View style={[styles.switch, on && styles.switchOn]}>
+                    <View style={[styles.knob, on && styles.knobOn]} />
+                  </View>
                 </Pressable>
               );
             })}
         </View>
-        {loaded.state === 'ready' && included === 0 && (
-          <Text style={styles.warn}>Pick at least one, or the widget says “Add a countdown”.</Text>
+        {loaded.state === 'ready' && (
+          <Text style={styles.hint}>New countdowns join the widget by themselves. Switch one off to take it off.</Text>
         )}
 
         <Text style={styles.label}>LOOK</Text>
@@ -145,20 +201,28 @@ export function WidgetSetup({ widgetInfo, renderWidget, setResult }: WidgetConfi
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: c.paper },
   content: { padding: 20, paddingTop: 48 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  title: { fontSize: 24, fontWeight: '800', color: c.heading },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
+  title: { fontSize: 26, fontWeight: '800', color: c.heading },
   subtitle: { fontSize: 15, color: c.muted, marginTop: 2 },
-  label: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: c.muted, marginTop: 18, marginBottom: 8 },
+  preview: { alignItems: 'center', paddingVertical: 18, borderRadius: 24, backgroundColor: c.soft },
+  labelRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  label: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: c.muted, marginTop: 22, marginBottom: 8 },
+  quick: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  quickText: { fontSize: 15, fontWeight: '800', color: c.heading, paddingHorizontal: 4 },
+  quickDot: { color: c.muted, marginHorizontal: 4 },
   card: { backgroundColor: c.card, borderRadius: 18, borderWidth: 1, borderColor: c.line, borderBottomWidth: 4, paddingHorizontal: 14 },
   note: { fontSize: 15, color: c.muted, paddingVertical: 16 },
-  warn: { fontSize: 13, color: c.danger, marginTop: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', minHeight: 56 },
+  hint: { fontSize: 13, color: c.muted, marginTop: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', minHeight: 62 },
   rowLine: { borderTopWidth: 1, borderTopColor: c.line },
-  box: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, borderColor: c.lineStrong, alignItems: 'center', justifyContent: 'center' },
-  boxOn: { backgroundColor: c.button, borderColor: c.button },
-  tick: { color: c.buttonInk, fontSize: 15, fontWeight: '900' },
-  rowTitle: { flex: 1, marginLeft: 10, fontSize: 16, fontWeight: '700', color: c.ink },
-  rowLeft: { marginLeft: 8, fontSize: 13, color: c.muted, fontVariant: ['tabular-nums'] },
+  rowText: { flex: 1, marginLeft: 12 },
+  rowTitle: { fontSize: 16, fontWeight: '700', color: c.ink },
+  off: { color: c.muted },
+  rowLeft: { fontSize: 13, color: c.muted, fontVariant: ['tabular-nums'], marginTop: 1 },
+  switch: { width: 48, height: 28, borderRadius: 14, backgroundColor: c.lineStrong, padding: 3, marginLeft: 10 },
+  switchOn: { backgroundColor: c.button },
+  knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#ffffff' },
+  knobOn: { transform: [{ translateX: 20 }] },
   segments: { flexDirection: 'row', backgroundColor: c.soft, borderRadius: 16, padding: 4 },
   segment: { flex: 1, minHeight: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   segmentOn: { backgroundColor: c.card, borderBottomWidth: 3, borderBottomColor: c.lineStrong },

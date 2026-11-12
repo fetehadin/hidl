@@ -22,17 +22,22 @@ website, because they come from the same place. Native screens can replace web o
      and photo uploads can use the camera.
    - **Offline:** the app shows its own offline screen.
    - **Signing out:** signing out on the site brings back the native sign-in screen and unhooks the widget.
-3. **Widget (`src/widget/`):** three entries in the widget picker, all the same "chunky" widget (teal frame, white
-   card on a darker edge, Nunito numbers): `CountdownSmall` (2×2), `Countdown` (4×2, the original name so placed
-   widgets keep working) and `CountdownLarge` (4×4, with a list). What's drawn follows the real size
-   (`layoutFor` in `CountdownWidget.tsx`), so any of them stays readable when resized. Countdowns come from the
-   account feed's `countdowns` list, soonest first, then ones that passed (last 7 days); ‹ › and the dots flip
-   between them, redrawn from the saved copy so it's instant. Hidi's mood and the speech line follow the date
-   (`mood.ts`: calm, excited, nervous, party, sleepy; tested in the web app's `tests/unit/widget-mood.test.ts`);
-   the art is SVG strings (`hidi.ts`). Each widget keeps its own settings (`settings.ts`, `hidl.widget.<id>`):
-   which countdowns to leave out, Light / Dark / Follow phone, and which one it's showing (by id). The setup screen
-   (`WidgetSetup.tsx`) opens when a widget is added and from the launcher's widget settings. Tapping the card opens
-   that countdown (`hidl://open?path=/countdown#c-<id>`, checked by `src/deep-link.ts`). Fonts are bundled from
+3. **Widget (`src/widget/`):** three entries in the widget picker, all the same widget: `CountdownSmall` (2×2),
+   `Countdown` (4×2, the original name so placed widgets keep working) and `CountdownLarge` (4×4). What's drawn
+   follows the real size (`layoutFor` in `CountdownWidget.tsx`), so any of them stays readable when resized.
+   Small and medium are a **stack of cards**: a `ListWidget` whose every item fills the whole widget, so scrolling
+   up and down moves to the next countdown (like a stack of widgets on an iPhone; the standing dots show where you
+   are). Each card is one big number (Nunito), what it's for, a thin bar, and Hidi with a speech bubble, in Hidl's
+   deep teal (`look.ts`). Hidi's mood follows the date (`mood.ts`: calm, excited, nervous, party, sleepy; tested in
+   the web app's `tests/unit/widget-mood.test.ts`) and colors the card: gold on the day, slate once it's passed
+   (`skinFor`). Large is a header, the soonest as a big card, then the rest as rows, all one scrolling list.
+   Countdowns come from the account feed's `countdowns` list, soonest first, then ones that passed (last 7 days).
+   The art is SVG strings (`hidi.ts`). Each widget keeps its own settings (`settings.ts`, `hidl.widget.<id>`):
+   which countdowns to leave out (new ones join by themselves) and Light / Dark / Follow phone. The settings screen
+   (`WidgetSetup.tsx`, with a live, scrollable preview) opens when a widget is added, from the launcher's widget
+   settings, and from the **sliders button on the widget** (`hidl://widget?id=<widgetId>`, opened over the journal
+   by `WidgetSettingsScreen.tsx` in `App.tsx`). Tapping a card opens that countdown
+   (`hidl://open?path=/countdown#c-<id>`). Both links are checked by `src/deep-link.ts`. Fonts are bundled from
    `assets/fonts` (OFL) and the picker previews are `assets/widget/preview-*.png`. Nothing animates or ticks
    between redraws: the library draws the widget as a picture. The app redraws it when you leave the app or save a countdown,
    and tells the page how many widgets are really placed (`getWidgetInfo`), so it never claims one that was removed.

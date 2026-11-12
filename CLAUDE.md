@@ -18,7 +18,8 @@ README's "How the important rules are enforced" table (every hard rule and the P
   once; then the browser hands the text to the server to seal, and they open like new ones from then on.
 - **Countdowns**: any number, eight kinds (exam with target/actual score, graduation, birthday, wedding, work, trip,
   life, other), shown in the units the user picks, soonest first (no starring), and feed the Android home-screen
-  widget (three sizes, Hidi in five moods) through a token-authenticated JSON feed.
+  widget (three sizes; a stack of cards you scroll through, Hidi in five moods; each widget picks its own countdowns
+  from its sliders button) through a token-authenticated JSON feed. iPhones get no widget buttons (no iOS app).
 - **Photo calendar**: any number of photos or short videos (≤ 5 MB each, 2 GB per person) per day, a pinned "wallpaper" per day, a
   year view, and `/memories`, a pannable board of past photos grouped by day or by the person's own groups
   (named and ordered by them), shared as a Memory Lane picture of a day, a week or a month (or the board as it is), to copy, download or share; the calendar shares its month as it looks.
@@ -107,7 +108,7 @@ src/lib/validation/          zod schemas used by every action and route handler 
 src/lib/                     Pure helpers: time, dates, ethiopian, calendar, calendar-months (Gregorian or Ethiopian
                              months for the photo calendar), names, countdown-kinds/units, e2ee,
                              key-store, letter-crypto (server-only), image, media, memories, photo-groups, share-periods, lane-layout, avatar, env, public-env, feedback, csv,
-                             admin-format, user-files, profile-rules, app-lock, app-biometric, media-sniff
+                             admin-format, user-files, profile-rules, app-lock, app-biometric, media-sniff, user-agent
 src/components/              UI, grouped by feature (letters/, countdown/, calendar/, account/, ...)
 public/sw.js                 Service worker: caches photo files, offline page; never caches pages
 supabase/migrations/         The schema, in order; supabase/config.toml is the local stack config

@@ -2,7 +2,7 @@ import type { WidgetInfo, WidgetRepresentation, WidgetTaskHandlerProps } from 'r
 import { FeedError, cacheFeed, feedItems, fetchFeed, getCachedFeed, getFeedUrl, type CachedFeed } from '../feed';
 import { CountdownWidget, NEXT, PREV, SELECT, type WidgetItem, type WidgetProps } from './CountdownWidget';
 import { orderCountdowns } from './mood';
-import { forgetSettings, readSettings, writeSettings, type WidgetSettings } from './settings';
+import { forgetSettings, readSettings, type WidgetSettings } from './settings';
 
 type Info = Pick<WidgetInfo, 'width' | 'height' | 'widgetId'>;
 type Loaded =
@@ -41,45 +41,30 @@ export function widgetItems(cached: CachedFeed, settings: WidgetSettings, now = 
   return orderCountdowns(all, now, cached.feed.timeZone);
 }
 
-function indexOf(items: WidgetItem[], current: string | null) {
-  const i = current ? items.findIndex((it) => it.id === current) : -1;
-  return i < 0 ? 0 : i;
-}
-
 /** Builds one widget (both looks when it follows the system theme). */
 export async function renderCountdownWidget(
   info: Info,
-  opts: { fromCache?: boolean; move?: number; select?: number; settings?: WidgetSettings } = {},
+  opts: { fromCache?: boolean; settings?: WidgetSettings } = {},
 ): Promise<WidgetRepresentation> {
-  let settings = opts.settings ?? (await readSettings(info.widgetId));
+  const settings = opts.settings ?? (await readSettings(info.widgetId));
   const loaded = await load(Boolean(opts.fromCache));
   const size = { width: info.width, height: info.height };
   const now = Date.now();
+  const widgetId = info.widgetId;
 
   const build = (look: 'light' | 'dark'): React.JSX.Element => {
     let props: WidgetProps;
-    if (loaded.kind === 'error') props = { state: 'error', message: loaded.message, size, look };
-    else if (loaded.kind === 'empty') props = { state: 'empty', connected: loaded.connected, size, look };
+    if (loaded.kind === 'error') props = { state: 'error', message: loaded.message, size, look, widgetId };
+    else if (loaded.kind === 'empty') props = { state: 'empty', connected: loaded.connected, size, look, widgetId };
     else {
       const items = widgetItems(loaded.cached, settings, now);
+      const nonePicked = items.length === 0 && feedItems(loaded.cached.feed).some((i) => i.targetAt);
       props = items.length
-        ? { state: 'ready', items, index: indexOf(items, settings.current), tz: loaded.cached.feed.timeZone, now, stale: loaded.stale, size, look }
-        : { state: 'empty', connected: true, size, look };
+        ? { state: 'ready', items, tz: loaded.cached.feed.timeZone, now, stale: loaded.stale, size, look, widgetId }
+        : { state: 'empty', connected: true, nonePicked, size, look, widgetId };
     }
     return <CountdownWidget {...props} />;
   };
-
-  // Flip or pick first, and remember it by id, so a refresh keeps showing the same one.
-  if (loaded.kind === 'ready' && (opts.move || opts.select !== undefined)) {
-    const items = widgetItems(loaded.cached, settings, now);
-    if (items.length) {
-      const from = indexOf(items, settings.current);
-      const to = opts.select !== undefined ? opts.select : from + (opts.move ?? 0);
-      const next = items[((to % items.length) + items.length) % items.length];
-      settings = { ...settings, current: next.id ?? null };
-      await writeSettings(info.widgetId, settings);
-    }
-  }
 
   if (settings.theme === 'system') return { light: build('light'), dark: build('dark') };
   return build(settings.theme);
@@ -97,11 +82,9 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
       props.renderWidget(await renderCountdownWidget(info, { fromCache: true }));
       break;
     case 'WIDGET_CLICK':
-      if (props.clickAction === NEXT || props.clickAction === PREV) {
-        props.renderWidget(await renderCountdownWidget(info, { fromCache: true, move: props.clickAction === NEXT ? 1 : -1 }));
-      } else if (props.clickAction === SELECT) {
-        const index = Number((props.clickActionData as { index?: unknown } | undefined)?.index);
-        if (Number.isInteger(index)) props.renderWidget(await renderCountdownWidget(info, { fromCache: true, select: index }));
+      // The arrows and list rows of older versions: redraw, which brings the new scrolling stack.
+      if (props.clickAction === NEXT || props.clickAction === PREV || props.clickAction === SELECT) {
+        props.renderWidget(await renderCountdownWidget(info, { fromCache: true }));
       }
       break;
     case 'WIDGET_DELETED':

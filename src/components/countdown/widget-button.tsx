@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CloseIcon, WidgetIcon } from "@/components/icons";
+import { useDevice } from "@/components/use-device";
 import { WidgetToken } from "./widget-token";
 
 /** Opens a dialog to make (or remove) a home-screen widget feed for one countdown. */
@@ -9,6 +10,7 @@ export function WidgetButton({ countdown, createdAt }: { countdown: { id: string
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = `widget-${countdown.id}`;
+  const device = useDevice();
 
   useEffect(() => {
     const d = ref.current;
@@ -16,6 +18,9 @@ export function WidgetButton({ countdown, createdAt }: { countdown: { id: string
     if (open && !d.open) d.showModal();
     if (!open && d.open) d.close();
   }, [open]);
+
+  // iPads asking for the desktop site get past the server's check; no widget for them either.
+  if (device === "iphone") return null;
 
   return (
     <>

@@ -143,15 +143,8 @@ export function kindSvg(kind: string) {
 </svg>`;
 }
 
-/** The kind's icon as a plain line drawing in one color (next to the title, as on the website). */
-export function kindLineSvg(kind: string, color: string) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <g fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${(KIND_PATHS[kind] ?? KIND_PATHS.deadline).replace('fill="#fff"', `fill="${color}"`)}</g>
-</svg>`;
-}
-
-/** The chunky ‹ › glyphs, drawn (fonts' angle brackets are thin). */
-export function chevronSvg(dir: 'left' | 'right', color: string) {
-  const d = dir === 'left' ? 'M14.5 6 L8.5 12 L14.5 18' : 'M9.5 6 L15.5 12 L9.5 18';
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="${d}" stroke="${color}" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+/** The widget's "edit" button: three sliders (which countdowns this widget shows, and its look). */
+export function editSvg(color: string) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g stroke="${color}" stroke-width="2.4" stroke-linecap="round" fill="none">
+  <path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></g></svg>`;
 }
