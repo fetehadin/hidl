@@ -6,7 +6,7 @@ import { HidiMenu } from "@/components/hidi-menu";
 import { BuddyProvider } from "@/components/buddy-context";
 import { AppLockGate } from "@/components/lock/app-lock-gate";
 import { Mascot } from "@/components/mascot";
-import { OfflineStatus } from "@/components/offline-status";
+import { OfflineStatusProvider, OfflineTitle } from "@/components/offline-status";
 import { MediaLinkRefresher } from "@/components/media-link-refresher";
 import { AppShell, MobileTabBar } from "@/components/nav";
 import { ProfileImage } from "@/components/profile/profile-image";
@@ -36,23 +36,23 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <BuddyProvider value={buddy}>
       <AppLockGate userId={user.id} initiallyLocked={lockedHere}>
       <Analytics userId={user.id} />
+      <OfflineStatusProvider>
       <AppShell initialCollapsed={navCollapsed} avatar={buddy} isAdmin={admin} theme={theme}>
-        {/* Phones: pinned to the top (below the status bar) at one fixed height, on the page color, so
-            it stays put while the page scrolls under it. Wider screens: the plain wordmark above the
-            page (the side nav holds the rest). Positioned either way so it floats above full-screen
-            pages like the memories board, which makes it see-through (.app-header in globals.css). */}
-        <header className="app-header sticky top-[var(--safe-top)] z-30 border-b border-line/70 bg-paper/90 backdrop-blur-md sm:relative sm:top-auto sm:z-20 sm:border-0 sm:bg-transparent sm:backdrop-blur-none">
-          <div className="mx-auto flex h-15 max-w-[70rem] items-center justify-between gap-3 px-4 min-[400px]:px-5 sm:h-auto sm:pt-6 sm:pb-2">
+        {/* Phones only: pinned to the top (below the status bar) at one fixed height, on the page
+            color, so it stays put while the page scrolls under it; see-through over the memories
+            board (.app-header in globals.css). Wider screens have the logo at the top of the side nav. */}
+        <header className="app-header sticky top-[var(--safe-top)] z-30 border-b border-line/70 bg-paper/90 backdrop-blur-md sm:hidden">
+          <div className="mx-auto flex h-15 max-w-[70rem] items-center justify-between gap-3 px-4 min-[400px]:px-5">
             {/* The logo, or Telegram-style "Waiting for network…" in its place while offline. */}
             <div className="min-w-0">
-              <OfflineStatus>
-                <Link href="/" className="group flex items-center gap-1.5 font-brand text-[1.65rem] leading-none font-semibold tracking-tight sm:gap-2 sm:text-[1.9rem] text-teal">
-                  <Mascot brand size={40} float={false} className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110 sm:h-auto sm:w-[46px]" />
+              <OfflineTitle>
+                <Link href="/" className="group flex items-center gap-1.5 font-brand text-[1.65rem] leading-none font-semibold tracking-tight text-teal">
+                  <Mascot brand size={40} float={false} className="transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
                   Hidl
                 </Link>
-              </OfflineStatus>
+              </OfflineTitle>
             </div>
-            <div className="flex items-center gap-1.5 sm:hidden">
+            <div className="flex items-center gap-1.5">
               <ThemeToggle serverTheme={theme} className={"grid size-10 place-items-center rounded-full text-ink-soft transition-colors hover:bg-mint hover:text-ocean"} />
               <Link href="/account" aria-label="Account" className="grid size-10 place-items-center overflow-hidden rounded-full ring-2 ring-aqua transition-transform active:scale-95">
                 <ProfileImage avatar={buddy} size={40} />
@@ -62,8 +62,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </header>
 
         {/* Bottom padding lets every page scroll clear of the tab bar and Hidi's corner menu. */}
-        <main className="mx-auto max-w-[70rem] px-4 pt-4 pb-36 min-[400px]:px-5 sm:pt-2 sm:pb-24">{children}</main>
+        <main className="mx-auto max-w-[70rem] px-4 pt-4 pb-36 min-[400px]:px-5 sm:pt-20 sm:pb-24">{children}</main>
       </AppShell>
+      </OfflineStatusProvider>
       <MobileTabBar />
       <HidiMenu />
       </AppLockGate>
