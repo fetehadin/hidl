@@ -59,8 +59,10 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 /**
- * The Hidl home-screen widget, a stack of cards: every countdown fills the whole widget, and you
- * scroll up or down to the next one (like a stack of widgets on an iPhone). Each card is one huge
+ * The Hidl home-screen widget, a stack of cards: every countdown fills the whole widget, and a
+ * swipe up or down brings the next one, one card at a time (like a stack of widgets on an iPhone).
+ * The `ListWidget` is drawn by Android's StackView, not a scrolling list: patches/ swaps it in the
+ * widget library, so it snaps to whole cards and loops round. Each card is one huge
  * number, what it's for, a thin bar of how far along it is, and Hidi, whose mood follows the date
  * and colors the card (gold on the day, slate once it's passed). The large size is a list.
  *
@@ -335,10 +337,15 @@ function SmallPage({ look, item, shown, index, count, height }: PageProps) {
   );
 }
 
-/** 4×4: a header, the soonest as a big card with Hidi's bubble, then the rest as rows. All of it scrolls. */
+/** 4×4: a header, the soonest as a big card with Hidi's bubble, then as many of the rest as fit. */
 function LargeList({ look, props }: { look: Look; props: Extract<WidgetProps, { state: 'ready' }> }) {
   const { items, now, tz, widgetId, stale } = props;
-  const [first, ...rest] = items;
+  const [first, ...others] = items;
+  // A fixed list (the stack view that small and medium swipe through can't scroll rows): as many
+  // rows as fit under the big card (12 padding, 40 header, 4 gap, 170 card, 64 a row), then "+3 more".
+  const fits = Math.max(0, Math.floor((props.size.height - 24 - 44 - 170) / 64));
+  const rest = others.length > fits ? others.slice(0, Math.max(0, fits - 1)) : others;
+  const more = others.length - rest.length;
   const shown = describe(first, now, tz);
   const skin = skinFor(look, shown.mood);
   return (
@@ -355,10 +362,8 @@ function LargeList({ look, props }: { look: Look; props: Extract<WidgetProps, { 
         />
         <EditButton look={look} widgetId={widgetId} size={30} />
       </FlexWidget>
-      <FlexWidget style={{ width: 'match_parent', flex: 1, marginTop: 4 }}>
-        <ListWidget style={{ width: 'match_parent', height: 'match_parent' }}>
+      <FlexWidget style={{ width: 'match_parent', flex: 1, marginTop: 4, flexDirection: 'column' }}>
           <FlexWidget
-            key="hero"
             clickAction="OPEN_URI"
             clickActionData={{ uri: countdownUri(first.id) }}
             style={{
@@ -416,7 +421,15 @@ function LargeList({ look, props }: { look: Look; props: Extract<WidgetProps, { 
               </FlexWidget>
             );
           })}
-        </ListWidget>
+          {more > 0 && (
+            <FlexWidget
+              clickAction="OPEN_URI"
+              clickActionData={{ uri: countdownUri() }}
+              style={{ width: 'match_parent', height: 56, marginTop: 8, borderRadius: 18, backgroundColor: look.row, justifyContent: 'center', alignItems: 'center' }}
+            >
+              <Text text={`+${more} more`} size={14} color={look.soft} font={FONT.roundHeavy} />
+            </FlexWidget>
+          )}
       </FlexWidget>
     </FlexWidget>
   );

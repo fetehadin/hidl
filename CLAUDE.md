@@ -301,7 +301,9 @@ Production Supabase auth settings (URLs, code length, templates, Google, SMTP) l
   opened. JS-only fixes reach installed apps with `cd mobile && npm run update` (EAS Update, channel `preview`);
   anything native needs a new APK (`npm run build:apk`).
 - **Home-screen widget code (`mobile/src/widget/`)** may only use the widget library's primitives: no React Native
-  views and no fragments (`<>…</>`), or the widget fails to draw on every phone.
+  views and no fragments (`<>…</>`), or the widget fails to draw on every phone. A `ListWidget` there is a
+  swipe-one-card stack, not a scrolling list (`mobile/patches/` swaps in Android's `StackView`; a native change,
+  so it needs a new APK), so don't use one for rows.
 - **The widget feed is a public contract.** `mobile/` reads the JSON from `/api/widget/countdown` (type
   `CountdownFeed` in `mobile/src/feed.ts`). Add fields freely, but renaming or removing one breaks widgets already on
   people's phones.

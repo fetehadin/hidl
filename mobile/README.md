@@ -25,12 +25,14 @@ website, because they come from the same place. Native screens can replace web o
 3. **Widget (`src/widget/`):** three entries in the widget picker, all the same widget: `CountdownSmall` (2×2),
    `Countdown` (4×2, the original name so placed widgets keep working) and `CountdownLarge` (4×4). What's drawn
    follows the real size (`layoutFor` in `CountdownWidget.tsx`), so any of them stays readable when resized.
-   Small and medium are a **stack of cards**: a `ListWidget` whose every item fills the whole widget, so scrolling
-   up and down moves to the next countdown (like a stack of widgets on an iPhone; the standing dots show where you
-   are). Each card is one big number (Nunito), what it's for, a thin bar, and Hidi with a speech bubble, in Hidl's
-   deep teal (`look.ts`). Hidi's mood follows the date (`mood.ts`: calm, excited, nervous, party, sleepy; tested in
-   the web app's `tests/unit/widget-mood.test.ts`) and colors the card: gold on the day, slate once it's passed
-   (`skinFor`). Large is a header, the soonest as a big card, then the rest as rows, all one scrolling list.
+   Small and medium are a **stack of cards**: a `ListWidget` whose every item fills the whole widget, drawn by
+   Android's `StackView` (`patches/react-native-android-widget+0.26.0.patch`, applied by `patch-package` on every
+   install, EAS builds included), so a swipe up or down moves exactly one card and loops round. Each card is one big
+   number (Nunito), what it's for, a thin bar, and Hidi with a speech bubble, in Hidl's deep teal (`look.ts`).
+   Hidi's mood follows the date (`mood.ts`: calm, excited, nervous, party, sleepy; tested in the web app's
+   `tests/unit/widget-mood.test.ts`) and colors the card: gold on the day, slate once it's passed (`skinFor`).
+   Large is a header, the soonest as a big card, then as many of the rest as fit, as plain rows (a stack can't
+   hold rows), with "+N more".
    Countdowns come from the account feed's `countdowns` list, soonest first, then ones that passed (last 7 days).
    The art is SVG strings (`hidi.ts`). Each widget keeps its own settings (`settings.ts`, `hidl.widget.<id>`):
    which countdowns to leave out (new ones join by themselves) and Light / Dark / Follow phone. The settings screen

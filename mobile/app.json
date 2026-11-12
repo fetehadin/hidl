@@ -36,7 +36,7 @@
             {
               "name": "CountdownSmall",
               "label": "Hidl countdown · small",
-              "description": "Hidi and the big number. Scroll for the next one.",
+              "description": "Hidi and the big number. Swipe up for the next one.",
               "minWidth": "110dp",
               "minHeight": "110dp",
               "targetCellWidth": 2,
@@ -49,7 +49,7 @@
             {
               "name": "Countdown",
               "label": "Hidl countdown",
-              "description": "Your countdowns as a stack of cards. Scroll up and down.",
+              "description": "Your countdowns as a stack of cards. Swipe up or down.",
               "minWidth": "250dp",
               "minHeight": "110dp",
               "targetCellWidth": 4,
@@ -62,7 +62,7 @@
             {
               "name": "CountdownLarge",
               "label": "Hidl countdowns · large",
-              "description": "Hidi up top and a list of every countdown.",
+              "description": "Hidi with your next countdown, and the ones after it.",
               "minWidth": "250dp",
               "minHeight": "250dp",
               "targetCellWidth": 4,

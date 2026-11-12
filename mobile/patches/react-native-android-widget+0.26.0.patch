@@ -1,0 +1,32 @@
+diff --git a/node_modules/react-native-android-widget/android/src/main/res/layout/rn_widget_list.xml b/node_modules/react-native-android-widget/android/src/main/res/layout/rn_widget_list.xml
+index 6935b86..03572ec 100644
+--- a/node_modules/react-native-android-widget/android/src/main/res/layout/rn_widget_list.xml
++++ b/node_modules/react-native-android-widget/android/src/main/res/layout/rn_widget_list.xml
+@@ -8,11 +8,11 @@
+         android:layout_width="match_parent"
+         android:layout_height="match_parent">
+ 
+-        <ListView
++        <StackView
+             android:id="@+id/rn_widget_list_0"
+             android:layout_width="match_parent"
+             android:layout_height="match_parent"
+-            android:divider="@null"
++            android:loopViews="true"
+             android:gravity="center" />
+     </FrameLayout>
+ 
+@@ -21,11 +21,11 @@
+         android:layout_width="match_parent"
+         android:layout_height="match_parent">
+ 
+-        <ListView
++        <StackView
+             android:id="@+id/rn_widget_list_1"
+             android:layout_width="match_parent"
+             android:layout_height="match_parent"
+-            android:divider="@null"
++            android:loopViews="true"
+             android:gravity="center" />
+     </FrameLayout>
+ </FrameLayout>

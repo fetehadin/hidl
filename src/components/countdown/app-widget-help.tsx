@@ -56,7 +56,7 @@ export function AppWidgetHelp({ title }: { title?: string }) {
   const canPin = useSyncExternalStore(subscribeApp, appCanPin, () => false);
   const widgets = useSyncExternalStore(subscribeApp, placedWidgets, () => null);
   const pinsSizes = useSyncExternalStore(subscribeApp, appPinsSizes, () => false);
-  const [size, setSize] = useState<WidgetSize>("medium");
+  const [size, setSize] = useState<WidgetSize>("small");
   const [status, setStatus] = useState<"idle" | "asked" | "manual" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
