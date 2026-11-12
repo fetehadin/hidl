@@ -17,6 +17,12 @@ export const FREEZE_COST = 50;
 export const FREEZE_MAX = 2;
 
 export type StreakState = {
+  /** Days in a row captured on the day (or kept by a freeze), up to today or yesterday. */
+  streak: number;
+  /** Today has a photo, added today. */
+  todayDone: boolean;
+  /** Any photo at all, on time or not. */
+  hasPhotos: boolean;
   /** XP earned ever, minus what freezes cost. */
   xpBalance: number;
   xpToday: number;

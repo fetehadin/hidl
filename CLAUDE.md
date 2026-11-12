@@ -30,7 +30,7 @@ README's "How the important rules are enforced" table (every hard rule and the P
   (everyone unless they opt out), with last period's results
   frozen ("released").
 - **App lock:** an optional per-device PIN or pattern lock screen (`/account`), plus fingerprint / Face ID (a
-  passkey), kept in the browser only. Also asked before a letter's seal is broken (`confirmWithLock`).
+  passkey, or the phone app's own fingerprint prompt), kept on the device only. Also asked before a letter's seal is broken (`confirmWithLock`).
 - **Account** (`/account`): grouped into Profile, Security, Preferences, Phone app and Help, with quick links. The
   theme is switched from the menu only.
 - **Two themes:** Teal Paper (light, default) and Graphite (dark), both in the brand teal, switched per device with
@@ -107,7 +107,7 @@ src/lib/validation/          zod schemas used by every action and route handler 
 src/lib/                     Pure helpers: time, dates, ethiopian, calendar, calendar-months (Gregorian or Ethiopian
                              months for the photo calendar), names, countdown-kinds/units, e2ee,
                              key-store, letter-crypto (server-only), image, media, memories, photo-groups, share-periods, lane-layout, avatar, env, public-env, feedback, csv,
-                             admin-format, user-files, profile-rules, app-lock, media-sniff
+                             admin-format, user-files, profile-rules, app-lock, app-biometric, media-sniff
 src/components/              UI, grouped by feature (letters/, countdown/, calendar/, account/, ...)
 public/sw.js                 Service worker: caches photo files, offline page; never caches pages
 supabase/migrations/         The schema, in order; supabase/config.toml is the local stack config

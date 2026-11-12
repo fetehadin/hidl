@@ -39,7 +39,15 @@ async function xpOn(u: TestUser, day: string) {
 async function streakState(u: TestUser) {
   const { data, error } = await u.client.rpc("my_streak");
   if (error) throw error;
-  return data as { xp_balance: number; freezes: number; used_now: number; frozen_days: string[] };
+  return data as {
+    streak: number;
+    today_done: boolean;
+    has_photos: boolean;
+    xp_balance: number;
+    freezes: number;
+    used_now: number;
+    frozen_days: string[];
+  };
 }
 
 describe("XP", () => {
@@ -126,19 +134,21 @@ describe("streak freezes", () => {
   });
 
   it("a missed day uses one freeze and keeps the streak", async () => {
-    await photo(a, addDays(today, -3));
-    await photo(a, addDays(today, -2));
+    await onTime(a, addDays(today, -3));
+    await onTime(a, addDays(today, -2));
     await admin.from("streak_freezes").insert({ user_id: a.id, cost: 0 }); // one freeze, yesterday missed
     const s = await streakState(a);
     expect(s.used_now).toBe(1);
     expect(s.freezes).toBe(0);
     expect(s.frozen_days).toEqual([addDays(today, -1)]);
+    expect(s.streak).toBe(3);
+    expect(s.today_done).toBe(false);
     // Calling again changes nothing.
     expect((await streakState(a)).used_now).toBe(0);
   });
 
   it("a gap longer than the freezes held uses none", async () => {
-    await photo(a, addDays(today, -4)); // days -3, -2, -1 missed: three freezes needed
+    await onTime(a, addDays(today, -4)); // days -3, -2, -1 missed: three freezes needed
     await admin.from("streak_freezes").insert([{ user_id: a.id, cost: 0 }, { user_id: a.id, cost: 0 }]);
     const s = await streakState(a);
     expect(s.used_now).toBe(0);
@@ -148,6 +158,23 @@ describe("streak freezes", () => {
   it("the app's price and limit match the database's", async () => {
     expect((await a.client.rpc("xp_freeze_cost")).data).toBe(FREEZE_COST);
     expect((await a.client.rpc("xp_freeze_max")).data).toBe(FREEZE_MAX);
+  });
+
+  it("filled-in past days don't start, lengthen or bring back a streak, and use no freeze", async () => {
+    await admin.from("streak_freezes").insert({ user_id: a.id, cost: 0 });
+    for (const back of [3, 2, 1]) await photo(a, addDays(today, -back)); // all added today
+    let s = await streakState(a);
+    expect(s).toMatchObject({ streak: 0, today_done: false, has_photos: true, used_now: 0, freezes: 1 });
+    await photo(a, today);
+    s = await streakState(a);
+    expect(s).toMatchObject({ streak: 1, today_done: true });
+  });
+
+  it("the streak counts on-time days and frozen days up to yesterday while today is open", async () => {
+    await onTime(a, addDays(today, -3));
+    await admin.from("streak_freezes").insert({ user_id: a.id, cost: 0, used_on: addDays(today, -2) });
+    await onTime(a, addDays(today, -1));
+    expect(await streakState(a)).toMatchObject({ streak: 3, today_done: false });
   });
 
   it("a frozen day carries the streak bonus on", async () => {

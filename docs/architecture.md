@@ -264,13 +264,17 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   a countdown 5 (once a day). Deleting something takes its XP away; the daily caps stop farming. Spendable XP = all
   XP ever − freezes bought. `buy_streak_freeze()` (50 XP, hold 2; `HX001` not enough XP, `HX002` full).
   `my_streak()` (called by Today) spends one freeze per missed day up to yesterday, only if the freezes cover the
-  whole gap, and returns the balance, freezes and frozen days; frozen days keep the streak (Today counts them, the
-  streak row shows them as ice) but earn nothing. `streak_freezes` has no grants. The flame on Today opens the
+  whole gap, and returns the streak itself (`streak`, `today_done`), the balance, freezes and frozen days. The streak
+  counts only *on-time* photo days (added on the day itself) and frozen days, the same days that earn the streak
+  bonus: filling in past days saves the photos but never starts, lengthens or restores a streak, and uses no freeze.
+  Today shows `my_streak()`'s count as is (no counting in the app). Frozen days keep the streak (the streak row shows
+  them as ice) but earn nothing. `streak_freezes` has no grants. The flame on Today opens the
   freeze sheet.
 - **Leaderboard** (`/leaderboard`, `leaderboard()` in SQL, `src/lib/data/leaderboard.ts`): ranks XP earned in the
   current week (Mon–Sun) or month, by `app_today()`; `streak` is still the longest run of *on-time* photo days in the
   period (on time = a photo whose `date` equals its `created_at` day in the owner's zone; backfills don't count).
-  Ties share a rank (then the longer streak wins). The page shows a podium, your place with the XP to pass the next
+  Ties share a rank (then the longer streak wins). The page shows a podium (the first three rows by position, so
+  people tied for 3rd aren't hidden), your place with the XP to pass the next
   person, everyone else and "How XP works". Everyone is listed unless `show_on_leaderboard` is off; no name shows as "A hidl friend". Rows carry
   name, buddy and `is_me`, never ids or emails. The previous period is "released": the first call
   for it writes `leaderboard_releases` + top 100 into `leaderboard_results`, and later calls read that snapshot
@@ -283,6 +287,12 @@ tests/integration/     Real local Supabase: letter lock, multi-photo calendar, s
   background after the chosen timeout (sessionStorage "seen" stamp). The `hidl-lock` cookie lists user ids with a
   lock on this device, so the server renders the page hidden from the first byte. Five wrong tries, then waits from
   30 s doubling to 15 min. "Forgot it?" clears the lock and signs out. It's a privacy screen, not encryption.
+  Fingerprint / Face ID sits on top of the PIN or pattern: a passkey in browsers (`src/lib/passkey.ts`), or, in the
+  phone app (whose web view has no passkeys), the phone's own prompt through the app (`src/lib/app-biometric.ts` ↔
+  `mobile/src/biometric.ts`, expo-local-authentication; stored as `passkeyId: "hidl-app-biometric"`).
+- **Account** (`/account`): a settings menu (Profile, Security, Preferences, Phone app on the website, Help, Delete
+  account). Phones show the list, and each item opens alone at `/account?s=<id>` with a way back; wider screens show
+  the menu beside the open section (Profile by default). Only the open section is rendered.
 - **Themes** (`src/lib/theme.ts`, `src/components/theme/`): `teal` ("Teal Paper", the default, light) and
   `graphite` (dark). The old `blue` cookie value is read as `graphite`. The `hidl-theme` cookie is read by the root
   layout, which sets `<html data-theme>`, the browser `theme-color` and `color-scheme`, so the first paint is right;

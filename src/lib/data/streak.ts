@@ -9,6 +9,9 @@ export async function getStreakState(supabase: SupabaseClient): Promise<StreakSt
   const { data, error } = await supabase.rpc("my_streak");
   if (error) throw error;
   const d = data as {
+    streak: number;
+    today_done: boolean;
+    has_photos: boolean;
     xp_balance: number;
     xp_today: number;
     freezes: number;
@@ -18,6 +21,9 @@ export async function getStreakState(supabase: SupabaseClient): Promise<StreakSt
     frozen_days: string[];
   };
   return {
+    streak: Number(d.streak),
+    todayDone: Boolean(d.today_done),
+    hasPhotos: Boolean(d.has_photos),
     xpBalance: Number(d.xp_balance),
     xpToday: Number(d.xp_today),
     freezes: Number(d.freezes),

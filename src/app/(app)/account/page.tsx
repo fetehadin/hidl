@@ -14,6 +14,7 @@ import { Mascot } from "@/components/mascot";
 import { PageHeader } from "@/components/page-header";
 import { PhotoSpaceNotice } from "@/components/photo-space-notice";
 import { ProfileEditor } from "@/components/profile/profile-editor";
+import { ChatIcon, ShieldIcon, TrashIcon, UserIcon } from "@/components/icons";
 import { DEFAULT_AVATAR } from "@/lib/avatar";
 import { getProfile } from "@/lib/data/profile";
 import { mediaUsage } from "@/lib/storage";
@@ -21,129 +22,187 @@ import { isAdmin, requireUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Account" };
 
+type SectionId = "profile" | "security" | "preferences" | "phone-app" | "help" | "delete";
+
 /**
- * Account, in a few groups with quick links at the top: profile, security, preferences, the
- * phone app (on the website only), help, and deleting the account. The theme lives in the menu's
- * half-circle button, and letters need no setup here (they're sealed on the server).
+ * Account as a settings menu: Profile, Security, Preferences, the phone app (on the website
+ * only), Help and Delete account. On phones the menu is a list and each item opens on its own
+ * (`?s=security`), with a way back; wider screens show the menu beside the open section. Only the
+ * open section is rendered. The theme lives in the menu's half-circle button, and letters need no
+ * setup here (they're sealed on the server).
  */
-export default async function AccountPage() {
+export default async function AccountPage({ searchParams }: PageProps<"/account">) {
+  const { s: raw, error } = await searchParams;
   const { supabase, user, calendar } = await requireUser();
-  const [profile, admin, space] = await Promise.all([
-    getProfile(supabase),
-    isAdmin(supabase, user),
-    mediaUsage(supabase).catch(() => null),
-  ]);
-  const buddy = profile.avatar;
   // Inside the phone app there's nothing to hand over to.
   const inApp = ((await headers()).get("user-agent") ?? "").includes("hidl-app");
 
-  const sections = [
-    { id: "profile", label: "Profile" },
-    { id: "security", label: "Security" },
-    { id: "preferences", label: "Preferences" },
-    ...(inApp ? [] : [{ id: "phone-app", label: "Phone app" }]),
-    { id: "help", label: "Help" },
+  const sections: { id: SectionId; label: string; note: string; icon: ReactNode }[] = [
+    { id: "profile", label: "Profile", note: "Your name and buddy", icon: <UserIcon /> },
+    { id: "security", label: "Security", note: "App lock, fingerprint", icon: <ShieldIcon /> },
+    { id: "preferences", label: "Preferences", note: "Calendar", icon: <SlidersIcon /> },
+    ...(inApp ? [] : [{ id: "phone-app" as const, label: "Phone app", note: "Sign in on your phone", icon: <PhoneIcon /> }]),
+    { id: "help", label: "Help", note: "Feedback and support", icon: <ChatIcon /> },
+    { id: "delete", label: "Delete account", note: "Remove everything for good", icon: <TrashIcon /> },
   ];
+  const picked = sections.find((x) => x.id === raw);
+  // Phones show the menu until something is picked; wider screens always have a section open.
+  const open = picked ?? sections[0];
+
+  const [profile, admin, space] = await Promise.all([
+    getProfile(supabase),
+    open.id === "help" ? isAdmin(supabase, user) : Promise.resolve(false),
+    mediaUsage(supabase).catch(() => null),
+  ]);
+  const buddy = profile.avatar;
 
   return (
     <>
-      <PageHeader eyebrow="account" title="Your account" />
-
-      <div className="card flex items-center gap-4 p-4 sm:p-5">
-        {buddy ? <Avatar config={buddy} size={56} /> : <Mascot mood="happy" size={56} float={false} />}
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-lg font-semibold text-heading">{profile.displayName ?? "You"}</p>
-          <p className="truncate text-sm text-muted">{user.email}</p>
+      {/* Phones, inside a section: just a way back and its name. */}
+      {picked && (
+        <div className="pt-4 sm:hidden">
+          <Link href="/account" className="inline-flex items-center gap-1 text-sm font-bold text-accent">
+            <span aria-hidden className="text-lg leading-none">‹</span> Account
+          </Link>
+          <h1 className="mt-1 mb-5 font-title text-3xl font-medium tracking-tight">{picked.label}</h1>
         </div>
-        <form action={signOut}>
-          <button type="submit" className="btn btn-ghost min-h-10 px-4">
-            Sign out
-          </button>
-        </form>
+      )}
+      <div className={picked ? "hidden sm:block" : ""}>
+        <PageHeader eyebrow="account" title="Your account" />
+        <div className="card flex items-center gap-4 p-4 sm:p-5">
+          {buddy ? <Avatar config={buddy} size={56} /> : <Mascot mood="happy" size={56} float={false} />}
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-lg font-semibold text-heading">{profile.displayName ?? "You"}</p>
+            <p className="truncate text-sm text-muted">{user.email}</p>
+          </div>
+          <form action={signOut}>
+            <button type="submit" className="btn btn-ghost min-h-10 px-4">
+              Sign out
+            </button>
+          </form>
+        </div>
+        {/* Nothing below 90% of the photo space. */}
+        {space && <PhotoSpaceNotice used={space.used} quota={space.quota} showLink className="mt-4" />}
       </div>
 
-      <nav aria-label="Account sections" className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1">
-        {sections.map((s) => (
-          <a
-            key={s.id}
-            href={`#${s.id}`}
-            className="shrink-0 rounded-full border border-line bg-card px-4 py-2 text-sm font-bold text-ink-soft hover:bg-mint hover:text-ocean"
-          >
-            {s.label}
-          </a>
-        ))}
-      </nav>
+      <div className="sm:mt-6 sm:grid sm:grid-cols-[15rem_1fr] sm:items-start sm:gap-6">
+        <nav aria-label="Account sections" className={picked ? "hidden sm:block" : "mt-4 sm:mt-0"}>
+          <ul className="card divide-y divide-line overflow-hidden sm:sticky sm:top-6">
+            {sections.map((x) => {
+              const current = x.id === open.id;
+              return (
+                <li key={x.id}>
+                  <Link
+                    href={`/account?s=${x.id}`}
+                    aria-current={current ? "page" : undefined}
+                    className={`flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-mint/60 ${
+                      current ? "sm:bg-mint" : ""
+                    } ${x.id === "delete" ? "text-wax" : "text-ink"}`}
+                  >
+                    <span
+                      aria-hidden
+                      className={`grid size-9 shrink-0 place-items-center rounded-xl [&>svg]:size-5 ${
+                        x.id === "delete" ? "bg-wax/10" : "bg-mint text-ocean"
+                      }`}
+                    >
+                      {x.icon}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className={`block font-semibold ${current ? "sm:text-ocean" : ""}`}>{x.label}</span>
+                      <span className="block truncate text-sm text-muted sm:hidden">{x.note}</span>
+                    </span>
+                    <span aria-hidden className="text-xl text-muted sm:hidden">›</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
 
-      {/* Nothing below 90% of the photo space. */}
-      {space && <PhotoSpaceNotice used={space.used} quota={space.quota} showLink className="mt-4" />}
-
-      <Section id="profile" title="Profile">
-        <Card title="How others see you" note="Your name and buddy on the leaderboard. Your email is never shown.">
-          <ProfileEditor displayName={profile.displayName} avatar={buddy} showOnLeaderboard={profile.showOnLeaderboard} />
-        </Card>
-        <BuddyCard>
-          <AvatarBuilder initial={buddy ?? DEFAULT_AVATAR} hasBuddy={buddy !== null} />
-        </BuddyCard>
-      </Section>
-
-      <Section id="security" title="Security">
-        <Card title="App lock" note="Asked when Hidl opens on this device, and before a letter's seal is broken.">
-          <AppLockSettings userId={user.id} email={user.email ?? ""} />
-        </Card>
-      </Section>
-
-      <Section id="preferences" title="Preferences">
-        <Card title="Calendar">
-          <CalendarChoice current={calendar} />
-        </Card>
-      </Section>
-
-      {!inApp && (
-        <Section id="phone-app" title="Phone app">
-          <Card
-            title="Sign in on the phone app"
-            note={
+        <div className={picked ? "" : "hidden sm:block"}>
+          <h2 className="mb-3 hidden px-1 text-sm font-extrabold tracking-wider text-muted uppercase sm:block">{open.label}</h2>
+          <div className="space-y-4">
+            {open.id === "profile" && (
               <>
-                Type this code on the app&apos;s sign-in screen.{" "}
-                <Link href="/install" className="font-semibold text-accent hover:underline">
-                  Get the app
-                </Link>
+                <Card title="How others see you" note="Your name and buddy on the leaderboard. Your email is never shown.">
+                  <ProfileEditor displayName={profile.displayName} avatar={buddy} showOnLeaderboard={profile.showOnLeaderboard} />
+                </Card>
+                <BuddyCard>
+                  <AvatarBuilder initial={buddy ?? DEFAULT_AVATAR} hasBuddy={buddy !== null} />
+                </BuddyCard>
               </>
-            }
-          >
-            <AppCodeCard />
-          </Card>
-        </Section>
-      )}
+            )}
 
-      <Section id="help" title="Help">
-        <div className="card divide-y divide-line overflow-hidden">
-          <RowLink href="/feedback?from=/account" title="Send feedback" note="A bug, an idea, or just hi" />
-          {admin && <RowLink href="/admin" title="Admin panel" note="Usage, accounts, feedback" />}
-        </div>
-      </Section>
+            {open.id === "security" && (
+              <Card title="App lock" note="Asked when Hidl opens on this device, and before a letter's seal is broken.">
+                <AppLockSettings userId={user.id} email={user.email ?? ""} />
+              </Card>
+            )}
 
-      <section aria-labelledby="danger-title" className="mt-10">
-        <div className="card border-wax/30 p-5 sm:p-6">
-          <h2 id="danger-title" className="font-display text-lg font-semibold">
-            Delete your account
-          </h2>
-          <p className="mt-1 mb-4 text-sm text-ink-soft">Removes your letters, photos and countdowns for good.</p>
-          <DeleteAccountButton />
+            {open.id === "preferences" && (
+              <Card title="Calendar">
+                <CalendarChoice current={calendar} />
+              </Card>
+            )}
+
+            {open.id === "phone-app" && (
+              <Card
+                title="Sign in on the phone app"
+                note={
+                  <>
+                    Type this code on the app&apos;s sign-in screen.{" "}
+                    <Link href="/install" className="font-semibold text-accent hover:underline">
+                      Get the app
+                    </Link>
+                  </>
+                }
+              >
+                <AppCodeCard />
+              </Card>
+            )}
+
+            {open.id === "help" && (
+              <div className="card divide-y divide-line overflow-hidden">
+                <RowLink href="/feedback?from=/account" title="Send feedback" note="A bug, an idea, or just hi" />
+                {admin && <RowLink href="/admin" title="Admin panel" note="Usage, accounts, feedback" />}
+              </div>
+            )}
+
+            {open.id === "delete" && (
+              <div className="card border-wax/30 p-5 sm:p-6">
+                <h3 className="font-display text-lg font-semibold">Delete your account</h3>
+                <p className="mt-1 mb-4 text-sm text-ink-soft">Removes your letters, photos and countdowns for good.</p>
+                {error === "delete-failed" && (
+                  <p role="alert" className="mb-4 text-sm font-semibold text-wax">
+                    Your account couldn&apos;t be deleted just now. Try again in a moment.
+                  </p>
+                )}
+                <DeleteAccountButton />
+              </div>
+            )}
+          </div>
         </div>
-      </section>
+      </div>
     </>
   );
 }
 
-function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+function SlidersIcon() {
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="mt-8 scroll-mt-24">
-      <h2 id={`${id}-title`} className="mb-3 px-1 text-sm font-extrabold tracking-wider text-muted uppercase">
-        {title}
-      </h2>
-      <div className="space-y-4">{children}</div>
-    </section>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+      <circle cx="16" cy="7" r="2" />
+      <circle cx="10" cy="17" r="2" />
+    </svg>
+  );
+}
+
+function PhoneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="7" y="3" width="10" height="18" rx="2.5" />
+      <path d="M11 17.5h2" />
+    </svg>
   );
 }
 

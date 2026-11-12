@@ -58,19 +58,3 @@ export function weekOf(dateISO: string) {
   return Array.from({ length: 7 }, (_, i) => addDays(dateISO, i - back));
 }
 
-/**
- * Consecutive days with at least one photo, ending today. Like any daily
- * streak, it isn't broken yet if today simply hasn't been captured: it then
- * counts back from yesterday, and `todayDone` says whether today is in.
- */
-export function photoStreak(dates: Iterable<string>, today: string) {
-  const set = new Set(dates);
-  const todayDone = set.has(today);
-  let day = todayDone ? today : addDays(today, -1);
-  let count = 0;
-  while (set.has(day)) {
-    count++;
-    day = addDays(day, -1);
-  }
-  return { count, todayDone };
-}

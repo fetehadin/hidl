@@ -5,6 +5,7 @@ import { signOut } from "@/actions/auth";
 import { Mascot } from "@/components/mascot";
 import { FingerprintIcon } from "@/components/letters/letter-key";
 import { type LockConfig, checkLock, patternSecret, pinSecret, shouldLock, waitAfterFailures } from "@/lib/app-lock";
+import { APP_BIOMETRIC_ID, checkAppBiometric } from "@/lib/app-biometric";
 import { PasskeyError, checkLockPasskey } from "@/lib/passkey";
 import { CONFIRM_LOCK_EVENT, type ConfirmLockDetail } from "./confirm-lock";
 import { clearLock, markSeen, readLock, readSeen, writeLock } from "./lock-store";
@@ -151,7 +152,9 @@ function LockScreen({
     if (!c?.passkeyId || checking) return;
     setChecking(true);
     try {
-      if (await checkLockPasskey(c.passkeyId)) {
+      const ok =
+        c.passkeyId === APP_BIOMETRIC_ID ? (await checkAppBiometric("unlock")).ok : await checkLockPasskey(c.passkeyId);
+      if (ok) {
         writeLock(userId, { ...c, failures: 0, blockedUntil: 0 });
         onUnlock();
         return;

@@ -40,8 +40,12 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
   // The closest person ahead of you, to say how much XP passes them.
   const ahead = mine ? [...board.rows].reverse().find((r) => r.xp > mine.xp) : undefined;
   const mineLast = last.rows.find((r) => r.isMe);
-  const podium = [2, 1, 3].map((rank) => board.rows.find((r) => r.rank === rank)).filter(Boolean) as LeaderboardRow[];
-  const rest = board.rows.filter((r) => r.rank > 3);
+  // The first three people stand on the podium (2nd, 1st, 3rd from the left) and everyone after
+  // them is listed. By position, not rank: people with the same XP share a rank, and picking one
+  // person per rank hid whoever tied for 3rd.
+  const top = board.rows.slice(0, 3);
+  const podium = [1, 0, 2].filter((i) => top[i]).map((i) => ({ row: top[i], place: i }));
+  const rest = board.rows.slice(3);
   const left = daysLeft(board.end);
 
   return (
@@ -68,11 +72,11 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
 
       {!me.showOnLeaderboard ? (
         <Notice>
-          You&apos;re hidden from the leaderboard. <Link href="/account#profile" className="font-bold text-accent">Show me again</Link>
+          You&apos;re hidden from the leaderboard. <Link href="/account?s=profile" className="font-bold text-accent">Show me again</Link>
         </Notice>
       ) : !me.displayName ? (
         <Notice>
-          You show up as &ldquo;{NO_NAME}&rdquo;. <Link href="/account#profile" className="font-bold text-accent">Pick a display name</Link>
+          You show up as &ldquo;{NO_NAME}&rdquo;. <Link href="/account?s=profile" className="font-bold text-accent">Pick a display name</Link>
         </Notice>
       ) : null}
 
@@ -81,23 +85,23 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
       ) : (
         <>
           <ol className="grid grid-cols-3 items-end gap-2 px-1 sm:gap-4" aria-label="Top three">
-            {podium.map((r) => (
+            {podium.map(({ row: r, place }) => (
               <li key={`${r.rank}-${r.displayName}-${r.isMe}`} className="min-w-0 text-center">
                 {r.rank === 1 && (
                   <span aria-hidden className="animate-bob mb-0.5 block text-xl">
                     👑
                   </span>
                 )}
-                <span className={`mx-auto block w-fit rounded-full ring-4 ${RING[r.rank - 1]}`}>
-                  <Face row={r} size={r.rank === 1 ? 60 : 50} />
+                <span className={`mx-auto block w-fit rounded-full ring-4 ${RING[place]}`}>
+                  <Face row={r} size={place === 0 ? 60 : 50} />
                 </span>
                 <span className="mt-2 block truncate text-sm font-extrabold text-ink">
                   {r.isMe ? "You" : (r.displayName ?? NO_NAME)}
                 </span>
                 <span className="block text-xs font-extrabold text-accent tabular-nums">{r.xp} XP</span>
                 <span
-                  className={`animate-rise mt-2 grid ${STEP[r.rank - 1]} place-items-center rounded-t-2xl rounded-b-md bg-mint font-display text-xl font-extrabold text-heading ${r.rank === 1 ? "bg-gradient-to-b from-aqua to-mint" : ""}`}
-                  style={{ animationDelay: `${[250, 100, 400][r.rank - 1]}ms` }}
+                  className={`animate-rise mt-2 grid ${STEP[place]} place-items-center rounded-t-2xl rounded-b-md bg-mint font-display text-xl font-extrabold text-heading ${place === 0 ? "bg-gradient-to-b from-aqua to-mint" : ""}`}
+                  style={{ animationDelay: `${[250, 100, 400][place]}ms` }}
                   aria-label={`Rank ${r.rank}`}
                 >
                   {r.rank}
@@ -130,7 +134,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<"/lead
           )}
 
           {rest.length > 0 && (
-            <ol className="card mt-3 divide-y divide-line px-2 sm:px-4" start={4}>
+            <ol className="card mt-3 divide-y divide-line px-2 sm:px-4">
               {rest.map((r, i) => (
                 <li
                   key={`${r.rank}-${r.displayName}-${r.isMe}`}
