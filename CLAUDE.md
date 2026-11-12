@@ -35,7 +35,7 @@ README's "How the important rules are enforced" table (every hard rule and the P
 - **Account** (`/account`): grouped into Profile, Security, Preferences, Phone app and Help, with quick links. The
   theme is switched from the menu only.
 - **Two themes:** Teal Paper (light, default) and Graphite (dark), both in the brand teal, switched per device with
-  the half-circle button (side nav, phone header, landing page) or on Account. The phone app's own screens use the
+  the half-circle button (the side nav's logo row, phone header, landing page) or on Account. The phone app's own screens use the
   same palette (`mobile/src/theme.ts`) and follow the page's theme.
 - **Admin panel** (`/admin`, admins only): usage numbers (formerly the public `/stats`) with returning people and
   week-1 retention, an Analytics tab (visitors, countries, devices, top pages from PostHog), accounts (search,
