@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { headers } from "next/headers";
 import { Mascot } from "@/components/mascot";
 import { CountdownCard } from "@/components/countdown/countdown-card";
 import { NewCountdownButton } from "@/components/countdown/new-countdown-button";
-import { WidgetIcon } from "@/components/icons";
+import { WidgetLink } from "@/components/countdown/widget-link";
 import { PageHeader } from "@/components/page-header";
 import { listCountdowns } from "@/lib/data/countdowns";
 import { listCountdownWidgetTokens } from "@/lib/data/widget-token";
 import { requireUser } from "@/lib/supabase/server";
 import { requestNow } from "@/lib/time";
+import { isAppleMobile } from "@/lib/user-agent";
 
 export const metadata: Metadata = { title: "Countdown" };
 
 export default async function CountdownPage() {
   const { supabase } = await requireUser();
-  const [countdowns, widgets] = await Promise.all([listCountdowns(supabase), listCountdownWidgetTokens(supabase)]);
+  const [countdowns, widgets, headerList] = await Promise.all([listCountdowns(supabase), listCountdownWidgetTokens(supabase), headers()]);
+  // Home-screen widgets need the Android app: iPhones get no widget buttons at all.
+  const widgetsHere = !isAppleMobile(headerList.get("user-agent"));
   const now = requestNow();
   // The soonest one still to come leads (the widget shows the same one first).
   const featured = countdowns.find((c) => new Date(c.target_at).getTime() > now);
@@ -24,14 +27,7 @@ export default async function CountdownPage() {
     <>
       <PageHeader eyebrow="deadlines" title="Countdown">
         <div className="flex gap-2">
-          <Link
-            href="/countdown/settings"
-            title="Show your countdowns on your home screen"
-            className="btn btn-ghost"
-          >
-            <WidgetIcon width={18} height={18} />
-            Widget
-          </Link>
+          {widgetsHere && <WidgetLink />}
           <NewCountdownButton />
         </div>
       </PageHeader>
@@ -47,11 +43,11 @@ export default async function CountdownPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {featured && <CountdownCard countdown={featured} now={now} featured widgetCreatedAt={widgets.get(featured.id) ?? null} />}
+          {featured && <CountdownCard countdown={featured} now={now} featured widgetCreatedAt={widgets.get(featured.id) ?? null} showWidget={widgetsHere} />}
           {rest.length > 0 && (
             <div className={`grid gap-4 ${rest.length === 1 ? "max-w-sm sm:max-w-md" : "md:grid-cols-2 xl:grid-cols-3"}`}>
               {rest.map((c) => (
-                <CountdownCard key={c.id} countdown={c} now={now} widgetCreatedAt={widgets.get(c.id) ?? null} />
+                <CountdownCard key={c.id} countdown={c} now={now} widgetCreatedAt={widgets.get(c.id) ?? null} showWidget={widgetsHere} />
               ))}
             </div>
           )}

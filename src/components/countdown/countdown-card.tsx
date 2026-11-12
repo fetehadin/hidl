@@ -21,12 +21,15 @@ export function CountdownCard({
   now,
   featured = false,
   widgetCreatedAt = null,
+  showWidget = true,
 }: {
   countdown: Countdown;
   now: number;
   featured?: boolean;
   /** When this countdown's own widget token was made, or null if it has none. */
   widgetCreatedAt?: string | null;
+  /** False on iPhones (no home-screen widget there). */
+  showWidget?: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -110,7 +113,7 @@ export function CountdownCard({
           <PencilIcon width={17} height={17} />
           Edit
         </Link>
-        <WidgetButton countdown={{ id: countdown.id, title: countdown.title }} createdAt={widgetCreatedAt} />
+        {showWidget && <WidgetButton countdown={{ id: countdown.id, title: countdown.title }} createdAt={widgetCreatedAt} />}
         <button
           type="button"
           onClick={() => setConfirmDelete(true)}

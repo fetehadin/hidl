@@ -130,7 +130,8 @@ export function AppWidgetHelp({ title }: { title?: string }) {
   if (device === "iphone") {
     return (
       <p className="rounded-2xl bg-mint p-4 text-ink-soft">
-        Home-screen widgets need the Hidl app, which is Android-only for now.
+        Widgets come with the Android app. On iPhone, keep Hidl one tap away: in Safari, tap{" "}
+        <strong>Share</strong>, then <strong>Add to Home Screen</strong>.
       </p>
     );
   }
@@ -151,30 +152,52 @@ export function AppWidgetHelp({ title }: { title?: string }) {
 
 /**
  * A small picture of the widget, so the dialog shows what you get instead of explaining it.
- * Colors follow mobile/src/widget/CountdownWidget.tsx's Teal Paper look.
+ * Colors are the widget's own (mobile/src/widget/look.ts, light), not the page theme's: it's a
+ * picture of something on the home screen. Two cards peek out below to show it scrolls.
  */
 function WidgetPreview({ title }: { title?: string }) {
   return (
-    <div
-      aria-hidden
-      className="mx-auto w-full max-w-72 rounded-[1.75rem] p-3 shadow-lg"
-      style={{ background: "linear-gradient(135deg, #2e7c7f, #63c1bb)" }}
-    >
-      <div className="flex items-center gap-1.5">
-        <Mascot size={26} />
-        <span className="font-brand text-lg font-bold text-[#ffffff]">Hidl</span>
-        <span className="ml-auto rounded-full bg-[rgba(255,255,255,0.22)] px-2.5 py-0.5 text-xs font-bold text-[#ffffff]">
-          all your countdowns
-        </span>
+    <div aria-hidden className="relative mx-auto w-full max-w-80 pb-3">
+      <div className="absolute inset-x-6 bottom-0 h-8 rounded-[1.5rem] bg-[#17636a] opacity-40" />
+      <div className="absolute inset-x-3 bottom-1.5 h-8 rounded-[1.6rem] bg-[#17636a] opacity-70" />
+      <div
+        className="relative rounded-[1.75rem] p-4 shadow-lg"
+        style={{ background: "linear-gradient(135deg, #3fa29e, #17636a)" }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="truncate rounded-full bg-[#ffffff] px-3 py-1 text-xs font-bold text-[#0f3f45]">
+            5 days to go. Almost there!
+          </span>
+          <span className="ml-auto grid size-7 shrink-0 place-items-center rounded-full border border-[rgba(255,255,255,0.34)] bg-[rgba(255,255,255,0.16)] text-[#ffffff]">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+              <circle cx="15" cy="7" r="2.2" />
+              <circle cx="9" cy="17" r="2.2" />
+            </svg>
+          </span>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <div className="min-w-0 flex-1 text-[#ffffff]">
+            <div className="flex items-center gap-2">
+              <span className="font-display text-5xl leading-none font-extrabold">5</span>
+              <span className="leading-tight">
+                <span className="block text-sm font-extrabold">days</span>
+                <span className="block text-xs text-[rgba(255,255,255,0.82)]">21h</span>
+              </span>
+            </div>
+            <span className="mt-1 block truncate text-base font-extrabold">{title ?? "Your countdown"}</span>
+          </div>
+          <Mascot brand size={64} float={false} />
+          <span className="flex flex-col items-center gap-1">
+            <span className="h-3.5 w-1.5 rounded-full bg-[#ffffff]" />
+            <span className="size-1.5 rounded-full bg-[rgba(255,255,255,0.38)]" />
+            <span className="size-1.5 rounded-full bg-[rgba(255,255,255,0.38)]" />
+          </span>
+        </div>
+        <div className="mt-3 h-1.5 rounded-full bg-[rgba(255,255,255,0.24)]">
+          <div className="h-full w-3/5 rounded-full bg-[#ffffff]" />
+        </div>
       </div>
-      <div className="mt-2 flex items-center gap-2.5 rounded-[1.1rem] bg-[#ffffff] px-2.5 py-2">
-        <span className="grid size-10 place-items-center rounded-[0.9rem] bg-[#e2f0ee] text-xl">⏳</span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-bold text-[#17393d]">{title ?? "Your countdown"}</span>
-          <span className="block text-xs text-[#5e6f72]">counts down right there</span>
-        </span>
-      </div>
-      <div className="mt-1.5 h-2 rounded-full bg-[rgba(255,255,255,0.35)]" />
     </div>
   );
 }
