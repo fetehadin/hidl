@@ -18,8 +18,8 @@ README's "How the important rules are enforced" table (every hard rule and the P
   once; then the browser hands the text to the server to seal, and they open like new ones from then on.
 - **Countdowns**: any number, eight kinds (exam with target/actual score, graduation, birthday, wedding, work, trip,
   life, other), shown in the units the user picks, soonest first (no starring), and feed the Android home-screen
-  widget (three sizes; a smart stack of cards, tap to flip, Hidi in five moods; each widget picks its own countdowns
-  from its sliders button) through a token-authenticated JSON feed. iPhones get no widget buttons (no iOS app).
+  widget (2×2, 2×3, 4×2, 4×4; a stack of cards, soonest on top, tap to flip, Hidi in five moods; each widget picks its
+  own countdowns in its settings) through a token-authenticated JSON feed. iPhones get no widget buttons (no iOS app).
 - **Photo calendar**: any number of photos or short videos (≤ 5 MB each, 2 GB per person) per day, a pinned "wallpaper" per day, a
   year view, and `/memories`, a pannable board of past photos grouped by day or by the person's own groups
   (named and ordered by them), shared as a Memory Lane picture of a day, a week or a month (or the board as it is), to copy, download or share; the calendar shares its month as it looks.

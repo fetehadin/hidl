@@ -13,7 +13,7 @@ import { ANDROID_APP_PATH } from "@/lib/android-app";
 type HidlApp = {
   pinWidget?: boolean;
   /** The app places the size asked for (small, medium or large); older versions always place medium. */
-  pinSizes?: boolean;
+  pinSizes?: boolean | string[];
   widgets?: number | null;
   shareImage?: boolean;
   saveImage?: boolean;
@@ -35,11 +35,17 @@ function subscribeApp(onChange: () => void) {
   return () => window.removeEventListener("hidl-app", onChange);
 }
 const appCanPin = () => Boolean(window.hidlApp?.pinWidget && window.ReactNativeWebView);
-const appPinsSizes = () => Boolean(window.hidlApp?.pinSizes);
+// The sizes the app can place, as a string so the snapshot stays the same between reads: a list
+// from app 0.5.0 on (with 2×3), `true` from earlier versions (the original three), else none.
+const appPinSizes = () => {
+  const sizes = window.hidlApp?.pinSizes;
+  return Array.isArray(sizes) ? sizes.join(",") : sizes ? "small,medium,large" : "";
+};
 
-type WidgetSize = "small" | "medium" | "large";
+type WidgetSize = "small" | "tall" | "medium" | "large";
 const SIZES: { value: WidgetSize; label: string; cells: string }[] = [
   { value: "small", label: "Small", cells: "2×2" },
+  { value: "tall", label: "Tall", cells: "2×3" },
   { value: "medium", label: "Medium", cells: "4×2" },
   { value: "large", label: "Large", cells: "4×4" },
 ];
@@ -55,7 +61,9 @@ export function AppWidgetHelp({ title }: { title?: string }) {
   const device = useDevice();
   const canPin = useSyncExternalStore(subscribeApp, appCanPin, () => false);
   const widgets = useSyncExternalStore(subscribeApp, placedWidgets, () => null);
-  const pinsSizes = useSyncExternalStore(subscribeApp, appPinsSizes, () => false);
+  const sizeList = useSyncExternalStore(subscribeApp, appPinSizes, () => "");
+  const sizes = SIZES.filter((s) => sizeList.split(",").includes(s.value));
+  const pinsSizes = sizes.length > 0;
   const [size, setSize] = useState<WidgetSize>("small");
   const [status, setStatus] = useState<"idle" | "asked" | "manual" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -114,8 +122,13 @@ export function AppWidgetHelp({ title }: { title?: string }) {
       <div className="space-y-4">
         <WidgetPreview title={title} size={pinsSizes ? size : "medium"} />
         {pinsSizes && status !== "asked" && (
-          <div role="radiogroup" aria-label="Widget size" className="grid grid-cols-3 gap-1 rounded-control bg-mint p-1">
-            {SIZES.map((s) => (
+          <div
+            role="radiogroup"
+            aria-label="Widget size"
+            className="grid gap-1 rounded-control bg-mint p-1"
+            style={{ gridTemplateColumns: `repeat(${sizes.length}, minmax(0, 1fr))` }}
+          >
+            {sizes.map((s) => (
               <button
                 key={s.value}
                 type="button"
@@ -152,6 +165,11 @@ export function AppWidgetHelp({ title }: { title?: string }) {
               <p className="flex items-center justify-center gap-2 text-sm font-semibold text-heading">
                 <span aria-hidden>✓</span>
                 {widgets === 1 ? "One Hidl widget is on your home screen" : `${widgets} Hidl widgets are on your home screen`}
+              </p>
+            )}
+            {placed && (
+              <p className="text-center text-xs text-muted">
+                Tap a card to flip. To choose which countdowns it shows, long-press the widget and tap Settings.
               </p>
             )}
             {(!placed || pinsSizes) && (
@@ -239,17 +257,40 @@ function WidgetPreview({ title, size = "medium" }: { title?: string; size?: Widg
       <div aria-hidden className="relative mx-auto w-44 pb-3">
         <div className="absolute inset-x-3 bottom-1 h-8 rounded-[1.5rem] bg-[#17636a] opacity-60" />
         <div className="relative flex aspect-square flex-col rounded-[1.6rem] p-3.5 text-[#ffffff] shadow-lg" style={CARD}>
-          <div className="flex items-start">
-            <span className="flex-1" />
-            <Mascot brand size={52} float={false} />
-            <span className="ml-1">
-              <StackDots />
-            </span>
+          <div className="flex items-center justify-end">
+            <StackDots />
           </div>
-          <span className="mt-auto font-display text-4xl leading-none font-extrabold">5</span>
-          <span className="mt-1 truncate text-sm font-extrabold">{name}</span>
+          <div className="flex flex-1 items-center">
+            <span className="flex-1 font-display text-5xl leading-none font-extrabold">5</span>
+            <Mascot brand size={58} float={false} />
+          </div>
+          <span className="truncate text-sm font-extrabold">{name}</span>
           <span className="text-xs text-[rgba(255,255,255,0.82)]">days · 21h</span>
           <Bar className="mt-2" />
+        </div>
+      </div>
+    );
+  }
+  if (size === "tall") {
+    return (
+      <div aria-hidden className="relative mx-auto w-44 pb-3">
+        <div className="absolute inset-x-3 bottom-1 h-8 rounded-[1.5rem] bg-[#17636a] opacity-60" />
+        <div className="relative flex aspect-[2/3] flex-col items-center rounded-[1.6rem] p-3.5 text-center text-[#ffffff] shadow-lg" style={CARD}>
+          <div className="flex w-full items-start gap-1">
+            <span className="flex-1 rounded-[0.8rem] bg-[#ffffff] px-2 py-1 text-left text-[0.7rem] leading-tight font-bold text-[#0f3f45]">
+              5 days to go. Almost there!
+            </span>
+            <StackDots />
+          </div>
+          <div className="grid flex-1 place-items-center">
+            <Mascot brand size={84} float={false} />
+          </div>
+          <span className="font-display text-4xl leading-none font-extrabold">
+            5<span className="ml-1 text-sm">days</span>
+          </span>
+          <span className="mt-1 w-full truncate text-sm font-extrabold">{name}</span>
+          <span className="text-xs text-[rgba(255,255,255,0.82)]">Mon, Nov 16</span>
+          <Bar className="mt-2 w-full" />
         </div>
       </div>
     );
@@ -293,9 +334,6 @@ function WidgetPreview({ title, size = "medium" }: { title?: string; size?: Widg
         <div className="flex items-center gap-2">
           <span className="truncate rounded-full bg-[#ffffff] px-3 py-1 text-xs font-bold text-[#0f3f45]">
             5 days to go. Almost there!
-          </span>
-          <span className="ml-auto">
-            <Sliders />
           </span>
         </div>
         <div className="mt-2 flex items-center gap-2">

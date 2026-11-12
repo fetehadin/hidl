@@ -3,8 +3,8 @@ import type { Mood } from './mood';
 type Color = `#${string}` | `rgba(${number}, ${number}, ${number}, ${number})`;
 
 /**
- * The widget's colors: every countdown is its own card in Hidl's deep teal (light) or graphite
- * teal (dark), with white type, white "glass" for buttons and tracks, and Hidi on top. Small text
+ * The widget's colors: every countdown is its own card in Hidl's teal (light, the default) or a
+ * deeper teal (dark), with white type, white "glass" for buttons and tracks, and Hidi on top. Small text
  * sits on the darker half of each gradient, so it stays readable (white on #17636A is 6.5:1).
  */
 export const LOOKS = {
@@ -27,20 +27,21 @@ export const LOOKS = {
     row: 'rgba(255, 255, 255, 0.13)',
   },
   dark: {
-    from: '#1F3F3D',
-    to: '#0B1817',
-    text: '#EAFBF8',
-    soft: 'rgba(234, 251, 248, 0.8)',
-    faint: 'rgba(234, 251, 248, 0.55)',
-    glass: 'rgba(255, 255, 255, 0.07)',
-    glassLine: 'rgba(255, 255, 255, 0.2)',
-    track: 'rgba(255, 255, 255, 0.12)',
-    fill: '#5CBDB6',
-    dot: '#5CBDB6',
-    dotOff: 'rgba(255, 255, 255, 0.22)',
-    bubble: '#2A4F4C',
-    bubbleText: '#EAFBF8',
-    row: 'rgba(255, 255, 255, 0.06)',
+    // A deep teal (not near-black), so it still reads as Hidl at night; same white type and glass.
+    from: '#1E6266',
+    to: '#0B2C30',
+    text: '#FFFFFF',
+    soft: 'rgba(255, 255, 255, 0.78)',
+    faint: 'rgba(255, 255, 255, 0.55)',
+    glass: 'rgba(255, 255, 255, 0.1)',
+    glassLine: 'rgba(255, 255, 255, 0.26)',
+    track: 'rgba(255, 255, 255, 0.16)',
+    fill: '#9FDCD7',
+    dot: '#9FDCD7',
+    dotOff: 'rgba(255, 255, 255, 0.28)',
+    bubble: '#E2F0EE',
+    bubbleText: '#0F3F45',
+    row: 'rgba(255, 255, 255, 0.08)',
   },
 } as const satisfies Record<string, Record<string, Color>>;
 
