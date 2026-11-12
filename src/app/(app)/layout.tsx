@@ -62,7 +62,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </header>
 
         {/* Bottom padding lets every page scroll clear of the tab bar and Hidi's corner menu. */}
-        <main className="mx-auto max-w-[70rem] px-4 pt-4 pb-36 min-[400px]:px-5 sm:pt-20 sm:pb-24">{children}</main>
+        <main className="mx-auto max-w-[70rem] px-4 pt-4 pb-36 min-[400px]:px-5 sm:pt-[4.25rem] sm:pb-24">{children}</main>
       </AppShell>
       </OfflineStatusProvider>
       <MobileTabBar />

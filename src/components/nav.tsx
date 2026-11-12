@@ -73,11 +73,27 @@ export function AppShell({
 
   return (
     <div
-      className="min-h-dvh transition-[padding] duration-300 ease-out sm:pl-[var(--nav-w)]"
+      className="relative min-h-dvh transition-[padding] duration-300 ease-out sm:pl-[var(--nav-w)]"
       style={{ "--nav-w": collapsed ? NAV_WIDTH.closed : NAV_WIDTH.open } as React.CSSProperties}
     >
+      {/* Just outside the panel's top right edge, level with the logo, like ScholarXIV's. Part of
+          the page, not fixed, so it scrolls away with it instead of covering the content. A mouse
+          click doesn't leave it outlined; the keyboard focus ring stays. */}
+      <button
+        type="button"
+        onClick={(e) => {
+          toggle();
+          if (e.detail > 0) e.currentTarget.blur();
+        }}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? "Open sidebar" : "Close sidebar"}
+        title={collapsed ? "Open sidebar" : "Close sidebar"}
+        className="absolute top-8 left-[calc(var(--nav-w)-0.25rem)] z-20 hidden size-9 place-items-center rounded-full text-muted transition-[left,background-color,color] duration-300 ease-out hover:bg-mint hover:text-ocean sm:grid"
+      >
+        <SidebarIcon open={!collapsed} width={20} height={20} />
+      </button>
       {children}
-      <SideNav collapsed={collapsed} onToggle={toggle} avatar={avatar} isAdmin={isAdmin} theme={theme} />
+      <SideNav collapsed={collapsed} avatar={avatar} isAdmin={isAdmin} theme={theme} />
     </div>
   );
 }
@@ -90,13 +106,11 @@ export function AppShell({
  */
 function SideNav({
   collapsed,
-  onToggle,
   avatar,
   isAdmin,
   theme,
 }: {
   collapsed: boolean;
-  onToggle: () => void;
   avatar: AvatarConfig | null;
   isAdmin: boolean;
   theme: Theme;
@@ -109,33 +123,40 @@ function SideNav({
       className="fixed top-0 bottom-0 left-0 z-30 hidden p-3 transition-[width] duration-300 ease-out sm:block"
       style={{ width: "var(--nav-w)" }}
     >
-      {/* Outside the panel, at its top right: a side panel icon pointing the way it will move. */}
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={!collapsed}
-        aria-label={collapsed ? "Open sidebar" : "Close sidebar"}
-        title={collapsed ? "Open sidebar" : "Close sidebar"}
-        className="absolute top-[1.9rem] left-full grid size-10 place-items-center rounded-xl text-muted transition-colors hover:bg-mint hover:text-ocean"
-      >
-        <SidebarIcon open={!collapsed} width={22} height={22} />
-      </button>
-
       <nav
         aria-label="Main"
         className="clay flex h-full flex-col overflow-hidden rounded-[1.75rem] px-3 py-4"
       >
-        <div className="mb-4 flex h-11 shrink-0 items-center border-b border-line pb-4 box-content">
+        {/* Open: the logo, and the theme switch at the row's end (like ScholarXIV's moon).
+            Collapsed: just Hidi, who turns into the theme switch under the pointer. */}
+        <div className="mb-4 box-content flex h-11 shrink-0 items-center justify-between gap-2 border-b border-line pb-4">
           <OfflineTitle size="nav" iconOnly={collapsed}>
-            <Link
-              href="/"
-              title={collapsed ? "Today" : undefined}
-              className="group flex items-center gap-2 px-1.5 font-brand text-[1.6rem] leading-none font-semibold tracking-tight text-teal"
-            >
-              <Mascot brand size={38} float={false} className="shrink-0 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
-              <Label collapsed={collapsed}>Hidl</Label>
-            </Link>
+            {collapsed ? (
+              <ThemeToggle
+                serverTheme={theme}
+                decorative
+                iconSize={22}
+                className="group relative grid size-12 place-items-center rounded-2xl text-ocean transition-colors hover:bg-mint focus-visible:bg-mint"
+                iconClassName="absolute opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"
+              >
+                <Mascot brand size={38} float={false} className="transition-opacity duration-200 group-hover:opacity-0 group-focus-visible:opacity-0" />
+              </ThemeToggle>
+            ) : (
+              <Link
+                href="/"
+                className="group flex min-w-0 items-center gap-2 px-1.5 font-brand text-[1.6rem] leading-none font-semibold tracking-tight text-teal"
+              >
+                <Mascot brand size={38} float={false} className="shrink-0 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110" />
+                <Label collapsed={collapsed}>Hidl</Label>
+              </Link>
+            )}
           </OfflineTitle>
+          {!collapsed && (
+            <ThemeToggle
+              serverTheme={theme}
+              className="grid size-9 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-mint hover:text-ocean"
+            />
+          )}
         </div>
 
         <ul className="relative flex flex-col gap-1.5">
@@ -172,12 +193,6 @@ function SideNav({
           {isAdmin && (
             <FooterLink href="/admin" label="Admin" Icon={ShieldIcon} collapsed={collapsed} active={isActive(pathname, "/admin")} />
           )}
-          <ThemeToggle
-            serverTheme={theme}
-            className="flex h-11 items-center gap-3 rounded-2xl px-3.5 text-sm font-bold text-muted transition-colors hover:bg-mint hover:text-ocean"
-          >
-            <Label collapsed={collapsed}>Theme</Label>
-          </ThemeToggle>
           {/* Tells the form where the person was, so a bug report says which page. */}
           <FooterLink
             href={pathname === "/feedback" ? "/feedback" : `/feedback?from=${encodeURIComponent(pathname)}`}
