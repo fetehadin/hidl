@@ -111,14 +111,14 @@ export async function deleteAccount() {
     await removeUserFiles(supabase, user.id);
   } catch (error) {
     console.error("deleteAccount files", error);
-    redirect("/account?error=delete-failed");
+    redirect("/account?s=delete&error=delete-failed");
   }
 
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.deleteUser(user.id);
   if (error) {
     console.error("deleteAccount failed", error.message);
-    redirect("/account?error=delete-failed");
+    redirect("/account?s=delete&error=delete-failed");
   }
 
   await supabase.auth.signOut();
