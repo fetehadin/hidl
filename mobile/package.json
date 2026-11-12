@@ -31,6 +31,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
+    "patch-package": "^8.0.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -39,7 +40,8 @@
     "typecheck": "tsc --noEmit",
     "doctor": "expo-doctor",
     "build:apk": "npx eas-cli@latest build --platform android --profile preview",
-    "update": "npx eas-cli@latest update --channel preview --environment preview --platform android --auto"
+    "update": "npx eas-cli@latest update --channel preview --environment preview --platform android --auto",
+    "postinstall": "patch-package"
   },
   "private": true
 }
