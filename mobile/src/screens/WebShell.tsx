@@ -18,14 +18,17 @@ import { fetchFeed, saveFeedUrl } from '../feed';
 import { type Palette, THEME_KEY, type ThemeName, palettes, parseTheme } from '../theme';
 import { canCopyImages, canShareImages, copyImage, saveImage, shareImage } from '../share-image';
 import { biometricAvailable, canBiometric, checkBiometric } from '../biometric';
+import { type PickedMedia, canPickMedia, prepare } from '../media-picker';
+import { MediaPickerSheet } from './MediaPickerSheet';
 import { refreshWidgets } from '../widget/connect';
 import { PIN_SIZES, WIDGET_NAMES, widgetNameForSize } from '../widget/CountdownWidget';
 
 // Tells the page, before its own scripts run, what this app can do (read in app-widget-help.tsx
 // and the memories share sheet). `widgets` (how many hidl widgets are on the home screen) is filled
 // in once the page has loaded. `shareImage` only where this APK has the native share modules;
-// `biometric` where it has the fingerprint module (the page then asks whether one is enrolled).
-const ANNOUNCE = `window.hidlApp = { pinWidget: true, pinSizes: ${JSON.stringify(PIN_SIZES)}, widgets: null, shareImage: ${canShareImages}, saveImage: ${canShareImages}, copyImage: ${canCopyImages}, biometric: ${canBiometric} }; true;`;
+// `biometric` where it has the fingerprint module (the page then asks whether one is enrolled);
+// `pickMedia` where it has the photo picker (MediaPickerSheet).
+const ANNOUNCE = `window.hidlApp = { pinWidget: true, pinSizes: ${JSON.stringify(PIN_SIZES)}, widgets: null, shareImage: ${canShareImages}, saveImage: ${canShareImages}, copyImage: ${canCopyImages}, biometric: ${canBiometric}, pickMedia: ${canPickMedia} }; true;`;
 
 /** Answers the page with a "hidl-app" event. */
 function answerScript(detail: Record<string, unknown>) {
@@ -64,6 +67,8 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
   const [progress, setProgress] = useState(0);
   const [failed, setFailed] = useState(false);
   const errorCheck = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The photo picker the page asked for ("pick-media"): one photo (replacing one) or several.
+  const [picking, setPicking] = useState<{ multiple: boolean } | null>(null);
   const [ready, setReady] = useState(false);
   // Right after sign-in the web view first opens /auth/native. If it ends up on /login before any
   // real page has loaded, the session handoff failed: say so, instead of dropping back to sign-in
@@ -112,6 +117,10 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
       AsyncStorage.setItem(THEME_KEY, next).catch(() => {});
     }
     if (msg.type === 'pin-widget' && typeof msg.feedUrl === 'string') pinWidget(msg.feedUrl, msg.size);
+    if (msg.type === 'pick-media' && canPickMedia) {
+      setPicking({ multiple: (msg as { multiple?: unknown }).multiple !== false });
+      return;
+    }
     if (msg.type === 'share-image') {
       shareImage(msg.name, msg.data)
         .catch(() => false)
@@ -233,6 +242,20 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
     }
   }
 
+  /**
+   * Hands the picked photos to the page one by one (base64, photos shrunk to 2400px JPEG first), so
+   * the page's own upload sheet takes over: previews, caption, groups, save.
+   */
+  async function sendPicked(items: PickedMedia[]) {
+    const say = (detail: Record<string, unknown>) => web.current?.injectJavaScript(answerScript(detail));
+    say({ type: 'picked-start', count: items.length });
+    for (let i = 0; i < items.length; i++) {
+      const result = await prepare(items[i], i).catch(() => ({ ok: false as const, message: "A photo couldn't be read." }));
+      say(result.ok ? { type: 'picked-file', name: result.name, mime: result.mime, data: result.data } : { type: 'picked-error', message: result.message });
+    }
+    say({ type: 'picked-done', count: items.length });
+  }
+
   /** A load failed: show the offline screen only if no Hidl page (saved copy) is showing. */
   function onLoadError() {
     if (errorCheck.current) clearTimeout(errorCheck.current);
@@ -317,6 +340,21 @@ export function WebShell({ startUrl, onSignedOut }: { startUrl: string; onSigned
             <Text style={styles.retryText}>Sign in again</Text>
           </Pressable>
         </View>
+      )}
+
+      {picking && (
+        <MediaPickerSheet
+          palette={p}
+          multiple={picking.multiple}
+          onCancel={() => {
+            setPicking(null);
+            web.current?.injectJavaScript(answerScript({ type: 'picked-done', count: 0 }));
+          }}
+          onPick={(items) => {
+            setPicking(null);
+            void sendPicked(items);
+          }}
+        />
       )}
 
       {failed && (

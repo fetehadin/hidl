@@ -88,7 +88,25 @@
           ]
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Hidl shows your recent photos so you can add them to your journal.",
+          "savePhotosPermission": "Hidl saves pictures you share from it.",
+          "granularPermissions": [
+            "photo",
+            "video"
+          ]
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Hidl shows your photos so you can add them to your journal.",
+          "cameraPermission": "Hidl uses the camera to take a photo for your journal."
+        }
+      ]
     ],
     "extra": {
       "eas": {

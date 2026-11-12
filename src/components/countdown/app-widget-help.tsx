@@ -20,6 +20,8 @@ type HidlApp = {
   copyImage?: boolean;
   /** The app can show the phone's fingerprint prompt (src/lib/app-biometric.ts). */
   biometric?: boolean;
+  /** The app has its own photo picker (upload-sheet.tsx). */
+  pickMedia?: boolean;
 };
 type AppEvent = { type: "pin-widget"; ok: boolean; supported: boolean } | { type: "widgets"; count: number };
 
