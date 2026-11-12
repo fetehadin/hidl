@@ -1,5 +1,5 @@
 import { describe as group, expect, it } from "vitest";
-import { describe, orderCountdowns } from "../../mobile/src/widget/mood";
+import { describe, orderCountdowns, ROTATE_MS, smartOrder } from "../../mobile/src/widget/mood";
 import { pathFromLink, widgetIdFromLink } from "../../mobile/src/deep-link";
 
 // The phone widget's wording and Hidi's mood (mobile/src/widget/mood.ts).
@@ -104,5 +104,37 @@ group("widget settings link", () => {
     expect(widgetIdFromLink("hidl://widget?id=abc")).toBeUndefined();
     expect(widgetIdFromLink("https://example.com/widget?id=1")).toBeUndefined();
     expect(widgetIdFromLink(null)).toBeUndefined();
+  });
+});
+
+group("widget smart stack", () => {
+  const list = (...days: number[]) => days.map((d, i) => item(at(d * DAY), { id: `c${i}`, title: `T${i}` }));
+  const ids = (r: { items: { id?: string }[] }) => r.items.map((i) => i.id);
+
+  it("rotates which upcoming one is on top every few hours, keeping the soonest-first order after it", () => {
+    const items = list(5, 10, 20);
+    const slot = Math.floor(now / ROTATE_MS);
+    const r = smartOrder(items, now, TZ);
+    const top = slot % 3;
+    expect(ids(r)).toEqual([0, 1, 2].map((k) => `c${(top + k) % 3}`));
+    expect(r.positions).toEqual([0, 1, 2].map((k) => (top + k) % 3));
+    const later = smartOrder(items, now + ROTATE_MS, TZ);
+    expect(later.items[0].id).toBe(`c${(top + 1) % 3}`);
+  });
+
+  it("puts one that's today or under a day away on top", () => {
+    const items = [item(at(10 * DAY), { id: "far" }), item(at(5 * HOUR), { id: "soon" }), item(at(3 * DAY), { id: "mid" })];
+    expect(smartOrder(items, now, TZ).items[0].id).toBe("soon");
+  });
+
+  it("keeps a countdown flipped to on top for a while, then goes back to rotating", () => {
+    const items = [item(at(2 * HOUR), { id: "urgent" }), item(at(9 * DAY), { id: "picked" })];
+    expect(smartOrder(items, now, TZ, { id: "picked", at: now - HOUR }).items[0].id).toBe("picked");
+    expect(smartOrder(items, now, TZ, { id: "picked", at: now - 2 * ROTATE_MS }).items[0].id).toBe("urgent");
+  });
+
+  it("leaves one or none alone", () => {
+    expect(ids(smartOrder(list(3), now, TZ))).toEqual(["c0"]);
+    expect(smartOrder([], now, TZ).items).toEqual([]);
   });
 });

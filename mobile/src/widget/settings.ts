@@ -2,11 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * One widget's own choices, kept on the phone: which countdowns it leaves out (so a countdown
- * added later shows up by itself), its theme, and which countdown it's showing (by id, so it
- * stays put after a refresh even if the list changes).
+ * added later shows up by itself), its theme, and the countdown last flipped to on an older APK
+ * (by id, with when: it stays on top for a while, see `smartOrder`).
  */
 export type WidgetTheme = 'light' | 'dark' | 'system';
-export type WidgetSettings = { exclude: string[]; theme: WidgetTheme; current: string | null };
+export type WidgetSettings = { exclude: string[]; theme: WidgetTheme; current: string | null; pickedAt?: number };
 
 const key = (widgetId: number) => `hidl.widget.${widgetId}`;
 // Before per-widget settings, only the page number was kept.
@@ -23,6 +23,7 @@ export async function readSettings(widgetId: number): Promise<WidgetSettings> {
       exclude: Array.isArray(s.exclude) ? s.exclude.filter((x): x is string => typeof x === 'string') : [],
       theme: s.theme === 'light' || s.theme === 'dark' ? s.theme : 'system',
       current: typeof s.current === 'string' ? s.current : null,
+      ...(typeof s.pickedAt === 'number' ? { pickedAt: s.pickedAt } : {}),
     };
   } catch {
     return DEFAULT_SETTINGS;
