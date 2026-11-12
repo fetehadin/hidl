@@ -20,7 +20,7 @@ async function reachable() {
  * reached, then "Updating…" while the page catches up once it can. Nothing when all is well.
  *
  * Offline, pages open from the copies the service worker saved (public/sw.js). A saved copy says
- * so with <meta name="hidl-saved-at">; it refreshes itself only after the server has answered a
+ * so with window.__hidlSavedAt; it refreshes itself only after the server has answered a
  * health check, because a phone can be "online" (on Wi-Fi) with no internet, and refreshing then
  * would only fail. Moving between pages while waiting goes through whole-page loads, which the
  * worker answers from those copies: Next's own in-app moves would just wait for the network.
@@ -32,7 +32,8 @@ export function OfflineStatus() {
   const [updating, startUpdate] = useTransition();
 
   useEffect(() => {
-    let savedCopy = document.querySelector('meta[name="hidl-saved-at"]');
+    // Set by the service worker on a saved copy (public/sw.js).
+    let savedCopy = Boolean((window as { __hidlSavedAt?: number }).__hidlSavedAt);
     let timer: number | undefined;
     let live = true;
 
@@ -51,11 +52,11 @@ export function OfflineStatus() {
         return;
       }
       if (!live) return;
-      const behind = waiting.current || savedCopy !== null;
+      const behind = waiting.current || savedCopy;
       set("ok");
       if (behind) {
-        savedCopy?.remove();
-        savedCopy = null;
+        savedCopy = false;
+        (window as { __hidlSavedAt?: number }).__hidlSavedAt = 0;
         startUpdate(() => router.refresh());
       }
     };

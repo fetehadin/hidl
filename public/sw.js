@@ -11,7 +11,7 @@
 // 3. Keep a saved copy of the main pages (PAGE_PATHS: Today, Letters list, Countdown, Calendar,
 //    Memories, Leaderboard) and the app's own files (/_next/static), so they open with no network.
 //    Pages always come from the network first; the saved copy is used only when the network fails
-//    or takes longer than PAGE_TIMEOUT_MS. A served copy carries <meta name="hidl-saved-at">, and
+//    or takes longer than PAGE_TIMEOUT_MS. A served copy sets window.__hidlSavedAt, and
 //    the page then refreshes itself once the network is back (src/components/offline-status.tsx).
 //    Only pages marked <meta name="hidl-offline"> (the signed-in layout) are saved, never a letter
 //    (/letters/<id>), Account or Admin.
@@ -199,7 +199,10 @@ async function savedPage(url) {
   const hit = (await cache.match(pageKey(url))) ?? (await cache.match(url.pathname));
   if (!hit) return null;
   const saved = hit.headers.get("x-hidl-saved") ?? "0";
-  const html = (await hit.text()).replace(/<head[^>]*>/, (head) => `${head}<meta name="hidl-saved-at" content="${saved}">`);
+  // A flag the page reads (offline-status.tsx). A script, not a <meta>: React tidies <head> while
+  // it hydrates and would remove an extra tag before the page could read it.
+  const flag = `<script>window.__hidlSavedAt=${Number(saved) || 0}</script>`;
+  const html = (await hit.text()).replace(/<head[^>]*>/, (head) => head + flag);
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
 }
 
@@ -252,6 +255,30 @@ async function refreshSavedPage(url) {
   }
 }
 
+/**
+ * Page data for a move or a refresh inside Hidl (Next's RSC requests). When it fails, Next reloads
+ * the whole page, and a saved copy that refreshes itself (a countdown that just finished, the
+ * media link refresher) would then reload over and over while offline. So with no network the
+ * request waits, retrying every few seconds, and answers once the network is back. The browser
+ * gives up on it after a few minutes at most; the page then reloads once from its saved copy.
+ */
+async function pageData(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    const giveUpAt = Date.now() + 4 * 60 * 1000;
+    while (Date.now() < giveUpAt) {
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      try {
+        return await fetch(request);
+      } catch {
+        // Still offline.
+      }
+    }
+    return Response.error();
+  }
+}
+
 // ---------------------------------------------------------------------------------------------
 // The app's own files
 
@@ -292,9 +319,10 @@ self.addEventListener("fetch", (event) => {
       event.respondWith(staticFile(event).catch(() => fetch(request)));
       return;
     }
-    // A move to one of the main pages (not a prefetch): refresh its saved copy in the background.
-    if (request.headers.get("rsc") === "1" && !request.headers.get("next-router-prefetch") && isSavablePage(url)) {
-      event.waitUntil(refreshSavedPage(url));
+    if (request.headers.get("rsc") === "1" && !request.headers.get("next-router-prefetch")) {
+      // A move to one of the main pages: refresh its saved copy in the background.
+      if (isSavablePage(url)) event.waitUntil(refreshSavedPage(url));
+      event.respondWith(pageData(request));
     }
     return;
   }
