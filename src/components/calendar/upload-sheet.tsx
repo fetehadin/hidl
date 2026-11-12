@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { addPhoto, discardUpload, photoSpace, prepareUpload, replacePhoto } from "@/actions/photos";
+import { CameraIcon } from "@/components/icons";
 import { PhotoSpaceNotice } from "@/components/photo-space-notice";
 import { dayLabel } from "@/lib/calendar";
 import { type ProcessedMedia, processMedia } from "@/lib/image";
@@ -236,6 +237,30 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
             </span>
           </label>
         )}
+        {items.length < maxFiles && (
+          // Phones and tablets: straight to the camera, or the gallery (the box above does the
+          // same as "Gallery"). capture= opens the camera app; desktops ignore it, so it's hidden there.
+          <div className="mt-2 hidden grid-cols-2 gap-2 pointer-coarse:grid">
+            <label htmlFor={`${inputId}-camera`} className={`btn btn-primary ${busy ? "pointer-events-none opacity-70" : ""}`}>
+              <CameraIcon width={18} height={18} /> Take a photo
+            </label>
+            <label htmlFor={inputId} className={`btn btn-ghost ${busy ? "pointer-events-none opacity-70" : ""}`}>
+              <GalleryIcon /> Gallery
+            </label>
+          </div>
+        )}
+        <input
+          id={`${inputId}-camera`}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="sr-only"
+          disabled={busy || items.length >= maxFiles}
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
         <input
           id={inputId}
           type="file"
@@ -328,3 +353,14 @@ export function UploadSheet({ mode, initialCaption, onClose }: { mode: Mode; ini
   );
 }
 
+
+
+function GalleryIcon() {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="m21 16-5-5-8 8" />
+    </svg>
+  );
+}
