@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PHOTO_GROUP_NAME_MAX, cleanGroupName, groupNameProblem, moveInOrder } from "@/lib/photo-groups";
+import { PHOTO_GROUP_NAME_MAX, cleanGroupName, dropIndex, groupNameProblem, moveInOrder, moveToIndex } from "@/lib/photo-groups";
 
 describe("photo group names", () => {
   it("tidies spaces", () => {
@@ -29,5 +29,30 @@ describe("moveInOrder", () => {
     expect(moveInOrder(["a", "b", "c"], "b", 1)).toEqual(["a", "c", "b"]);
     expect(moveInOrder(["a", "b", "c"], "a", -1)).toEqual(["a", "b", "c"]);
     expect(moveInOrder(["a", "b", "c"], "c", 1)).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("moveToIndex", () => {
+  it("lifts one item out and drops it at the new place", () => {
+    expect(moveToIndex(["a", "b", "c", "d"], 0, 2)).toEqual(["b", "c", "a", "d"]);
+    expect(moveToIndex(["a", "b", "c", "d"], 3, 0)).toEqual(["d", "a", "b", "c"]);
+    expect(moveToIndex(["a", "b", "c"], 1, 1)).toEqual(["a", "b", "c"]);
+    expect(moveToIndex(["a", "b", "c"], 0, 99)).toEqual(["b", "c", "a"]);
+  });
+});
+
+describe("dropIndex", () => {
+  // Three 50px rows: middles at 25, 75, 125.
+  const middles = [25, 75, 125];
+  it("stays put until the dragged row passes a neighbour's middle", () => {
+    expect(dropIndex(middles, 0, 25)).toBe(0);
+    expect(dropIndex(middles, 0, 74)).toBe(0);
+    expect(dropIndex(middles, 0, 76)).toBe(1);
+    expect(dropIndex(middles, 0, 200)).toBe(2);
+  });
+  it("moves up past rows above it", () => {
+    expect(dropIndex(middles, 2, 125)).toBe(2);
+    expect(dropIndex(middles, 2, 70)).toBe(1);
+    expect(dropIndex(middles, 2, -10)).toBe(0);
   });
 });
