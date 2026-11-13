@@ -163,6 +163,10 @@ export function MemoryBoard({
   const [editingGroups, setEditingGroups] = useState(false);
   /** The small "Gather photos" menu above the controls (by day / by group / edit groups). */
   const [menuOpen, setMenuOpen] = useState(false);
+  /** By group: the list of groups to fly to, opened from the group button. */
+  const [pickerOpen, setPickerOpen] = useState(false);
+  /** By group: the island the group button goes to; null = the first one (the middle of the board). */
+  const [pickedKey, setPickedKey] = useState<string | null>(null);
   const [upload, setUpload] = useState<UploadMode | null>(null);
   const returnFocusTo = useRef<HTMLElement | null>(null);
 
@@ -343,6 +347,8 @@ export function MemoryBoard({
     cam.current = { tx: board.clientWidth / 2, ty: board.clientHeight / 2, scale: c.scale };
     apply();
     setView("home");
+    setPickedKey(null);
+    setPickerOpen(false);
     // Only when the grouping changes, not when the photos refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [by]);
@@ -573,15 +579,24 @@ export function MemoryBoard({
     stopAnim();
     setHint(false);
     setView(home ? "home" : null);
+    if (home) setPickedKey(null);
     move();
     apply();
   }
 
-  /** The camera buttons: the whole board, or back to its middle island (newest day / first group). */
+  /** The camera buttons: the whole board, or back to its middle island (newest day). */
   function showView(key: "all" | "home") {
     if (key === "all") fitAll();
     else flyTo(0, 0, 1);
     setView(key);
+  }
+
+  /** By group: fly to one group's island, and make it what the group button stands for. */
+  function showGroup(cluster: MemoryCluster<PhotoView>) {
+    flyTo(cluster.x, cluster.y, Math.max(cam.current.scale, 0.8));
+    setPickedKey(cluster.key);
+    setView("home");
+    setPickerOpen(false);
   }
 
   function openPhoto(cluster: MemoryCluster<PhotoView>, id: string, trigger: HTMLElement) {
@@ -607,6 +622,12 @@ export function MemoryBoard({
     setUpload(null);
     returnFocusTo.current?.focus({ preventScroll: true });
   }
+
+  const picked = (pickedKey && clusters.find((c) => c.key === pickedKey)) || clusters[0];
+  const islandName = (key: string) => (key === UNSORTED ? "Not in a group" : (groupNames.get(key) ?? "Group"));
+  const groupLabel = picked ? islandName(picked.key) : "Groups";
+  /** Groups with no photos yet have no island to fly to; listed greyed out so none seem lost. */
+  const emptyGroups = groups.filter((g) => !clusters.some((c) => c.key === g.id));
 
   const lightboxPhotos = lightbox ? lightbox.ids.flatMap((id) => photoById.get(id) ?? []) : [];
   const lightboxIndex = lightbox ? Math.min(lightbox.index, lightboxPhotos.length - 1) : -1;
@@ -730,11 +751,66 @@ export function MemoryBoard({
               </div>
             </>
           )}
+          {pickerOpen && by === "group" && (
+            <>
+              <button type="button" aria-hidden tabIndex={-1} className="fixed inset-0 z-0 cursor-default" onClick={() => setPickerOpen(false)} />
+              <div
+                id="memory-group-picker"
+                role="menu"
+                aria-label="Go to a group"
+                className="clay absolute bottom-full left-0 z-10 mb-2 flex max-h-[min(22rem,50vh)] w-64 flex-col p-1.5"
+                onKeyDown={(e) => e.key === "Escape" && setPickerOpen(false)}
+              >
+                <p className="px-3 pt-1.5 pb-1 text-[11px] font-extrabold tracking-wider text-muted uppercase">Go to a group</p>
+                <div className="min-h-0 overflow-y-auto overscroll-contain">
+                  {clusters.map((c) => {
+                    const current = view === "home" && c.key === picked?.key;
+                    return (
+                      <button
+                        key={c.key}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={current}
+                        onClick={() => showGroup(c)}
+                        className={`flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm font-bold ${
+                          current ? "bg-teal text-accent-ink" : "text-ink-soft hover:bg-paper-deep"
+                        }`}
+                      >
+                        <span className="min-w-0 flex-1 truncate">{islandName(c.key)}</span>
+                        <span className={`shrink-0 text-xs font-semibold ${current ? "" : "text-muted"}`}>{c.photos.length}</span>
+                        {current && <span aria-hidden>✓</span>}
+                      </button>
+                    );
+                  })}
+                  {emptyGroups.map((g) => (
+                    <div key={g.id} role="menuitem" aria-disabled className="flex items-center gap-2 px-3 py-2 text-sm font-bold text-muted">
+                      <span className="min-w-0 flex-1 truncate">{g.name}</span>
+                      <span className="shrink-0 text-xs font-semibold">empty</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setPickerOpen(false);
+                    setEditingGroups(true);
+                  }}
+                  className="mt-1 w-full shrink-0 rounded-full px-3 py-2 text-left text-sm font-bold text-ocean hover:bg-mint"
+                >
+                  {groups.length === 0 ? "+ Make your first group" : "Edit groups"}
+                </button>
+              </div>
+            </>
+          )}
           <div className="clay relative flex items-center gap-1 p-1.5" role="toolbar" aria-label="Board controls">
             <button
               type="button"
               className={`grid size-10 place-items-center rounded-full hover:bg-paper-deep ${by === "group" ? "text-accent" : "text-ink-soft"}`}
-              onClick={() => setMenuOpen((o) => !o)}
+              onClick={() => {
+                setPickerOpen(false);
+                setMenuOpen((o) => !o);
+              }}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               aria-controls={menuOpen ? "memory-gather-menu" : undefined}
@@ -744,19 +820,42 @@ export function MemoryBoard({
               <GatherIcon width={20} height={20} />
             </button>
             <span className="mx-0.5 h-6 w-px bg-line" aria-hidden />
-            {(["all", "home"] as const).map((key) => (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={view === key}
-                className={`rounded-full px-3.5 py-2 text-sm font-bold transition-colors ${
-                  view === key ? "bg-teal text-accent-ink" : "text-ink-soft hover:bg-paper-deep"
-                }`}
-                onClick={() => showView(key)}
-              >
-                {key === "all" ? "All" : by === "group" ? "First group" : "Latest"}
-              </button>
-            ))}
+            {(["all", "home"] as const).map((key) =>
+              key === "home" && by === "group" ? (
+                <button
+                  key={key}
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={pickerOpen}
+                  aria-controls={pickerOpen ? "memory-group-picker" : undefined}
+                  aria-label={`Go to a group: ${groupLabel}`}
+                  className={`flex max-w-[11rem] items-center gap-1 rounded-full py-2 pr-2.5 pl-3.5 text-sm font-bold transition-colors ${
+                    view === key ? "bg-teal text-accent-ink" : "text-ink-soft hover:bg-paper-deep"
+                  }`}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setPickerOpen((o) => !o);
+                  }}
+                >
+                  <span className="truncate">{groupLabel}</span>
+                  <svg aria-hidden viewBox="0 0 20 20" width={16} height={16} className={`shrink-0 transition-transform ${pickerOpen ? "rotate-180" : ""}`}>
+                    <path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={view === key}
+                  className={`rounded-full px-3.5 py-2 text-sm font-bold transition-colors ${
+                    view === key ? "bg-teal text-accent-ink" : "text-ink-soft hover:bg-paper-deep"
+                  }`}
+                  onClick={() => showView(key)}
+                >
+                  {key === "all" ? "All" : "Latest"}
+                </button>
+              ),
+            )}
             <span className="mx-0.5 h-6 w-px bg-line" aria-hidden />
             <button
               type="button"
