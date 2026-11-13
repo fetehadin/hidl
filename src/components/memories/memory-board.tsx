@@ -677,7 +677,7 @@ export function MemoryBoard({
       </div>
 
       {/* Overlay: title + controls. The wrapper ignores the pointer so the board stays draggable underneath. */}
-      <div className="pointer-events-none fixed inset-x-0 top-[calc(4.5rem+var(--safe-top))] z-10 mx-auto flex max-w-[70rem] justify-between px-4 min-[400px]:px-5 sm:top-[5.5rem] sm:left-[var(--nav-w,0px)]">
+      <div className="pointer-events-none fixed inset-x-0 top-[calc(4.5rem+var(--safe-top))] z-10 mx-auto flex max-w-[70rem] justify-between px-4 min-[400px]:px-5 sm:top-[5.5rem] sm:left-[var(--nav-w,0px)] sm:pl-12">
         <div className="clay pointer-events-auto px-4 py-2.5 sm:py-3">
           <p className="eyebrow">memory lane</p>
           <h1 className="font-title text-xl leading-tight font-medium sm:text-2xl">Memories</h1>
@@ -689,7 +689,7 @@ export function MemoryBoard({
       <div aria-hidden className="memory-sky-fade pointer-events-none fixed inset-x-0 top-0 z-[1] h-28" />
 
       <div
-        className="pointer-events-none fixed inset-x-0 z-10 mx-auto flex max-w-[70rem] flex-col items-start gap-3 px-4 min-[400px]:px-5 bottom-[calc(5.75rem+var(--safe-bottom))] sm:left-[var(--nav-w,0px)] sm:bottom-6 sm:flex-row sm:items-end sm:justify-between sm:pr-24"
+        className="pointer-events-none fixed inset-x-0 z-10 mx-auto flex max-w-[70rem] flex-col items-start gap-3 px-4 min-[400px]:px-5 bottom-[calc(5.75rem+var(--safe-bottom))] sm:left-[var(--nav-w,0px)] sm:bottom-6 sm:flex-row sm:items-end sm:justify-between sm:pr-24 sm:pl-12"
       >
         <div
           aria-hidden={!hint}
