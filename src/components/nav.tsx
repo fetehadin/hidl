@@ -76,9 +76,10 @@ export function AppShell({
       className="relative min-h-dvh transition-[padding] duration-300 ease-out sm:pl-[var(--nav-w)]"
       style={{ "--nav-w": collapsed ? NAV_WIDTH.closed : NAV_WIDTH.open } as React.CSSProperties}
     >
-      {/* Just outside the panel's top right edge, level with the logo, like ScholarXIV's. Part of
-          the page, not fixed, so it scrolls away with it instead of covering the content. A mouse
-          click doesn't leave it outlined; the keyboard focus ring stays. */}
+      {/* Just outside the panel's top right edge, level with the logo, gliding along as the panel
+          opens and closes. Pinned (fixed), so it's always within reach; it sits in a small card
+          tile so it stays readable when the page scrolls under it. A mouse click doesn't leave it
+          outlined; the keyboard focus ring stays. */}
       <button
         type="button"
         onClick={(e) => {
@@ -88,7 +89,7 @@ export function AppShell({
         aria-expanded={!collapsed}
         aria-label={collapsed ? "Open sidebar" : "Close sidebar"}
         title={collapsed ? "Open sidebar" : "Close sidebar"}
-        className="absolute top-8 left-[calc(var(--nav-w)-0.25rem)] z-20 hidden size-9 place-items-center rounded-full text-muted transition-[left,background-color,color] duration-300 ease-out hover:bg-mint hover:text-ocean sm:grid"
+        className="fixed top-8 left-[calc(var(--nav-w)-0.25rem)] z-30 hidden size-9 place-items-center rounded-xl border border-line bg-card/90 text-ocean shadow-[0_2px_8px_rgb(var(--shadow)/0.08)] backdrop-blur-sm transition-[left,background-color] duration-300 ease-out hover:bg-mint sm:grid"
       >
         <SidebarIcon open={!collapsed} width={20} height={20} />
       </button>
@@ -100,8 +101,8 @@ export function AppShell({
 
 /**
  * The desktop nav: a panel on the left edge, the Hidl logo at its top (or, offline, the
- * connection status in its place). The open/close button sits just outside the panel's top
- * right edge. Collapsing slides the labels away and leaves only the icons and Hidi; expanding
+ * connection status in its place). The open/close button is pinned just outside the panel's
+ * top right edge. Collapsing slides the labels away and leaves only the icons and Hidi; expanding
  * slides them back. The active page sits in a pill that glides between items.
  */
 function SideNav({
