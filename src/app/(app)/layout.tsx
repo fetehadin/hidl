@@ -61,8 +61,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
 
-        {/* Bottom padding lets every page scroll clear of the tab bar and Hidi's corner menu. */}
-        <main className="mx-auto max-w-[70rem] px-4 pt-4 pb-36 min-[400px]:px-5 sm:pt-[4.25rem] sm:pb-24">{children}</main>
+        {/* Bottom padding lets every page scroll clear of the tab bar and Hidi's corner menu. On
+            sm+ the wider left padding is the pinned sidebar button's gutter (nav.tsx), so the page
+            never scrolls under it. */}
+        <main className="mx-auto max-w-[70rem] px-4 pt-4 pb-36 min-[400px]:px-5 sm:pt-[4.25rem] sm:pb-24 sm:pl-12">{children}</main>
       </AppShell>
       </OfflineStatusProvider>
       <MobileTabBar />

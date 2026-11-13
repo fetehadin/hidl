@@ -77,9 +77,9 @@ export function AppShell({
       style={{ "--nav-w": collapsed ? NAV_WIDTH.closed : NAV_WIDTH.open } as React.CSSProperties}
     >
       {/* Just outside the panel's top right edge, level with the logo, gliding along as the panel
-          opens and closes. Pinned (fixed), so it's always within reach; it sits in a small card
-          tile so it stays readable when the page scrolls under it. A mouse click doesn't leave it
-          outlined; the keyboard focus ring stays. */}
+          opens and closes. Pinned (fixed), so it's always within reach. It sits in its own gutter:
+          <main> starts past it (sm:pl-12 in the app layout), so the page never scrolls under it.
+          A mouse click doesn't leave it outlined; the keyboard focus ring stays. */}
       <button
         type="button"
         onClick={(e) => {
@@ -89,7 +89,7 @@ export function AppShell({
         aria-expanded={!collapsed}
         aria-label={collapsed ? "Open sidebar" : "Close sidebar"}
         title={collapsed ? "Open sidebar" : "Close sidebar"}
-        className="fixed top-8 left-[calc(var(--nav-w)-0.25rem)] z-30 hidden size-9 place-items-center rounded-xl border border-line bg-card/90 text-ocean shadow-[0_2px_8px_rgb(var(--shadow)/0.08)] backdrop-blur-sm transition-[left,background-color] duration-300 ease-out hover:bg-mint sm:grid"
+        className="fixed top-8 left-[calc(var(--nav-w)-0.25rem)] z-30 hidden size-9 place-items-center rounded-full text-muted transition-[left,background-color,color] duration-300 ease-out hover:bg-mint hover:text-ocean sm:grid"
       >
         <SidebarIcon open={!collapsed} width={20} height={20} />
       </button>
