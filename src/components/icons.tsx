@@ -87,6 +87,18 @@ export const EllipsisIcon = (p: IconProps) => (
   </svg>
 );
 
+/** Six dots: "hold here and drag". */
+export const GripIcon = (p: IconProps) => (
+  <svg {...base} fill="currentColor" stroke="none" {...p}>
+    <circle cx="9" cy="6" r="1.6" />
+    <circle cx="15" cy="6" r="1.6" />
+    <circle cx="9" cy="12" r="1.6" />
+    <circle cx="15" cy="12" r="1.6" />
+    <circle cx="9" cy="18" r="1.6" />
+    <circle cx="15" cy="18" r="1.6" />
+  </svg>
+);
+
 export const PencilIcon = (p: IconProps) => (
   <svg {...base} {...p}>
     <path d="M4 20l1-4.5L16 4.5a1.5 1.5 0 0 1 2.1 0l1.4 1.4a1.5 1.5 0 0 1 0 2.1L8.5 19 4 20Z" />

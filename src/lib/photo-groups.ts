@@ -33,3 +33,24 @@ export function moveInOrder(ids: readonly string[], id: string, delta: -1 | 1) {
   [next[i], next[j]] = [next[j], next[i]];
   return next;
 }
+
+/** Moves the item at `from` so it ends up at `to`; the rest keep their order. */
+export function moveToIndex<T>(items: readonly T[], from: number, to: number): T[] {
+  const next = [...items];
+  if (from < 0 || from >= next.length) return next;
+  const [item] = next.splice(from, 1);
+  next.splice(Math.max(0, Math.min(to, next.length)), 0, item);
+  return next;
+}
+
+/**
+ * Where a dragged row would land: the number of other rows whose middle is above the dragged
+ * row's middle. `middles` are the rows' middles before the drag started, top to bottom.
+ */
+export function dropIndex(middles: readonly number[], from: number, middle: number) {
+  let at = 0;
+  middles.forEach((m, i) => {
+    if (i !== from && m < middle) at++;
+  });
+  return at;
+}
